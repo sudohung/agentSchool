@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>滚动的球</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(180deg, #87CEEB 0%, #E0F6FF 100%);
+        }
+
+        .container {
+            position: relative;
+            width: 800px;
+            height: 200px;
+            background: linear-gradient(180deg, #90EE90 0%, #228B22 100%);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .ball {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: radial-gradient(circle at 30% 30%, #FF6B6B, #C0392B);
+            border-radius: 50%;
+            top: 50%;
+            transform: translateY(-50%);
+            left: 0;
+            animation: roll 3s ease-in-out infinite;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .ball::before {
+            content: '';
+            position: absolute;
+            width: 15px;
+            height: 8px;
+            background: rgba(255,255,255,0.4);
+            border-radius: 50%;
+            top: 8px;
+            left: 10px;
+        }
+
+        @keyframes roll {
+            0% {
+                left: 0;
+                transform: translateY(-50%) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-50%) rotate(360deg);
+            }
+            100% {
+                left: calc(100% - 50px);
+                transform: translateY(-50%) rotate(720deg);
+            }
+        }
+
+        .sun {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle, #FFD700, #FFA500);
+            border-radius: 50%;
+            top: 20px;
+            right: 40px;
+            box-shadow: 0 0 40px #FFD700;
+        }
+
+        .cloud {
+            position: absolute;
+            background: white;
+            border-radius: 50px;
+            opacity: 0.9;
+        }
+
+        .cloud:nth-child(1) {
+            width: 80px;
+            height: 30px;
+            top: 30px;
+            left: 100px;
+        }
+
+        .cloud:nth-child(2) {
+            width: 60px;
+            height: 25px;
+            top: 50px;
+            left: 300px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sun"></div>
+        <div class="cloud"></div>
+        <div class="cloud"></div>
+        <div class="ball"></div>
+    </div>
+</body>
+</html>
