@@ -1,5 +1,5 @@
 {
-  "device": "cpu",
+  "device": "nv_gpu",
   "cpu": {
     "backend": "sentence_transformers",
     "model_name": "sentence-transformers/all-MiniLM-L6-v2",
@@ -11,6 +11,12 @@
     "tokenizer": "BAAI/bge-base-zh-v1.5",
     "dim": 768
   },
+  "nv_gpu": {
+    "gpu_id": 0,
+    "backend": "sentence_transformers",
+    "model_path": "C:\\Users\\hung\\Desktop\\workspace\\modelscope\\bge-m3",
+    "dim": 1024
+  },
   "faiss": {
     "cpu": {
       "index_path": "./faiss/cpu/faiss.index",
@@ -19,6 +25,10 @@
     "gpu": {
       "index_path": "./faiss/gpu/faiss.index",
       "meta_path": "./faiss/gpu/faiss_meta.json"
+    },
+    "nv_gpu": {
+      "index_path": "./faiss/nv_gpu/faiss.index",
+      "meta_path": "./faiss/nv_gpu/faiss_meta.json"
     }
 
   }

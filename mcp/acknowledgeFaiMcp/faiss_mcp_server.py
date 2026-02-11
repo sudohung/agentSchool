@@ -59,20 +59,29 @@ def _read_embedder_config():
     except Exception:
         logger.debug("Failed to read embedder_config.json, falling back to env vars")
     # env vars override file
-    env_device = os.getenv("FAISS_EMBEDDER_DEVICE")
+    env_device = os.getenv("FAISS_DEVICE", os.getenv("FAISS_EMBEDDER_DEVICE"))  # Support both new and old env var names
     env_model = os.getenv("FAISS_EMBEDDER_MODEL")
     env_dim = os.getenv("FAISS_DIM")
     index_path = os.getenv('FAISS_INDEX_PATH')
     meta_path = os.getenv('FAISS_META_PATH')
+    gpu_id = os.getenv('FAISS_GPU_ID')
 
     # If an env device is set, respect it
     if env_device:
         cfg['device'] = env_device
 
+    # Set GPU ID if provided
+    if gpu_id:
+        cfg['gpu_id'] = int(gpu_id)
+
     # Backwards-compatible env var for single-model workflows
     if env_model:
-        cfg['cpu'] = cfg.get('cpu', {})
-        cfg['cpu']['model_name'] = env_model
+        if env_device == 'cuda':
+            cfg['cuda'] = cfg.get('cuda', {})
+            cfg['cuda']['model_name'] = env_model
+        else:
+            cfg['cpu'] = cfg.get('cpu', {})
+            cfg['cpu']['model_name'] = env_model
     if env_dim:
         try:
             cfg['dim'] = int(env_dim)
@@ -87,16 +96,184 @@ def _read_embedder_config():
     return cfg
 
 
-def get_embedder(model_name: str = None):
+def get_embedder_for_AMD_gpu(cfg=None, device=None):
+    # Try to use ONNX Runtime (DirectML) for GPU
+    try:
+        import onnxruntime as ort
+    except Exception:
+        raise ImportError("onnxruntime is required for GPU embedder. Install with `pip install onnxruntime-directml`")
+
+    # Expect cfg['gpu'] to have onnx_path and tokenizer
+    gpu_cfg = cfg.get(device, {})
+
+    logger.info(f"Using gpu_cfg: {gpu_cfg}")
+
+    onnx_path = gpu_cfg.get('onnx_path')
+    # Resolve relative ONNX paths relative to this module file so configs may use
+    # paths like "./model/foo.onnx" without relying on the current working dir.
+    if onnx_path and not os.path.isabs(onnx_path):
+        onnx_path = os.path.join(os.path.dirname(__file__), onnx_path)
+        onnx_path = os.path.normpath(onnx_path)
+    tokenizer_model = gpu_cfg.get('tokenizer')
+    if not onnx_path or not tokenizer_model:
+        raise ValueError("GPU embedder requires 'onnx_path' and 'tokenizer' configured in embedder_config.json")
+
+    # Build a robust ONNX-based embedder wrapper that adapts to input/output names
+    class ONNXEmbedder:
+        def __init__(self, onnx_path, tokenizer_model):
+            # Lazy import heavy deps
+            from transformers import AutoTokenizer
+
+            self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_model, use_fast=True)
+
+            # Choose provider: prefer DirectML (Windows), then CUDA, then CPU
+            providers = ort.get_all_providers()
+            chosen = None
+            if 'DmlExecutionProvider' in providers:
+                chosen = ['DmlExecutionProvider']
+            elif 'CUDAExecutionProvider' in providers:
+                chosen = ['CUDAExecutionProvider']
+            else:
+                chosen = ['CPUExecutionProvider']
+
+            self.session = ort.InferenceSession(onnx_path, providers=chosen)
+
+            # Inspect expected input/output names
+            self.input_names = [inp.name for inp in self.session.get_inputs()]
+            self.output_names = [out.name for out in self.session.get_outputs()]
+
+        def _prepare_inputs(self, texts):
+            # Tokenize to numpy arrays
+            toks = self.tokenizer(texts, padding=True, truncation=True, return_tensors='np')
+
+            ort_inputs = {}
+            for name in self.input_names:
+                lname = name.lower()
+                if lname in toks:
+                    v = toks[lname]
+                elif 'input_ids' in lname and 'input_ids' in toks:
+                    v = toks['input_ids']
+                elif 'attention' in lname and 'attention_mask' in toks:
+                    v = toks['attention_mask']
+                elif 'token_type' in lname and 'token_type_ids' in toks:
+                    v = toks['token_type_ids']
+                else:
+                    # Try to find compatible tensor by dtype/shape; fallback to zeros
+                    # If input is integer type, provide zeros of appropriate shape
+                    inp = next(i for i in self.session.get_inputs() if i.name == name)
+                    shape = [s if isinstance(s, int) else len(texts) for s in inp.shape]
+                    import numpy as _np
+                    if inp.type.startswith('tensor(int') or 'int' in inp.type:
+                        v = _np.zeros(shape, dtype=_np.int64)
+                    else:
+                        v = _np.zeros(shape, dtype=_np.float32)
+                # Ensure correct dtype
+                import numpy as _np
+                if v.dtype.kind == 'i':
+                    v = v.astype(_np.int64)
+                elif v.dtype.kind == 'f':
+                    v = v.astype(_np.float32)
+                ort_inputs[name] = v
+
+            return ort_inputs
+
+        def encode(self, texts, convert_to_numpy=True):
+            # Accept a single string or list
+            single = False
+            if isinstance(texts, str):
+                texts = [texts]
+                single = True
+
+            ort_inputs = self._prepare_inputs(texts)
+
+            outs = self.session.run(self.output_names, ort_inputs)
+
+            # Convert outputs to numpy and select a 2-D tensor to use as sentence embeddings.
+            # Heuristics (in order):
+            # 1) Prefer output whose name contains 'sentence' or 'pool' or 'cls' and has ndim==2
+            # 2) Otherwise prefer any output with ndim==2
+            # 3) If only token-level outputs (ndim==3) are available, average across sequence axis
+            import numpy as _np
+            chosen = None
+            chosen_name = None
+            for name, out in zip(self.output_names, outs):
+                arr = _np.asarray(out)
+                lname = name.lower()
+                if arr.ndim == 2 and any(k in lname for k in ('sentence', 'pool', 'cls')):
+                    chosen = arr
+                    chosen_name = name
+                    break
+            if chosen is None:
+                for name, out in zip(self.output_names, outs):
+                    arr = _np.asarray(out)
+                    if arr.ndim == 2:
+                        chosen = arr
+                        chosen_name = name
+                        break
+            if chosen is None:
+                # fallback: take first output and if it's token-level (B, S, D) average over S
+                arr0 = _np.asarray(outs[0])
+                if arr0.ndim == 3:
+                    chosen = arr0.mean(axis=1)
+                    chosen_name = self.output_names[0] + " (mean over seq)"
+                else:
+                    # As a last resort, try to reshape to (batch, -1)
+                    chosen = arr0.reshape((len(texts), -1))
+                    chosen_name = self.output_names[0] + " (reshaped)"
+
+            # Ensure float32
+            emb = _np.asarray(chosen, dtype=_np.float32)
+            # If single input, return 1-D vector
+            if single:
+                return emb[0]
+            return emb
+
+    logger.info('Initializing ONNX embedder with model path: %s', onnx_path)
+    embedder = ONNXEmbedder(onnx_path, tokenizer_model)
+    return embedder
+
+
+def get_embedder_for_NVIDIA_gpu(cfg=None, device=None):
+    """Initialize SentenceTransformer embedder for NVIDIA GPU with CUDA support."""
+    try:
+        import torch
+        from sentence_transformers import SentenceTransformer
+    except Exception as e:
+        raise ImportError("torch and sentence-transformers are required for NVIDIA GPU embedder. Install with `pip install torch torchvision sentence-transformers`")
+
+    # Check if CUDA is available
+    if not torch.cuda.is_available():
+        logger.error(f"CUDA is not available. Please ensure you have a compatible NVIDIA GPU and drivers installed. count={torch.cuda.device_count()}")
+        raise RuntimeError("CUDA is not available. Please ensure you have a compatible NVIDIA GPU and drivers installed.")
+
+    # Get GPU configuration from cuda section
+    cuda_cfg = cfg.get('nv_gpu', {})
+    gpu_id = cuda_cfg.get('gpu_id', 0)  # 从cuda配置节获取GPU ID
+    if gpu_id >= torch.cuda.device_count():
+        raise ValueError(f"GPU ID {gpu_id} is invalid. Available GPUs: {torch.cuda.device_count()}")
+
+    # Set device to specific GPU
+    device_str = f"cuda:{gpu_id}"
+    
+    # Get model configuration
+    model_name = cuda_cfg.get('model_name', "sentence-transformers/all-MiniLM-L6-v2")
+    model_path = cuda_cfg.get('model_path')  # 支持本地模型路径
+    
+    # 优先使用本地模型路径，如果没有则使用模型名称
+    if model_path and os.path.exists(model_path):
+        logger.info(f"Initializing SentenceTransformer for NVIDIA GPU {gpu_id} with local model: {model_path}")
+        embedder = SentenceTransformer(model_path, device=device_str)
+    else:
+        logger.info(f"Initializing SentenceTransformer for NVIDIA GPU {gpu_id} with model: {model_name}")
+        embedder = SentenceTransformer(model_name, device=device_str)
+    return embedder
+
+
+def get_embedder(model_name: Optional[str] = None):
     """Lazily load a SentenceTransformer embedder if available."""
     global _embedder
     if _embedder is not None:
         return _embedder
-
-    try:
-        SentenceTransformer = importlib.import_module('sentence_transformers').SentenceTransformer
-    except Exception as e:
-        raise ImportError("sentence-transformers is not installed. Install with `pip install sentence-transformers` to enable embedding generation")
 
     # Determine device and model source from config
     cfg = _read_embedder_config()
@@ -106,147 +283,23 @@ def get_embedder(model_name: str = None):
 
     # 根据设备确定embedder
     if device == 'gpu':
-        # Try to use ONNX Runtime (DirectML) for GPU
-        try:
-            import onnxruntime as ort
-        except Exception:
-            raise ImportError("onnxruntime is required for GPU embedder. Install with `pip install onnxruntime-directml`")
-
-        # Expect cfg['gpu'] to have onnx_path and tokenizer
-        gpu_cfg = cfg.get(device, {})
-
-        logger.info(f"Using gpu_cfg: {gpu_cfg}")
-
-        onnx_path = gpu_cfg.get('onnx_path')
-        # Resolve relative ONNX paths relative to this module file so configs may use
-        # paths like "./model/foo.onnx" without relying on the current working dir.
-        if onnx_path and not os.path.isabs(onnx_path):
-            onnx_path = os.path.join(os.path.dirname(__file__), onnx_path)
-            onnx_path = os.path.normpath(onnx_path)
-        tokenizer_model = gpu_cfg.get('tokenizer')
-        if not onnx_path or not tokenizer_model:
-            raise ValueError("GPU embedder requires 'onnx_path' and 'tokenizer' configured in embedder_config.json")
-
-        # Build a robust ONNX-based embedder wrapper that adapts to input/output names
-        class ONNXEmbedder:
-            def __init__(self, onnx_path, tokenizer_model):
-                # Lazy import heavy deps
-                from transformers import AutoTokenizer
-
-                self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_model, use_fast=True)
-
-                # Choose provider: prefer DirectML (Windows), then CUDA, then CPU
-                providers = ort.get_all_providers()
-                chosen = None
-                if 'DmlExecutionProvider' in providers:
-                    chosen = ['DmlExecutionProvider']
-                elif 'CUDAExecutionProvider' in providers:
-                    chosen = ['CUDAExecutionProvider']
-                else:
-                    chosen = ['CPUExecutionProvider']
-
-                self.session = ort.InferenceSession(onnx_path, providers=chosen)
-
-                # Inspect expected input/output names
-                self.input_names = [inp.name for inp in self.session.get_inputs()]
-                self.output_names = [out.name for out in self.session.get_outputs()]
-
-            def _prepare_inputs(self, texts):
-                # Tokenize to numpy arrays
-                toks = self.tokenizer(texts, padding=True, truncation=True, return_tensors='np')
-
-                ort_inputs = {}
-                for name in self.input_names:
-                    lname = name.lower()
-                    if lname in toks:
-                        v = toks[lname]
-                    elif 'input_ids' in lname and 'input_ids' in toks:
-                        v = toks['input_ids']
-                    elif 'attention' in lname and 'attention_mask' in toks:
-                        v = toks['attention_mask']
-                    elif 'token_type' in lname and 'token_type_ids' in toks:
-                        v = toks['token_type_ids']
-                    else:
-                        # Try to find compatible tensor by dtype/shape; fallback to zeros
-                        # If input is integer type, provide zeros of appropriate shape
-                        inp = next(i for i in self.session.get_inputs() if i.name == name)
-                        shape = [s if isinstance(s, int) else len(texts) for s in inp.shape]
-                        import numpy as _np
-                        if inp.type.startswith('tensor(int') or 'int' in inp.type:
-                            v = _np.zeros(shape, dtype=_np.int64)
-                        else:
-                            v = _np.zeros(shape, dtype=_np.float32)
-                    # Ensure correct dtype
-                    import numpy as _np
-                    if v.dtype.kind == 'i':
-                        v = v.astype(_np.int64)
-                    elif v.dtype.kind == 'f':
-                        v = v.astype(_np.float32)
-                    ort_inputs[name] = v
-
-                return ort_inputs
-
-            def encode(self, texts, convert_to_numpy=True):
-                # Accept a single string or list
-                single = False
-                if isinstance(texts, str):
-                    texts = [texts]
-                    single = True
-
-                ort_inputs = self._prepare_inputs(texts)
-
-                outs = self.session.run(self.output_names, ort_inputs)
-
-                # Convert outputs to numpy and select a 2-D tensor to use as sentence embeddings.
-                # Heuristics (in order):
-                # 1) Prefer output whose name contains 'sentence' or 'pool' or 'cls' and has ndim==2
-                # 2) Otherwise prefer any output with ndim==2
-                # 3) If only token-level outputs (ndim==3) are available, average across sequence axis
-                import numpy as _np
-                chosen = None
-                chosen_name = None
-                for name, out in zip(self.output_names, outs):
-                    arr = _np.asarray(out)
-                    lname = name.lower()
-                    if arr.ndim == 2 and any(k in lname for k in ('sentence', 'pool', 'cls')):
-                        chosen = arr
-                        chosen_name = name
-                        break
-                if chosen is None:
-                    for name, out in zip(self.output_names, outs):
-                        arr = _np.asarray(out)
-                        if arr.ndim == 2:
-                            chosen = arr
-                            chosen_name = name
-                            break
-                if chosen is None:
-                    # fallback: take first output and if it's token-level (B, S, D) average over S
-                    arr0 = _np.asarray(outs[0])
-                    if arr0.ndim == 3:
-                        chosen = arr0.mean(axis=1)
-                        chosen_name = self.output_names[0] + " (mean over seq)"
-                    else:
-                        # As a last resort, try to reshape to (batch, -1)
-                        chosen = arr0.reshape((len(texts), -1))
-                        chosen_name = self.output_names[0] + " (reshaped)"
-
-                # Ensure float32
-                emb = _np.asarray(chosen, dtype=_np.float32)
-                # If single input, return 1-D vector
-                if single:
-                    return emb[0]
-                return emb
-
-        logger.info('Initializing ONNX embedder with model path: %s', onnx_path)
-        _embedder = ONNXEmbedder(onnx_path, tokenizer_model)
+        _embedder = get_embedder_for_AMD_gpu(cfg, device)
+        return _embedder
+    elif device == 'nv_gpu' or device == 'cuda':
+        _embedder = get_embedder_for_NVIDIA_gpu(cfg, device)
         return _embedder
 
     # Default to CPU sentence-transformers
-    model_name = None
+    try:
+        SentenceTransformer = importlib.import_module('sentence_transformers').SentenceTransformer
+    except Exception as e:
+        raise ImportError("sentence-transformers is not installed. Install with `pip install sentence-transformers` to enable embedding generation")
+
     cpu_cfg = cfg.get('cpu', {})
     model_name = cpu_cfg.get('model_name', "sentence-transformers/all-MiniLM-L6-v2")
     _embedder = SentenceTransformer(model_name)
     return _embedder
+
 
 
 class FaissKB:
@@ -288,8 +341,7 @@ class FaissKB:
         if documents is None:
             raise ValueError("Either embeddings or documents must be provided")
         # compute embeddings from documents
-        embed_model_name = os.getenv("FAISS_EMBEDDER_MODEL", None)
-        embedder = get_embedder(embed_model_name)
+        embedder = get_embedder()
         arr = embedder.encode(documents, convert_to_numpy=True)
         arr = np.asarray(arr, dtype='float32')
         # 获取数据长度用于生成IDs
@@ -311,7 +363,10 @@ class FaissKB:
             raise ValueError(f"Embeddings must be 2-D and have dimensionality {self.dim}")
 
         # 自动生成连续的ID
-        start_id = max([int(k) for k in self.metadatas.keys()] + [0]) + 1
+        if self.metadatas:
+            start_id = max(int(k) for k in self.metadatas.keys()) + 1
+        else:
+            start_id = 1
         ids = list(range(start_id, start_id + data_length))
         id_array = np.array(ids, dtype='int64')
 
@@ -320,7 +375,8 @@ class FaissKB:
         # add to faiss
         try:
             # IndexIDMap supports add_with_ids
-            self.index.add_with_ids(arr, id_array)
+            if self.index is not None:
+                self.index.add_with_ids(arr, id_array)
         except Exception as e:
             logger.error(f"Error adding items to faiss index: {e}")
             raise
@@ -329,7 +385,7 @@ class FaissKB:
 
         # store metadata
         for i, uid in enumerate(ids):
-            entry = {"id": uid}
+            entry = {"id": int(uid)}
             if metadatas and i < len(metadatas):
                 entry["metadata"] = metadatas[i]
             if documents and i < len(documents):
@@ -358,7 +414,10 @@ class FaissKB:
         if vec.shape[1] != self.dim:
             raise ValueError(f"Query embedding must have dimensionality {self.dim}")
 
-        D, I = self.index.search(vec, k)
+        if self.index is not None:
+            D, I = self.index.search(vec, k)
+        else:
+            return []
         results = []
         for dist, idx in zip(D[0], I[0]):
             logger.info(f"Search result idx: {idx}, dist: {dist}")
@@ -419,16 +478,27 @@ async def app_lifespan(app):
 
     # If embed_cfg provides device-specific dims, prefer those
     device = embed_cfg.get('device', 'cpu')
-    device_cfg = embed_cfg.get(device, {})
+    if device == 'cuda':
+        # For NVIDIA GPU, use cuda config section
+        device_cfg = embed_cfg.get('cuda', {})
+    else:
+        device_cfg = embed_cfg.get(device, {})
     resolved_dim = int(device_cfg.get('dim', FaissConfig().dim))
-    logger.info(f"Using device: {device},device_cfg: {device_cfg}")
+    logger.info(f"Using device: {device}, device_cfg: {device_cfg}")
 
     # Resolve faiss index/meta paths from config or env
-    faiss_cfg = embed_cfg.get('faiss', {}).get(device, {})
-    index_path = faiss_cfg.get('index_path', 'faiss.index')
-    meta_path = faiss_cfg.get('meta_path', 'faiss_meta.json')
+    faiss_section = embed_cfg.get('faiss', {})
+    faiss_cfg = {}
+    if isinstance(faiss_section, dict):
+        faiss_cfg = faiss_section.get(device, {})
+    
+    index_path = 'faiss.index'
+    meta_path = 'faiss_meta.json'
+    if isinstance(faiss_cfg, dict):
+        index_path = faiss_cfg.get('index_path', 'faiss.index')
+        meta_path = faiss_cfg.get('meta_path', 'faiss_meta.json')
 
-    logger.info(f"Using device: {device}, faiss_cfg: {device_cfg}")
+    logger.info(f"Using device: {device}, faiss_cfg: {faiss_cfg}")
 
 
     cfg = FaissConfig(
@@ -437,24 +507,6 @@ async def app_lifespan(app):
         meta_path=meta_path,
     )
 
-    # If GPU is selected, validate that a tokenizer is configured and can be loaded.
-    try:
-        device_cfg_type = embed_cfg.get('device', 'cpu')
-        if device_cfg_type == 'gpu':
-            gpu_cfg = embed_cfg.get(device_cfg_type, {})
-            tokenizer_id = gpu_cfg.get('tokenizer')
-            if not tokenizer_id:
-                logger.warning('GPU configured but no gpu.tokenizer set in embedder_config.json')
-            else:
-                try:
-                    from transformers import AutoTokenizer
-
-                    tok = AutoTokenizer.from_pretrained(tokenizer_id, use_fast=True)
-                    logger.info('Successfully loaded tokenizer for GPU embedder: %s (vocab_size=%s)', tokenizer_id, getattr(tok, 'vocab_size', 'unknown'))
-                except Exception as e:
-                    logger.warning('Failed to load GPU tokenizer "%s": %s', tokenizer_id, e)
-    except Exception:
-        logger.exception('Error validating GPU tokenizer')
     # 配置FAISS
     _kb = FaissKB(cfg)
     # Validate that the loaded embedder (if any) matches the FAISS dimensionality
@@ -702,35 +754,33 @@ async def faiss_save(params: SaveInput, ctx: Context) -> str:
 def test_faiss_add_items():
     """快速测试 faiss_add_items 接口"""
     print("=" * 50)
-    print("🧪 测试 faiss_add_items 接口")
+    print("Test faiss_add_items interface")
     print("=" * 50)
     
-    # 创建测试数据
-    test_items = [
-        DocumentItem(
+    # 创建测试数据 - 直接构造符合API要求的参数格式
+    test_params = [
+        AddItemsInput(
             metadata={"source": "test1.md", "category": "technical"},
-            document="这是第一个测试文档内容"
+            document="This is the first test document content"
         ),
-        DocumentItem(
+        AddItemsInput(
             metadata={"source": "test2.md", "category": "business"},
-            document="这是第二个测试文档内容，包含更多文字用于测试"
+            document="This is the second test document content with more text for testing"
         )
     ]
     
-    test_input = AddItemsInput(items=test_items)
-    
-    print(f"\n📝 测试数据:")
-    print(f"  - 文档数量: {len(test_input.items)}")
-    for i, item in enumerate(test_input.items):
-        print(f"  - 文档 {i+1}: {item.metadata['source']} - {item.document[:20]}...")
+    print(f"\nTest data:")
+    print(f"  - Number of documents: {len(test_params)}")
+    for i, item in enumerate(test_params):
+        print(f"  - Document {i+1}: {item.metadata['source']} - {item.document[:20]}...")
     
     # 验证数据结构
-    print(f"\n✅ 数据结构验证通过")
-    print(f"  - items 类型: {type(test_input.items)}")
-    print(f"  - 第一个item类型: {type(test_input.items[0])}")
-    print(f"  - metadata结构: {test_input.items[0].metadata}")
+    print(f"\nData structure validation passed")
+    print(f"  - params type: {type(test_params)}")
+    print(f"  - First item type: {type(test_params[0])}")
+    print(f"  - metadata structure: {test_params[0].metadata}")
     
-    print(f"\n🎉 测试完成！接口参数格式正确。")
+    print(f"\nTest completed! Interface parameter format is correct.")
     return True
 
 

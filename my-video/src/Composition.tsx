@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useCurrentFrame, interpolate, spring, useVideoConfig } from "remotion";
 import { FractalTree } from "./FractalTree";
+import { AgentCollaborationFlowCorrected } from "./AgentCollaborationFlowCorrected";
 
 export const RollingBall = () => {
   const { width } = useVideoConfig();
@@ -55,7 +56,7 @@ export const RollingBall = () => {
 };
 
 const AnimationSelector = () => {
-  const [selected, setSelected] = useState<"ball" | "tree">("tree");
+  const [selected, setSelected] = useState<"ball" | "tree" | "agents">("agents");
 
   return (
     <div style={{ width: "100%", height: "100%" }}>
@@ -105,8 +106,24 @@ const AnimationSelector = () => {
         >
           分形树
         </button>
+        <button
+          onClick={() => setSelected("agents")}
+          style={{
+            padding: "8px 20px",
+            borderRadius: 6,
+            border: "none",
+            cursor: "pointer",
+            backgroundColor: selected === "agents" ? "#6c5ce7" : "#333",
+            color: "white",
+            fontSize: 14,
+            fontWeight: "bold",
+            transition: "all 0.3s",
+          }}
+        >
+          Agent协作
+        </button>
       </div>
-      {selected === "ball" ? <RollingBall /> : <FractalTree maxDepth={10} />}
+      {selected === "ball" ? <RollingBall /> : selected === "tree" ? <FractalTree maxDepth={10} /> : <AgentCollaborationFlowCorrected />}
     </div>
   );
 };

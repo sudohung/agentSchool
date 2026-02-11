@@ -4,3 +4,5 @@
 **/.env
 /my-video/node_modules/
 /my-video/out/
+**/**Venv/
+/mcp/acknowledgeFaiMcp/faiss/
