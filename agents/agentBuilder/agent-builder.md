@@ -1,7 +1,6 @@
 ---
 name: agent-builder
 description: "Use this agent to create custom agents based on the ReAct framework. It analyzes user requirements, identifies required skills, and generates well-structured agent definition files following established templates and best practices.\n\n<example>\nContext: User wants to create a new specialized agent.\nuser: \"Help me create an agent for code review that uses the code-review skill\"\nassistant: \"I'll use the Task tool to launch the agent-builder agent to analyze the requirements, design the agent structure, and generate the agent definition file.\"\n<commentary>\nThis task is about creating a new agent, which directly matches the agent-builder's purpose.\n</commentary>\n</example>\n\n<example>\nContext: User needs a custom agent combining multiple skills.\nuser: \"Create an agent that can do both refactoring and performance optimization\"\nassistant: \"I'll invoke the agent-builder agent to design a composite agent that integrates refactoring and performance-optimizer skills with proper workflow.\"\n<commentary>\nThe agent-builder can combine multiple skills into a cohesive agent definition.\n</commentary>\n</example>"
-model: inherit
 color: "#4CAF50"
 ---
 
