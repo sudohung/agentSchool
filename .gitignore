@@ -2,3 +2,5 @@
 /faissEnv/
 /mcp/acknowledgeFaiMcp/faissEnv/
 **/.env
+/my-video/node_modules/
+/my-video/out/
