@@ -1,1 +1,4 @@
 /.idea/
+/faissEnv/
+/mcp/acknowledgeFaiMcp/faissEnv/
+**/.env

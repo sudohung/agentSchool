@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<evaluation>
+  <qa_pair>
+    <question>列出当前MySQL服务器上的所有非系统数据库。</question>
+    <answer>执行 mysql_list_databases 工具，include_system 设为 false</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>查看名为 'ecommerce' 的数据库的详细信息，包括表数量和总大小。</question>
+    <answer>执行 mysql_database_overview 工具，database 参数设为 "ecommerce"</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>列出 'ecommerce' 数据库中所有包含 'order' 字样的表，并显示每张表的行数和大小。</question>
+    <answer>执行 mysql_list_tables 工具，database 设为 "ecommerce"，table_pattern 设为 "%order%"</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>分析 'users' 表的完整结构，包括字段定义、索引和外键关系。</question>
+    <answer>执行 mysql_get_table_schema 工具，table 设为 "users"</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>查看 'orders' 表的前5条数据样本，了解数据的实际内容。</question>
+    <answer>执行 mysql_sample_table_data 工具，table 设为 "orders"，limit 设为 5</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>分析 'products' 表的统计信息，找出哪些字段有大量空值，以及各字段的唯一值数量。</question>
+    <answer>执行 mysql_analyze_table_statistics 工具，table 设为 "products"</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>查看 'orders' 表的外键关系，了解它引用了哪些表以及被哪些表引用。</question>
+    <answer>执行 mysql_list_foreign_key_relationships 工具，table 设为 "orders"，direction 设为 "both"</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>统计 'orders' 表中不同订单状态的数量分布。</question>
+    <answer>执行 mysql_execute_custom_query 工具，query 设为 "SELECT status, COUNT(*) as count FROM orders GROUP BY status ORDER BY count DESC"</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>找出 'ecommerce' 数据库中最大的10张表（按数据大小排序）。</question>
+    <answer>执行 mysql_execute_custom_query 工具，query 设为 "SELECT TABLE_NAME, TABLE_ROWS, ROUND((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 2) as size_mb FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'ecommerce' AND TABLE_TYPE = 'BASE TABLE' ORDER BY size_mb DESC LIMIT 10"</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>查看 'customers' 表中最近注册的10个用户的详细信息。</question>
+    <answer>执行 mysql_sample_table_data 工具，table 设为 "customers"，limit 设为 10，order_by 设为 "created_at DESC"</answer>
+  </qa_pair>
+</evaluation>

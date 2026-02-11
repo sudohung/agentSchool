@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<evaluation>
+  <qa_pair>
+    <question>列出当前MySQL服务器上所有的业务数据库（排除系统数据库）。</question>
+    <answer>mysql_list_databases(include_system=False)</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>查看名为 'business_db' 的数据库有多少张表，总占用多少存储空间。</question>
+    <answer>mysql_database_overview(database="business_db")</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>找出数据库中所有包含 'user' 或 'customer' 字样的表。</question>
+    <answer>mysql_list_tables(table_pattern="%user%") 然后再执行 mysql_list_tables(table_pattern="%customer%")</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>查看 'orders' 表的完整结构，包括字段类型、是否允许为空、索引和外键。</question>
+    <answer>mysql_get_table_schema(table="orders")</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>抽样查看 'users' 表的前10条数据，了解用户信息的存储格式。</question>
+    <answer>mysql_sample_table_data(table="users", limit=10)</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>分析 'products' 表的统计数据，找出哪些字段有空值，以及各字段有多少不同的取值。</question>
+    <answer>mysql_analyze_table_statistics(table="products")</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>查看 'orders' 表与哪些表有外键关联，理解订单表在业务中的关系。</question>
+    <answer>mysql_list_foreign_key_relationships(table="orders", direction="both")</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>统计订单表中不同状态的订单数量（如待支付、已支付、已完成等）。</question>
+    <answer>mysql_execute_custom_query(query="SELECT status, COUNT(*) as count FROM orders GROUP BY status ORDER BY count DESC")</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>找出数据库中数据量最大的前5张表。</question>
+    <answer>mysql_execute_custom_query(query="SELECT TABLE_NAME as table_name, TABLE_ROWS as rows, ROUND((DATA_LENGTH + INDEX_LENGTH) / 1024 / 1024, 2) as size_mb FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE' ORDER BY TABLE_ROWS DESC LIMIT 5")</answer>
+  </qa_pair>
+
+  <qa_pair>
+    <question>查询最近一个月创建的用户数量及其地域分布。</question>
+    <answer>mysql_execute_custom_query(query="SELECT DATE(created_at) as date, COUNT(*) as new_users FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH) GROUP BY DATE(created_at) ORDER BY date")</answer>
+  </qa_pair>
+</evaluation>

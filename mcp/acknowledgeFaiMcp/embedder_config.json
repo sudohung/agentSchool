@@ -1,0 +1,25 @@
+{
+  "device": "cpu",
+  "cpu": {
+    "backend": "sentence_transformers",
+    "model_name": "sentence-transformers/all-MiniLM-L6-v2",
+    "dim": 384
+  },
+  "gpu": {
+    "backend": "onnx_directml",
+    "onnx_path": "./model/model.onnx",
+    "tokenizer": "BAAI/bge-base-zh-v1.5",
+    "dim": 768
+  },
+  "faiss": {
+    "cpu": {
+      "index_path": "./faiss/cpu/faiss.index",
+      "meta_path": "./faiss/cpu/faiss_meta.json"
+    },
+    "gpu": {
+      "index_path": "./faiss/gpu/faiss.index",
+      "meta_path": "./faiss/gpu/faiss_meta.json"
+    }
+
+  }
+}

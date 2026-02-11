@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "memory": {
+      "command": "python",
+      "args": [
+        "start_opencode_mcp.py"
+      ],
+      "cwd": "E:\\workspace\\xpproject\\agent_skill_python\\mcp\\memMCP_new",
+      "env": {}
+    }
+  }
+}
