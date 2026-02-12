@@ -32,10 +32,6 @@ REM 激活虚拟环境
 echo 激活虚拟环境...
 call .faiVenv\Scripts\activate.bat
 
-REM 升级pip
-echo 升级pip...
-python -m pip install --upgrade pip
-
 REM 安装核心依赖
 echo 安装核心依赖...
 pip install -r requirements-minimal.txt

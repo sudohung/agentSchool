@@ -6,3 +6,5 @@
 /my-video/out/
 **/**Venv/
 /mcp/acknowledgeFaiMcp/faiss/
+**/mcp/acknowledgeFaiMcp/model/**
+mcp/acknowledgeFaiMcp/faiss/**

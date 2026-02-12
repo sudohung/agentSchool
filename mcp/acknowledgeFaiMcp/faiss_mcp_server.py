@@ -26,6 +26,7 @@ from starlette.responses import JSONResponse, Response
 
 from pydantic import BaseModel, Field, ConfigDict
 from mcp.server.fastmcp import FastMCP, Context
+from datetime import datetime, timezone
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -47,7 +48,11 @@ class FaissConfig(BaseModel):
 _embedder = None
 
 
-def _read_embedder_config():
+def _read_embedder_config(cli_device =  None):
+    global _embed_cfg
+    if _embed_cfg:
+        return _embed_cfg
+
     """Read embedder config from `embedder_config.json` if present, otherwise use env vars."""
     here = os.path.dirname(__file__)
     cfg_path = os.path.join(here, "embedder_config.json")
@@ -59,7 +64,7 @@ def _read_embedder_config():
     except Exception:
         logger.debug("Failed to read embedder_config.json, falling back to env vars")
     # env vars override file
-    env_device = os.getenv("FAISS_DEVICE", os.getenv("FAISS_EMBEDDER_DEVICE"))  # Support both new and old env var names
+    env_device = cli_device or os.getenv("FAISS_DEVICE", os.getenv("FAISS_EMBEDDER_DEVICE"))  # Support both new and old env var names
     env_model = os.getenv("FAISS_EMBEDDER_MODEL")
     env_dim = os.getenv("FAISS_DIM")
     index_path = os.getenv('FAISS_INDEX_PATH')
@@ -93,7 +98,10 @@ def _read_embedder_config():
     if meta_path:
         cfg['meta_path'] = meta_path
 
-    return cfg
+    logger.info(f"Using embedder config device: {cfg['device']}")
+
+    _embed_cfg = cfg
+    return _embed_cfg
 
 
 def get_embedder_for_AMD_gpu(cfg=None, device=None):
@@ -382,12 +390,14 @@ class FaissKB:
             raise
 
         logger.info(f"metadatasccc {metadatas} items to faiss index")
+        currentTime = datetime.now(timezone.utc).isoformat()
 
         # store metadata
         for i, uid in enumerate(ids):
             entry = {"id": int(uid)}
             if metadatas and i < len(metadatas):
                 entry["metadata"] = metadatas[i]
+                entry["timestamp"] = currentTime
             if documents and i < len(documents):
                 entry["document"] = documents[i]
             self.metadatas[str(uid)] = entry
@@ -468,6 +478,7 @@ class FaissKB:
 # -------------------- MCP Server --------------------
 
 _kb: Optional[FaissKB] = None
+_embed_cfg = None
 
 
 @asynccontextmanager
@@ -792,7 +803,11 @@ if __name__ == "__main__":
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8001)
     parser.add_argument("--test", action="store_true", help="运行接口测试")
+    parser.add_argument("--device", choices=["cpu", "gpu", "nv_gpu"], default=None)
     args = parser.parse_args()
+
+    # 初始化配置
+    _read_embedder_config(args.device)
 
     if args.test:
         # 运行测试

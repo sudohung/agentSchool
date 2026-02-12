@@ -6,6 +6,20 @@ import { RerankingFlow } from "./RerankingFlow";
 import { Fireflies } from "./Fireflies";
 import { ThreeSceneFallingCat } from "./ThreeSceneFallingCat";
 import { BigBangUniverse } from "./BigBangUniverse";
+import {
+  ProjectApprovalFlow,
+  ProjectApprovalFlowSchema,
+} from "./ProjectApprovalFlow";
+import {
+  ProjectApprovalFlowDetailed,
+  ProjectApprovalFlowDetailedSchema,
+} from "./ProjectApprovalFlowDetailed";
+import {
+  ProjectApprovalFlowEnhanced,
+  ProjectApprovalFlowEnhancedSchema,
+} from "./ProjectApprovalFlowEnhanced";
+
+import { ProjectApprovalFlowChineseV2 } from "./ProjectApprovalFlowChineseV2";
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -62,6 +76,44 @@ export const RemotionRoot: React.FC = () => {
         id="BigBangUniverse"
         component={BigBangUniverse}
         durationInFrames={300}
+        fps={30}
+        width={1280}
+        height={720}
+      />
+      <Composition
+        id="ProjectApprovalFlow"
+        component={ProjectApprovalFlow}
+        schema={ProjectApprovalFlowSchema}
+        defaultProps={{ titleText: "立项审批流程" }}
+        durationInFrames={300}
+        fps={30}
+        width={1280}
+        height={720}
+      />
+      <Composition
+        id="ProjectApprovalFlowDetailed"
+        component={ProjectApprovalFlowDetailed}
+        schema={ProjectApprovalFlowDetailedSchema}
+        defaultProps={{ titleText: "详细审批流程" }}
+        durationInFrames={450}
+        fps={30}
+        width={1280}
+        height={720}
+      />
+      <Composition
+        id="ProjectApprovalFlowEnhanced"
+        component={ProjectApprovalFlowEnhanced}
+        schema={ProjectApprovalFlowEnhancedSchema}
+        durationInFrames={450}
+        fps={30}
+        width={1280}
+        height={720}
+      />
+
+      <Composition
+        id="ProjectApprovalFlowChineseV2"
+        component={ProjectApprovalFlowChineseV2}
+        durationInFrames={360}
         fps={30}
         width={1280}
         height={720}

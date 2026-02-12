@@ -1,5 +1,5 @@
 {
-  "device": "nv_gpu",
+  "device": "gpu",
   "cpu": {
     "backend": "sentence_transformers",
     "model_name": "sentence-transformers/all-MiniLM-L6-v2",
