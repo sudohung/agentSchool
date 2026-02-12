@@ -29,7 +29,10 @@
     "nv_gpu": {
       "index_path": "./faiss/nv_gpu/faiss.index",
       "meta_path": "./faiss/nv_gpu/faiss_meta.json"
-    }
-
   }
+
+  ,
+  "knowledge_db_path": "./db/knowledge.db"
+
+}
 }
