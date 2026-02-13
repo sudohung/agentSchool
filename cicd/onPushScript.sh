@@ -21,7 +21,7 @@ echo 'check opencode-ai finish'
 
 echo 'start check commit'
 
-opencode run '检查刚刚提交的代码，如果有严重问题则进行修复并提交' --agent plan --model CodingPlan/qwen3-max-2026-01-23
+opencode run '检查刚刚提交的代码，如果有严重问题则进行修复并提交,push' --agent plan --model CodingPlan/qwen3-max-2026-01-23
 
 echo 'check commit finish'
 
