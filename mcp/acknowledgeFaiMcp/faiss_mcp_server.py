@@ -27,6 +27,8 @@ from starlette.responses import JSONResponse, Response
 from pydantic import BaseModel, Field, ConfigDict
 from mcp.server.fastmcp import FastMCP, Context
 from datetime import datetime, timezone
+from memory_api import MemoryAPIClient
+
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -41,6 +43,7 @@ class FaissConfig(BaseModel):
     dim: int = Field(default=384, description="Embedding dimensionality")
     index_path: str = Field(default="faiss.index", description="Path to faiss index file")
     meta_path: str = Field(default="faiss_meta.json", description="Path to metadata JSON file")
+    knowledge_db_path: str = Field(default="knowledge.db", description="Path to SQLite knowledge database")
 
 
 # -------------------- FAISS Knowledge Store --------------------
@@ -316,25 +319,19 @@ class FaissKB:
         self.dim = int(cfg.dim)
         self.index: Optional[faiss.Index] = None
         self.metadatas: Dict[str, Any] = {}
+        self.memory_client: Optional[MemoryAPIClient] = None
         self._ensure_index()
+        self._init_database()
 
     # 注释： 初始化创建faiss索引
     def _ensure_index(self):
-        # Use IndexFlatL2 wrapped by an ID map so items can carry stable integer ids
+        # Use IndexFlatIP wrapped by an ID map for cosine similarity (inner product)
+        # Note: For cosine similarity, vectors should be L2-normalized before adding to index
         if self.index is None:
-            base_index = faiss.IndexFlatL2(self.dim)
+            base_index = faiss.IndexFlatIP(self.dim)
             self.index = faiss.IndexIDMap(base_index)
 
         logger.info(f"Loaded faiss conf from {self.cfg}")
-
-        # load metadata if exists
-        if os.path.exists(self.cfg.meta_path):
-            try:
-                with open(self.cfg.meta_path, 'r', encoding='utf-8') as f:
-                    self.metadatas = json.load(f)
-            except Exception:
-                logger.warning("Failed to load metadata file, starting fresh")
-                self.metadatas = {}
 
         # load index if exists
         if os.path.exists(self.cfg.index_path):
@@ -343,6 +340,38 @@ class FaissKB:
                 logger.info(f"Loaded faiss index from {self.cfg.index_path}")
             except Exception:
                 logger.warning("Failed to read faiss index file, using empty index")
+
+    def _init_database(self):
+        """Initialize SQLite database using MemoryAPIClient."""
+        db_path = self.cfg.knowledge_db_path
+        # Resolve relative path
+        if not os.path.isabs(db_path):
+            db_path = os.path.join(os.path.dirname(__file__), db_path)
+        
+        # Initialize MemoryAPIClient
+        self.memory_client = MemoryAPIClient(db_path)
+        
+        # Load existing data from database using memory client
+        try:
+            # Get total count first
+            total_count = self.memory_client.get_memory_count()
+            if total_count > 0:
+                # Load all existing memories (in batches if needed)
+                limit = min(total_count, 1000)  # Use reasonable limit
+                memories = self.memory_client.list_memories(limit=limit, offset=0)
+                self.metadatas = {}
+                for memory in memories:
+                    # Convert memory_api format to faiss format
+                    entry = {
+                        'id': memory['id'],
+                        'document': memory['content'],
+                        'metadata': memory['metadata'],
+                        'timestamp': memory['created_at']
+                    }
+                    self.metadatas[str(memory['id'])] = entry
+        except Exception as e:
+            logger.warning(f"Failed to load existing memories: {e}")
+            self.metadatas = {}
 
     def add_items(self, metadatas: Optional[List[Dict[str, Any]]] = None, documents: Optional[List[str]] = None) -> List[int]:
         # Accept embeddings directly, or compute from provided documents using sentence-transformers.
@@ -370,6 +399,9 @@ class FaissKB:
         if arr.ndim != 2 or arr.shape[1] != self.dim:
             raise ValueError(f"Embeddings must be 2-D and have dimensionality {self.dim}")
 
+        # L2归一化向量以支持余弦相似度 (IP索引)
+        arr = self.normalize_embedding(arr)
+
         # 自动生成连续的ID
         if self.metadatas:
             start_id = max(int(k) for k in self.metadatas.keys()) + 1
@@ -392,18 +424,49 @@ class FaissKB:
         logger.info(f"metadatasccc {metadatas} items to faiss index")
         currentTime = datetime.now(timezone.utc).isoformat()
 
-        # store metadata
+        # store metadata using MemoryAPIClient
         for i, uid in enumerate(ids):
             entry = {"id": int(uid)}
+            metadata_dict = {}
             if metadatas and i < len(metadatas):
-                entry["metadata"] = metadatas[i]
+                metadata_dict = metadatas[i] or {}
+                entry["metadata"] = metadata_dict
                 entry["timestamp"] = currentTime
             if documents and i < len(documents):
                 entry["document"] = documents[i]
             self.metadatas[str(uid)] = entry
+            
+            # Store in database using MemoryAPIClient
+            if self.memory_client:
+                # Extract fields for memory_api
+                title = metadata_dict.get("title", f"Document {uid}")
+                content = documents[i] if documents and i < len(documents) else ""
+                doc_type = metadata_dict.get("type", "business_knowledge")
+                category = metadata_dict.get("category")
+                tags = metadata_dict.get("tags")
+                language = metadata_dict.get("language")
+                source = metadata_dict.get("source")
+                confidence = float(metadata_dict.get("confidence", 1.0))
+                
+                try:
+                    # Store memory using memory client
+                    memory_id = self.memory_client.store_memory(
+                        title=title,
+                        content=content,
+                        type=doc_type,
+                        category=category,
+                        tags=tags,
+                        language=language,
+                        source=source,
+                        confidence=confidence
+                    )
+                    # Verify the stored ID matches our generated ID
+                    if memory_id != uid:
+                        logger.warning(f"Generated ID {uid} doesn't match stored ID {memory_id}")
+                except Exception as e:
+                    logger.error(f"Failed to store memory {uid}: {e}")
+                    raise
 
-        # persist metadata
-        self._save_meta()
         return ids
 
     def search(self, embedding: Optional[List[float]] = None, query_text: Optional[str] = None, k: int = 5) -> List[Dict[str, Any]]:
@@ -424,6 +487,9 @@ class FaissKB:
         if vec.shape[1] != self.dim:
             raise ValueError(f"Query embedding must have dimensionality {self.dim}")
 
+        # 移到方法中
+        vec = self.normalize_embedding(vec)
+
         if self.index is not None:
             D, I = self.index.search(vec, k)
         else:
@@ -437,6 +503,21 @@ class FaissKB:
             results.append({"id": int(idx), "score": float(dist), "metadata": meta})
         return results
 
+    def normalize_embedding(self, embedding: np.ndarray) -> np.ndarray:
+        # L2归一化向量以支持余弦相似度 (IP索引)
+        # 注意：对于IndexFlatIP，输入向量应该已经归一化
+        norms = np.linalg.norm(embedding, axis=1, keepdims=True)
+        # 避免除零错误
+        norms = np.where(norms == 0, 1.0, norms)
+        normalized = embedding / norms
+        
+        # 验证归一化结果
+        final_norms = np.linalg.norm(normalized, axis=1)
+        if not np.allclose(final_norms, 1.0, atol=1e-6):
+            logger.warning(f"归一化验证失败: 范数为 {final_norms}")
+            
+        return normalized
+
     def save(self):
         try:
             faiss.write_index(self.index, self.cfg.index_path)
@@ -446,12 +527,8 @@ class FaissKB:
         self._save_meta()
 
     def _save_meta(self):
-        try:
-            with open(self.cfg.meta_path, 'w', encoding='utf-8') as f:
-                json.dump(self.metadatas, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            logger.error(f"Failed to write metadata file: {e}")
-            raise
+        # No longer needed as metadata is stored in SQLite database
+        pass
 
     def delete(self, id: int) -> bool:
         # FAISS does not support delete in IndexFlat; we can mark by rebuilding index without the id
@@ -459,19 +536,16 @@ class FaissKB:
         if sid not in self.metadatas:
             return False
 
-        # remove metadata
+        # remove metadata from SQLite database using MemoryAPIClient
+        if self.memory_client:
+            success = self.memory_client.delete_memory(id)
+            if not success:
+                return False
+
+        # remove metadata from memory
         del self.metadatas[sid]
 
-        # rebuild index from remaining items
-        remaining = []
-        ids = []
-        for k, v in self.metadatas.items():
-            if "document" in v:
-                # no op, we only use embeddings stored in faiss; user is responsible for keeping consistent
-                pass
-            # we cannot recover embeddings from metadata; so user should re-add if they want persistent deletes
-        # For safety, we save metadata and leave index as-is (deletes not fully supported here)
-        self._save_meta()
+        # For safety, we leave index as-is (deletes not fully supported here)
         return True
 
 
@@ -512,10 +586,14 @@ async def app_lifespan(app):
     logger.info(f"Using device: {device}, faiss_cfg: {faiss_cfg}")
 
 
+    # Read knowledge_db_path from embedder_config.json root
+    knowledge_db_path = embed_cfg.get('knowledge_db_path', 'knowledge.db')
+
     cfg = FaissConfig(
         dim=resolved_dim,
         index_path=index_path,
         meta_path=meta_path,
+        knowledge_db_path=knowledge_db_path,
     )
 
     # 配置FAISS

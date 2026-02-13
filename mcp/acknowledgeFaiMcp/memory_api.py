@@ -61,11 +61,13 @@ class APIConfig:
                 with open(cfg_path, "r", encoding="utf-8") as f:
                     cfg = json.load(f)
                     db_path = cfg.get("knowledge_db_path")
+                    logger.info(f"Using knowledge_db_path: {db_path}")
                     if db_path:
                         return db_path
         except Exception:
             logger.warning("Failed to read embedder_config.json for knowledge_db_path, falling back to env/default")
 
+        logger.info("Using default knowledge_db_path -----> knowledge.db")
         # env var fallback
         return os.getenv("KNOWLEDGE_DB_PATH", "knowledge.db")
 
@@ -311,6 +313,13 @@ class MemoryAPIClient:
             return None
 
     def delete_memory(self, memory_id: int) -> bool:
+
+        from faiss_mcp_server import getFdb
+        kb = getFdb()
+        if kb is not None:
+            kb.delete(memory_id)
+            logger.info("Deleted memory from Faiss index")
+
         """Delete a memory by ID."""
         with self.get_connection() as conn:
             cursor = conn.cursor()
@@ -318,6 +327,7 @@ class MemoryAPIClient:
             deleted = cursor.rowcount > 0
             conn.commit()
             return deleted
+
 
     def delete_all_memories(self) -> int:
         """Delete all memories and return count of deleted records."""
@@ -686,6 +696,72 @@ async def get_statistics():
         raise HTTPException(status_code=500, detail="Failed to get statistics")
 
 
+# ==================== FAISS Integration ====================
+
+# 添加全局变量来存储 FAISS 实例引用
+_faiss_kb = None
+
+def set_faiss_kb(kb_instance):
+    """设置 FAISS KB 实例引用"""
+    global _faiss_kb
+    _faiss_kb = kb_instance
+
+def get_faiss_kb():
+    """获取 FAISS KB 实例引用"""
+    global _faiss_kb
+    return _faiss_kb
+
+# 在 API 路由中添加新的端点来访问 FAISS 功能
+@app.get("/faiss/stats", summary="Get FAISS Statistics", tags=["FAISS"])
+async def get_faiss_statistics():
+    """获取 FAISS 索引统计信息"""
+    try:
+        kb = get_faiss_kb()
+        if kb is None:
+            raise HTTPException(status_code=503, detail="FAISS KB not available")
+        
+        # 获取 FAISS 索引信息
+        index_stats = {
+            "ntotal": kb.index.ntotal if kb.index else 0,
+            "dimension": kb.dim,
+            "index_type": type(kb.index).__name__ if kb.index else "None"
+        }
+        
+        # 获取元数据统计
+        metadata_stats = {
+            "total_metadata_entries": len(kb.metadatas),
+            "sample_metadata_keys": list(kb.metadatas.keys())[:10] if kb.metadatas else []
+        }
+        
+        return {
+            "faiss_index": index_stats,
+            "metadata": metadata_stats,
+            "status": "ok"
+        }
+    except Exception as e:
+        logger.error(f"Error getting FAISS statistics: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get FAISS statistics")
+
+@app.post("/faiss/search", summary="Search with FAISS", tags=["FAISS"])
+async def search_with_faiss(query_text: str, k: int = 5):
+    """使用 FAISS 进行向量搜索"""
+    try:
+        kb = get_faiss_kb()
+        if kb is None:
+            raise HTTPException(status_code=503, detail="FAISS KB not available")
+        
+        results = kb.search(query_text=query_text, k=k)
+        return {
+            "success": True,
+            "query": query_text,
+            "k": k,
+            "results": results,
+            "result_count": len(results)
+        }
+    except Exception as e:
+        logger.error(f"Error searching with FAISS: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to search with FAISS: {str(e)}")
+
 # ==================== Main Entry Point ====================
 
 if __name__ == "__main__":
@@ -733,3 +809,5 @@ if __name__ == "__main__":
         reload=args.reload,
         log_level="info"
     )
+
+    logger.info("Server stopped！")
