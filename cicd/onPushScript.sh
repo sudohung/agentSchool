@@ -21,7 +21,7 @@ echo 'check opencode-ai finish'
 
 echo 'start check commit'
 
-opencode run '检查刚刚最新提交的代码，忽略cicd文件夹；如果有严重问题则进行修复并提交push到远程' --agent buid --model CodingPlan/qwen3-max-2026-01-23
+opencode run '检查刚刚最新提交的代码，忽略cicd文件夹；如果有严重问题则进行修复并提交push到远程' --agent build --model CodingPlan/qwen3-max-2026-01-23
 
 echo 'check commit finish'
 
