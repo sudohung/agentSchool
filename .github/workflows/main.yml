@@ -15,11 +15,16 @@ jobs:
 
       - name: check node version
         run: node -v
+      - name: install opencode
+        run: npm install -g opencode-ai
       
       - uses: actions/checkout@v4                                                                                                                                                          
-                                                                                                                                                                          
+
+      - name: list dir
+        run: ls
+        
       - name: Make script executable                                                                                                                                                       
-        run: chmod +x onPushScript.sh                                                                                                                                                      
+        run: chmod +x ./cicd/onPushScript.sh                                                                                                                                                      
                                                                                                                                                                             
       - name: Run onPushScript                                                                                                                                                             
-        run: ./onPushScript.sh
+        run: ./cicd/onPushScript.sh
