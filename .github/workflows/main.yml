@@ -15,8 +15,12 @@ jobs:
 
       - name: check node version
         run: node -v
+        
       
       - uses: actions/checkout@v4                                                                                                                                                          
+
+      - name: list dir
+        run: ll                                                                                                                                                                         
                                                                                                                                                                           
       - name: Make script executable                                                                                                                                                       
         run: chmod +x onPushScript.sh                                                                                                                                                      
