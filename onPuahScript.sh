@@ -3,3 +3,5 @@
 pwd
 
 echo 'on push  script'
+
+echo 'test 1'
