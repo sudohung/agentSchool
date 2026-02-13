@@ -14,7 +14,7 @@ if %errorlevel% neq 0 (
     echo ❌ Git 未安装，请先安装 Git
     pause
     exit /b 1
-) e lse (
+) el se (
     for /f "tokens=*" %%i in ('git --version') do set GIT_VERSION=%%i
     echo ✅ Git 已安装: %GIT_VERSION%
 )

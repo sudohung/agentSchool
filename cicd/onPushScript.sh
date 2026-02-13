@@ -2,9 +2,11 @@
 
 pwd
 
-echo 'on push  script'
+echo 'on push script'
 
-echo 'installing opencode-ai'
+echo 'install opencode-ai'
+
+npm install -g opencode-ai
 
 export OPENCODE_API_KEY="sk-sp-de6e887faf1f49acbad120766050fdd9"
 
@@ -20,5 +22,7 @@ echo 'check opencode-ai finish'
 echo 'start check commit'
 
 opencode run '检查刚刚提交的代码' --agent plan --model CodingPlan/qwen3-max-2026-01-23
+
+echo 'check commit finish'
 
 
