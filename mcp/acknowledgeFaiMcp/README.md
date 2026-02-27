@@ -53,7 +53,9 @@
     - `demo_mcp_client.py` — demo client that starts the server via stdio, adds documents, searches, and saves.
 
 - Run server (HTTP SSE transport)
-    - `python mcp/acknowledgeFaiMcp/faiss_mcp_server.py --transport streamable_http --port 8401 --device cpu`
+    - `python faiss_mcp_server.py --transport streamable_http --port 8401 --device cpu`
+- Run api server
+    - `python memory_api.py --port 8425`
 
 - Run demo client (starts server using stdio transport)
     - `python mcp/acknowledgeFaiMcp/demo_mcp_client.py`
