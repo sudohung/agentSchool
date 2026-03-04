@@ -4,8 +4,14 @@
 **/.env
 /my-video/node_modules/
 /my-video/out/
-**/**Venv/
+/**/*Venv/
 /mcp/acknowledgeFaiMcp/faiss/
 **/mcp/acknowledgeFaiMcp/model/**
 mcp/acknowledgeFaiMcp/faiss/**
 /mcp/acknowledgeFaiMcp/db/
+**/__pycache__/
+**/node_modules/
+nul
+*.xlsx
+*.png
+.claude/

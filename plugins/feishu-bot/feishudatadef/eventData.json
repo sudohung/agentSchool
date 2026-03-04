@@ -1,0 +1,64 @@
+{
+  "schema": {
+    "event_type": "im.message.receive_v1",
+    "event": {
+      "message": {
+        "chat_id": "string",
+        "chat_type": "string",
+        "content": "string",
+        "create_time": "string",
+        "message_id": "string",
+        "message_type": "string"
+      },
+      "sender": {
+        "sender_id": {
+          "open_id": "string",
+          "union_id": "string",
+          "user_id": "string"
+        },
+        "sender_type": "string",
+        "tenant_key": "string"
+      }
+    },
+    "header": {
+      "event_id": "string",
+      "event_key": "string",
+      "create_time": "string",
+      "token": "string",
+      "app_id": "string",
+      "tenant_key": "string"
+    },
+    "uuid": "string"
+  },
+  "sample": {
+    "event_type": "im.message.receive_v1",
+    "event": {
+      "message": {
+        "chat_id": "oc_1234567890abcdef",
+        "chat_type": "group",
+        "content": "{\"text\":\"你好\"}",
+        "create_time": "1712345678901",
+        "message_id": "om_1234567890abcdef1234567890abcdef",
+        "message_type": "text"
+      },
+      "sender": {
+        "sender_id": {
+          "open_id": "ou_1234567890abcdef1234567890abcdef",
+          "union_id": "on_1234567890abcdef1234567890abcdef",
+          "user_id": "12345678"
+        },
+        "sender_type": "user",
+        "tenant_key": "1234567890abcdef"
+      }
+    },
+    "header": {
+      "event_id": "12345678-1234-1234-1234-1234567890ab",
+      "event_key": "im.message.receive_v1",
+      "create_time": "1712345678901",
+      "token": "verify_token_xxxxxx",
+      "app_id": "cli_a9059178d1b8dcd1",
+      "tenant_key": "1234567890abcdef"
+    },
+    "uuid": "12345678-1234-1234-1234-1234567890ab"
+  }
+}

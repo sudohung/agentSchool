@@ -1,0 +1,14 @@
+{
+  "name": "opencode-feishu-plugin",
+  "version": "1.0.0",
+  "description": "飞书 OpenCode 插件",
+  "dependencies": {
+    "@larksuiteoapi/node-sdk": "^1.29.0",
+    "@opencode-ai/sdk": "^1.2.16"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

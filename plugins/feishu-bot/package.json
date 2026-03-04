@@ -1,0 +1,18 @@
+{
+  "name": "feishu-bot-plugin",
+  "version": "1.0.0",
+  "description": "OpenCode 飞书通知插件 - 监听事件并发送消息到飞书",
+  "type": "module",
+  "main": "feishu-plugin.js",
+  "dependencies": {
+    "@larksuiteoapi/node-sdk": "^1.29.0"
+  },
+  "keywords": [
+    "opencode",
+    "plugin",
+    "feishu",
+    "notification"
+  ],
+  "author": "",
+  "license": "MIT"
+}
