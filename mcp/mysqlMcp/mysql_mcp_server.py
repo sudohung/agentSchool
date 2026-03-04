@@ -9,6 +9,7 @@ database structure, relationships, and data to understand business patterns.
 import os
 import json
 import logging
+from pathlib import Path
 from typing import Optional, List, Dict, Any, TypedDict
 from enum import Enum
 from contextlib import asynccontextmanager
@@ -18,13 +19,20 @@ import pymysql.cursors
 from pydantic import BaseModel, Field, ConfigDict
 from mcp.server.fastmcp import FastMCP, Context
 
-# Load environment variables from .env file
+# Load environment variables from .env file (in script directory)
 from dotenv import load_dotenv
-load_dotenv()
+_env_path = Path(__file__).parent / ".env"
+load_dotenv(_env_path)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+# Log configuration status
+logger.info(f"Loading .env from: {_env_path}")
+logger.info(f"MySQL Host: {os.getenv('MYSQL_HOST', 'not set')}")
+logger.info(f"MySQL User: {os.getenv('MYSQL_USER', 'not set')}")
+logger.info(f"MySQL Database: {os.getenv('MYSQL_DATABASE', 'not set')}")
 
 # Initialize MCP server
 mcp = FastMCP("mysql_mcp")
@@ -38,7 +46,7 @@ class ConnectionConfig(BaseModel):
 
     host: str = Field(default="localhost", description="MySQL server hostname")
     port: int = Field(default=3306, description="MySQL server port", ge=1, le=65535)
-    user: str = Field(..., description="MySQL username")
+    user: str = Field(default="root", description="MySQL username")
     password: str = Field(default="", description="MySQL password")
     database: Optional[str] = Field(default=None, description="Default database to use")
     charset: str = Field(default="utf8mb4", description="Character set")
@@ -53,20 +61,6 @@ class DatabaseClient:
         self.config = config
         self.connection = None
     
-    def connect(self):
-        """Establish MySQL connection"""
-        if self.connection is None:
-            password = self.config.password if self.config.password else ""
-            self.connection = pymysql.connect(
-                host=self.config.host,
-                port=self.config.port,
-                user=self.config.user,
-                password=password,
-                database=self.config.database,
-                charset=self.config.charset,
-                cursorclass=pymysql.cursors.DictCursor
-            )
-
     async def connect(self):
         """Establish connection to MySQL."""
         if self.connection is None or not self.connection.open:
@@ -115,20 +109,44 @@ def get_db_client() -> DatabaseClient:
 
 @asynccontextmanager
 async def app_lifespan(app):
-    """Manage database client lifecycle."""
+    """Manage database client lifecycle with startup connection test."""
     global _db_client
-    
-    # Load configuration from environment or use defaults
+
+    # Load configuration from environment
+    host = os.getenv("MYSQL_HOST")
+    port = os.getenv("MYSQL_PORT")
+    user = os.getenv("MYSQL_USER")
+    password = os.getenv("MYSQL_PASSWORD", "")
+    database = os.getenv("MYSQL_DATABASE")
+    charset = os.getenv("MYSQL_CHARSET", "utf8mb4")
+
+    # Validate required config
+    if not host:
+        raise RuntimeError("MYSQL_HOST not configured in .env file")
+    if not user:
+        raise RuntimeError("MYSQL_USER not configured in .env file")
+
     config = ConnectionConfig(
-        host=os.getenv("MYSQL_HOST", "localhost"),
-        port=int(os.getenv("MYSQL_PORT", "3306")),
-        user=os.getenv("MYSQL_USER", "root"),
-        password=os.getenv("MYSQL_PASSWORD", ""),
-        database=os.getenv("MYSQL_DATABASE"),
-        charset=os.getenv("MYSQL_CHARSET", "utf8mb4")
+        host=host,
+        port=int(port) if port else 3306,
+        user=user,
+        password=password,
+        database=database,
+        charset=charset
     )
 
+    logger.info(f"Connecting to MySQL: {config.host}:{config.port}/{config.database or '(no default db)'}")
+
     _db_client = DatabaseClient(config)
+
+    # Test connection on startup
+    try:
+        await _db_client.connect()
+        logger.info("MySQL connection established successfully")
+    except Exception as e:
+        logger.error(f"Failed to connect to MySQL: {e}")
+        raise
+
     yield {"db": _db_client}
 
     # Cleanup
