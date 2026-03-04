@@ -1,64 +1,28 @@
 {
-  "schema": {
-    "event_type": "im.message.receive_v1",
-    "event": {
-      "message": {
-        "chat_id": "string",
-        "chat_type": "string",
-        "content": "string",
-        "create_time": "string",
-        "message_id": "string",
-        "message_type": "string"
-      },
-      "sender": {
-        "sender_id": {
-          "open_id": "string",
-          "union_id": "string",
-          "user_id": "string"
-        },
-        "sender_type": "string",
-        "tenant_key": "string"
-      }
-    },
-    "header": {
-      "event_id": "string",
-      "event_key": "string",
-      "create_time": "string",
-      "token": "string",
-      "app_id": "string",
-      "tenant_key": "string"
-    },
-    "uuid": "string"
+  "schema": "2.0",
+  "event_id": "14ef9949512ae5853ca0fd3e25253da9",
+  "token": "",
+  "create_time": "1772645572273",
+  "event_type": "im.message.receive_v1",
+  "tenant_key": "1aeaa37208c95ce0",
+  "app_id": "cli_a922f5b358781ceb",
+  "message": {
+    "chat_id": "oc_c24385129ea39807f27932861a714909",
+    "chat_type": "p2p",
+    "content": "{\"text\":\"搜索 无需\"}",
+    "create_time": "1772645571983",
+    "message_id": "om_x100b55b282f3a8a8c3885c2334704c2",
+    "message_type": "text",
+    "update_time": "1772645571983",
+    "user_agent": "Mozilla/5.0 (Linux; Android 16; 2410DPN6CC Build/BP2A.250605.031.A3; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/132.0.6834.152 Mobile Safari/537.36 Lark/7.62.6 LarkLocale/zh_CN ChannelName/Feishu appid/1161; appname/Feishu; ttnet SDK-Version/7.62.5"
   },
-  "sample": {
-    "event_type": "im.message.receive_v1",
-    "event": {
-      "message": {
-        "chat_id": "oc_1234567890abcdef",
-        "chat_type": "group",
-        "content": "{\"text\":\"你好\"}",
-        "create_time": "1712345678901",
-        "message_id": "om_1234567890abcdef1234567890abcdef",
-        "message_type": "text"
-      },
-      "sender": {
-        "sender_id": {
-          "open_id": "ou_1234567890abcdef1234567890abcdef",
-          "union_id": "on_1234567890abcdef1234567890abcdef",
-          "user_id": "12345678"
-        },
-        "sender_type": "user",
-        "tenant_key": "1234567890abcdef"
-      }
+  "sender": {
+    "sender_id": {
+      "open_id": "ou_2585e4c3afa78133704ee4aecf4a8122",
+      "union_id": "on_9f9cc252fa8edc33f1936a07b512512b",
+      "user_id": "17685474"
     },
-    "header": {
-      "event_id": "12345678-1234-1234-1234-1234567890ab",
-      "event_key": "im.message.receive_v1",
-      "create_time": "1712345678901",
-      "token": "verify_token_xxxxxx",
-      "app_id": "cli_a9059178d1b8dcd1",
-      "tenant_key": "1234567890abcdef"
-    },
-    "uuid": "12345678-1234-1234-1234-1234567890ab"
+    "sender_type": "user",
+    "tenant_key": "1aeaa37208c95ce0"
   }
 }

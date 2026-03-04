@@ -4,21 +4,34 @@
  */
 
 import * as lark from '@larksuiteoapi/node-sdk';
+import { 
+    extractAIResponse 
+} from './message-parser.js';
+import {
+    sendThinkingMessage,
+    sendErrorMessage,
+    sendAIResponse,
+    sendEmptyResponse,
+    updateMessage,
+    sendEventNotification
+} from './message/index.js';
 
 // 飞书客户端配置
 const feishuConfig = {
-    appId: 'cli_a9059178d1b8dcd1',
-    appSecret: 'utn16AUDhHarUUWY2yaZScMX4OJNBY4K'
+    appId: 'cli_a922f5b358781ceb',
+    appSecret: 'Sc5Vtwl3I81PhimoZhkJ2dRxBQDbPQx5'
 };
 
-// 创建 HTTP 客户端（用于发送消息）
+// 创建 飞书 客户端（用于发送消息）
 const feishuClient = new lark.Client(feishuConfig);
 
-// WebSocket 长连接客户端（用于接收消息）
+// 飞书 长连接客户端（用于接收消息）
 let wsClient = null;
 let isConnected = false;
+
 // 消息去重集合，存储已处理的 messageId
 const processedMessageIds = new Set();
+
 // 定期清理过期的 messageId（保留最近1小时）
 const MESSAGE_ID_TTL = 60 * 60 * 1000; // 1小时
 const processedMessageTimestamps = new Map();
@@ -39,174 +52,10 @@ function cleanupExpiredMessages(currentTime) {
     
     if (cleanedCount > 0) {
         console.log(`[Feishu] 清理了 ${cleanedCount} 条过期消息记录`);
-        console.log(`[Feishu] 当前缓存消息数: ${processedMessageIds.size}`);
+        console.log(`[Feishu] 当前缓存消息数：${processedMessageIds.size}`);
     }
 }
 
-/**
- * 解析 OpenCode 响应中的 parts
- * @param {Array} parts - OpenCode 响应的 parts 数组
- * @returns {Object} 解析结果 {textResponse, otherParts}
- */
-function parseOpenCodeParts(parts) {
-    const textParts = [];
-    const otherParts = [];
-    
-    if (!Array.isArray(parts)) {
-        return { textResponse: '', otherParts: [] };
-    }
-    
-    for (const part of parts) {
-        const parsedPart = parsePartByType(part);
-        
-        if (parsedPart.isText) {
-            textParts.push(parsedPart.content);
-        } else {
-            otherParts.push(parsedPart);
-        }
-    }
-    
-    return {
-        textResponse: textParts.join('\n'),
-        otherParts: otherParts
-    };
-}
-
-/**
- * 根据 part 类型进行解析
- * @param {Object} part - 单个 part 对象
- * @returns {Object} 解析后的 part 信息
- */
-function parsePartByType(part) {
-    const baseInfo = {
-        type: part.type,
-        id: part.id,
-        sessionId: part.sessionID,
-        messageId: part.messageID
-    };
-    
-    switch (part.type) {
-        case 'text':
-            return {
-                ...baseInfo,
-                isText: true,
-                content: part.text
-            };
-        
-        case 'image':
-            return {
-                ...baseInfo,
-                isText: false,
-                content: '[图片内容待处理]',
-                rawData: part
-            };
-        
-        case 'code':
-            return {
-                ...baseInfo,
-                isText: false,
-                content: '[代码内容待处理]',
-                rawData: part
-            };
-        
-        case 'reasoning':
-            return {
-                ...baseInfo,
-                isText: false,
-                content: '[推理过程待处理]',
-                rawData: part
-            };
-        
-        case 'step-start':
-        case 'step-finish':
-            // 流程控制类型，不作为内容返回
-            return {
-                ...baseInfo,
-                isText: false,
-                content: '[流程控制]',
-                rawData: part
-            };
-        
-        default:
-            return {
-                ...baseInfo,
-                isText: false,
-                content: `[未知类型: ${part.type}]`,
-                rawData: part
-            };
-    }
-}
-
-/**
- * 提取 AI 回复内容
- * @param {Object} result - OpenCode 响应结果
- * @param {string} userMessage - 用户原始消息
- * @returns {Object} {aiResponse, otherParts}
- */
-function extractAIResponse(result, userMessage) {
-    let aiResponse = '收到您的消息';
-    let otherParts = [];
-    
-    // 优先从 parts 中提取
-    if (result.data.parts && Array.isArray(result.data.parts)) {
-        const parsed = parseOpenCodeParts(result.data.parts);
-        aiResponse = parsed.textResponse || aiResponse;
-        otherParts = parsed.otherParts;
-        
-        // 调试信息
-        if (otherParts.length > 0) {
-            logOtherPartStats(otherParts);
-        }
-    }
-    // 兼容旧格式
-    else if (result.data && result.data.info) {
-        aiResponse = result.data.info.summary || userMessage;
-    } else if (result.info) {
-        aiResponse = result.info.summary || userMessage;
-    }
-    
-    return { aiResponse, otherParts };
-}
-
-/**
- * 记录非文本 part 的统计信息
- * @param {Array} otherParts - 非文本 part 数组
- */
-function logOtherPartStats(otherParts) {
-    console.log(`[Feishu] 检测到 ${otherParts.length} 个非文本 part:`);
-    const typeCounts = {};
-    otherParts.forEach(p => {
-        typeCounts[p.type] = (typeCounts[p.type] || 0) + 1;
-    });
-    console.log('[Feishu] 类型分布:', typeCounts);
-}
-
-/**
- * 发送飞书消息（使用 HTTP 短连接）
- * @param {string} chatId - 聊天 ID
- * @param {string} title - 消息标题
- * @param {string} content - 消息内容
- */
-async function sendFeishuMessage(chatId, title, content) {
-    try {
-        await feishuClient.im.v1.message.create({
-            params: {
-                receive_id_type: "chat_id"
-            },
-            data: {
-                receive_id: chatId,
-                content: lark.messageCard.defaultCard({
-                    title: title,
-                    content: content
-                }),
-                msg_type: 'interactive'
-            }
-        });
-        console.log(`[Feishu] 消息已发送：${title}`);
-    } catch (error) {
-        console.error(`[Feishu] 发送消息失败:`, error.message);
-    }
-}
 function startWebSocketConnection(onMessageReceived) {
     if (wsClient && isConnected) {
         console.log('[Feishu] WebSocket 已连接，跳过重复启动');
@@ -226,13 +75,23 @@ function startWebSocketConnection(onMessageReceived) {
                         message: { chat_id, content }
                     } = data;
                     
-                    console.log(`[Feishu] 收到消息，聊天 ID: ${chat_id}`);
-                    
+                    console.log(`[Feishu] 收到消息，聊天 ID: ${chat_id}, eventId: ${data.event_id}, create_time: ${data.create_time}`);
+
                     // 基于 messageId 进行去重处理
                     const messageId = data.event?.message?.message_id || data.message?.message_id;
                     const currentTime = Date.now();
                     
                     if (messageId) {
+
+                        // 比较时间戳，2 分钟前的数据不处理
+                        // 飞书的 create_time 是毫秒级时间戳（可能是字符串或数字）
+                        const messageTime = typeof data.create_time === 'string' 
+                            ? parseInt(data.create_time) 
+                            : data.create_time;
+                        if (currentTime - messageTime > 2 * 60 * 1000) {
+                            console.log(`[Feishu] 消息过旧，跳过: ${messageId}， 内容：${JSON.stringify(content)}`);
+                            return;
+                        }
                         // 检查是否已处理过
                         if (processedMessageIds.has(messageId)) {
                             console.log(`[Feishu] 消息已处理过，跳过: ${messageId}`);
@@ -256,6 +115,8 @@ function startWebSocketConnection(onMessageReceived) {
                     if (onMessageReceived) {
                         await onMessageReceived(chat_id, JSON.parse(content).text);
                     }
+
+                    return {}
                 }
             })
         });
@@ -301,17 +162,17 @@ export const FeishuPlugin = async ({ project, client, $, directory, worktree }) 
             console.log(`[Feishu] 消息已在处理中，跳过: ${messageKey}`);
             return;
         }
-        
+
         try {
-            // 先回意见
-            await sendFeishuMessage(
-                chatId,
-                `Thinking...`
-            );
 
             processingMessages.add(messageKey);
             console.log(`[Feishu -> OpenCode] 处理消息：${userMessage}`);
-            
+
+            // 先发送思考状态
+            const res = await sendThinkingMessage(feishuClient, chatId);
+            console.log(`[Feishu -> OpenCode] 处理think消息：${JSON.stringify(res)}`);
+
+
             // 创建或获取会话
             let sessionId = sessionMap.get(chatId);
             if (!sessionId) {
@@ -348,30 +209,23 @@ export const FeishuPlugin = async ({ project, client, $, directory, worktree }) 
             });
             
             // 打印完整的 result 结构用于调试
-            console.log('[Opencode] === Prompt Result 完整结构 ===');
-            console.log('[Opencode] result:', JSON.stringify(result, null, 2));
-            console.log('[Opencode] result.data:', result.data);
-            console.log('[Opencode] result.info:', result.info);
-            console.log('[Opencode] ======================');
+//            console.log('[Opencode] === Prompt Result 完整结构 ===');
+//            console.log('[Opencode] result:', JSON.stringify(result, null, 2));
+//            console.log('[Opencode] result.data:', result.data);
+//            console.log('[Opencode] result.info:', result.info);
+//            console.log('[Opencode] ======================');
             
             // 提取 AI 回复
             const { aiResponse, otherParts } = extractAIResponse(result, userMessage);
 
             // 回复到飞书
-            await sendFeishuMessage(
-                chatId,
-                `回复：${userMessage.substring(0, 20)}...`,
-                aiResponse
-            );
+            await sendAIResponse(feishuClient, chatId, userMessage, aiResponse);
+//            await updateMessage(feishuClient, res.data.message_id, aiResponse);
             
         } catch (error) {
             console.error('[Feishu -> OpenCode] 处理失败:', error.message);
             console.error('[Feishu -> OpenCode] 错误详情:', error);
-            await sendFeishuMessage(
-                chatId,
-                '❌ 处理失败',
-                `错误：${error.message}`
-            );
+            await sendErrorMessage(feishuClient, chatId, error.message);
         } finally {
             // 清理处理标记
             setTimeout(() => {
@@ -380,8 +234,6 @@ export const FeishuPlugin = async ({ project, client, $, directory, worktree }) 
         }
     }
 
-    // 启动 WebSocket 长连接（如果需要接收飞书消息）
-    // 注意：如果只需要发送通知，可以注释掉下面这行
     startWebSocketConnection(handleFeishuMessage);
 
     return {
@@ -392,7 +244,8 @@ export const FeishuPlugin = async ({ project, client, $, directory, worktree }) 
             
             // 会话创建事件
             if (event.type === "session.created") {
-                await sendFeishuMessage(
+                await sendEventNotification(
+                    feishuClient,
                     "chat_id_here", // 替换为实际聊天 ID
                     "OpenCode 会话已创建",
                     `项目：${project?.name || '未知'}\n会话 ID: ${event.session.id}`
@@ -401,7 +254,8 @@ export const FeishuPlugin = async ({ project, client, $, directory, worktree }) 
             
             // 会话完成事件
             if (event.type === "session.idle") {
-                await sendFeishuMessage(
+                await sendEventNotification(
+                    feishuClient,
                     "chat_id_here",
                     "会话已完成",
                     `会话 ${event.session.id} 已完成处理`
@@ -411,7 +265,8 @@ export const FeishuPlugin = async ({ project, client, $, directory, worktree }) 
             // 工具执行事件
             if (event.type === "tool.execute.after") {
                 const toolName = event.tool.name;
-                await sendFeishuMessage(
+                await sendEventNotification(
+                    feishuClient,
                     "chat_id_here",
                     `工具执行：${toolName}`,
                     `工具 ${toolName} 已执行完成`
@@ -420,10 +275,11 @@ export const FeishuPlugin = async ({ project, client, $, directory, worktree }) 
             
             // 错误事件
             if (event.type === "session.error") {
-                await sendFeishuMessage(
+                await sendErrorMessage(
+                    feishuClient,
                     "chat_id_here",
-                    "❌ 发生错误",
-                    `错误信息：${event.error.message}`
+                    event.error.message,
+                    "❌ 发生错误"
                 );
             }
         },

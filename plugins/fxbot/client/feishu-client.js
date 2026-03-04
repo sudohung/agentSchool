@@ -2,8 +2,8 @@ import * as lark from '@larksuiteoapi/node-sdk';
 import { createOpencodeClient } from "@opencode-ai/sdk"
 
 const baseConfig = {
-    appId: 'cli_a9059178d1b8dcd1',
-    appSecret: 'utn16AUDhHarUUWY2yaZScMX4OJNBY4K'
+    appId: 'cli_a922f5b358781ceb',
+    appSecret: 'Sc5Vtwl3I81PhimoZhkJ2dRxBQDbPQx5'
 };
 
 const larkClient = new lark.Client(baseConfig);
