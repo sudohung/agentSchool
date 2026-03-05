@@ -1,23 +1,17 @@
 import * as lark from '@larksuiteoapi/node-sdk';
-import { createOpencode, createOpencodeClient } from "@opencode-ai/sdk"
+import { createOpencodeClient } from "@opencode-ai/sdk"
 import {
-    handleFeishuMessage,
-    sendEventNotification,
-    sendErrorMessage
+    handleFeishuMessage
 } from '../../feishu-bot/message/index.js';
 import { createFeishuWSClient } from '../../feishu-bot/client/index.js';
 import { FeishuConfig } from '../../feishu-bot/config.js';
+import { createAgentManager, OpencodeAgent } from '../../feishu-bot/agent/index.js';
 
 
 const baseConfig = {
     appId: 'cli_a9059178d1b8dcd1',
     appSecret: 'utn16AUDhHarUUWY2yaZScMX4OJNBY4K'
 };
-
-// 存储会话映射，用于双向通信
-const sessionMap = new Map();
-// 防重处理标记
-const processingMessages = new Set();
 
 const feishuClient = new lark.Client(baseConfig);
 
@@ -27,10 +21,17 @@ const opencodeClient = createOpencodeClient({
 
 console.log(`opencode sessions  ${opencodeClient}`)
 
+// 创建 Agent 策略实例
+const agent = new OpencodeAgent(opencodeClient);
 
+// 创建 Agent 管理器（封装 sessionMap 和 processingMessages）
+const agentManager = createAgentManager({
+    agent,
+    processingTimeout: FeishuConfig.messageConfig.processingTimeout,
+    messageIdTtl: FeishuConfig.messageConfig.messageIdTtl
+});
 
 // 创建 WebSocket feishu 客户端
-// 创建飞书长连接客户端实例
 const feishuWSClient = createFeishuWSClient({
     appId: FeishuConfig.appId,
     appSecret: FeishuConfig.appSecret,
@@ -38,12 +39,11 @@ const feishuWSClient = createFeishuWSClient({
     messageExpiryTime: FeishuConfig.messageConfig.messageExpiryTime,
     messageIdTtl: FeishuConfig.messageConfig.messageIdTtl
 });
+
 feishuWSClient.start((chatId, userMessage) => {
     return handleFeishuMessage(chatId, userMessage, {
         channelClient: feishuClient,
-        agentClient: opencodeClient,
-        sessionMap,
-        processingMessages
+        agentManager
     });
 });
 

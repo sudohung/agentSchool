@@ -11,6 +11,7 @@ import {
 } from './message/index.js';
 import { FeishuConfig } from './config.js';
 import { createFeishuWSClient } from './client/index.js';
+import { createAgentManager, OpencodeAgent } from './agent/index.js';
 
 // 验证配置
 if (!FeishuConfig.isValid()) {
@@ -78,22 +79,20 @@ function startWebSocketConnection(onMessageReceived) {
  */
 export const OpencodeFeishuPlugin = async ({ project, agentClient, $, directory, worktree }) => {
     
-    // 存储会话映射，用于双向通信
-    const sessionMap = new Map();
-    // 防重处理标记
-    const processingMessages = new Set();
+    // 创建 Agent 策略实例
+    const agent = new OpencodeAgent(agentClient);
+    
+    // 创建 Agent 管理器（封装 sessionMap 和 processingMessages）
+    const agentManager = createAgentManager({
+        agent,
+        processingTimeout: FeishuConfig.messageConfig.processingTimeout,
+        messageIdTtl: FeishuConfig.messageConfig.messageIdTtl
+    });
     
     // 插件初始化日志
-    await agentClient.app.log({
-        body: {
-            service: "feishu-plugin",
-            level: "info",
-            message: "飞书插件已初始化",
-            extra: {
-                project: project?.name || 'unknown',
-                directory: directory
-            }
-        }
+    await agentManager.log('info', '飞书插件已初始化', {
+        project: project?.name || 'unknown',
+        directory
     });
 
     /**
@@ -102,9 +101,7 @@ export const OpencodeFeishuPlugin = async ({ project, agentClient, $, directory,
     await startWebSocketConnection((chatId, userMessage) => {
         return handleFeishuMessage(chatId, userMessage, {
             channelClient: feishuClient,
-            agentClient,
-            sessionMap,
-            processingMessages
+            agentManager
         });
     });
 
