@@ -6,7 +6,7 @@
 import * as lark from '@larksuiteoapi/node-sdk';
 import { 
     extractAIResponse 
-} from './message-parser.js';
+} from './message/message-parser.js';
 import {
     sendThinkingMessage,
     sendErrorMessage,
