@@ -77,23 +77,38 @@ function startWebSocketConnection(onMessageReceived) {
  * @param {string} context.directory - 目录信息
  * @param {string} context.worktree - 工作区信息
  */
-export const OpencodeFeishuPlugin = async ({ project, agentClient, $, directory, worktree }) => {
+export const OpencodeFeishuPlugin = async (context) => {
+    const { project, client, $, directory, worktree } = context;
+
+    
+    // 兼容：如果 agentClient 为空，尝试使用 client
+    const effectiveClient = client;
+    
+    if (!effectiveClient) {
+        console.error('[FeishuBot] 错误：未找到有效的 client 参数');
+        console.error('[FeishuBot] context:', context);
+        throw new Error('OpenCode client 未提供');
+    }
+
+    console.log('[FeishuBot] 插件已启动');
     
     // 创建 Agent 策略实例
-    const agent = new OpencodeAgent(agentClient);
-    
+    const agent = new OpencodeAgent(effectiveClient);
+    console.log('[FeishuBot] 插件已启动1');
+
     // 创建 Agent 管理器（封装 sessionMap 和 processingMessages）
     const agentManager = createAgentManager({
-        agent,
+        agent: agent,
         processingTimeout: FeishuConfig.messageConfig.processingTimeout,
         messageIdTtl: FeishuConfig.messageConfig.messageIdTtl
     });
-    
+
     // 插件初始化日志
     await agentManager.log('info', '飞书插件已初始化', {
         project: project?.name || 'unknown',
         directory
     });
+    console.log('[FeishuBot] 插件已启动2');
 
     /**
      * 启动 飞书的 WebSocket 连接，并订阅飞书事件
@@ -104,6 +119,8 @@ export const OpencodeFeishuPlugin = async ({ project, agentClient, $, directory,
             agentManager
         });
     });
+
+    console.log('[FeishuBot] 插件已启动3');
 
     /**
      * 监听所有opencode事件

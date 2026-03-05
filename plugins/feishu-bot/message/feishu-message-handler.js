@@ -48,7 +48,8 @@ export async function handleFeishuMessage(chatId, userMessage, { channelClient, 
 
         // 获取或创建会话（AgentManager 内部管理 sessionMap）
         const sessionId = await agentManager.getSession(chatId);
-        
+        console.log(`${FeishuConfig.getLogPrefix()} 使用会话：${sessionId}`);
+
         if (FeishuConfig.isDebugEnabled()) {
             console.log(`${FeishuConfig.getLogPrefix()} 使用会话：${sessionId}`);
         }
