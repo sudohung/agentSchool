@@ -13,6 +13,7 @@ import {
     sendAIResponse,
     sendEmptyResponse,
     updateMessage,
+    recallMessage,
     sendEventNotification
 } from './message/index.js';
 import { FeishuConfig } from './config.js';
@@ -36,9 +37,10 @@ let isConnected = false;
 // 消息去重集合，存储已处理的 messageId
 const processedMessageIds = new Set();
 
-// 使用配置中的消息ID TTL
-const MESSAGE_ID_TTL = FeishuConfig.messageConfig.messageIdTtl;
+// 消息去重时间戳集合，存储已处理消息的时间戳
 const processedMessageTimestamps = new Map();
+
+/******************** 主要方法 ****************************/
 
 /**
  * 清理过期的消息记录
@@ -46,6 +48,9 @@ const processedMessageTimestamps = new Map();
  */
 function cleanupExpiredMessages(currentTime) {
     let cleanedCount = 0;
+
+    // 使用配置中的消息ID TTL
+    const MESSAGE_ID_TTL = FeishuConfig.messageConfig.messageIdTtl;
     for (const [messageId, timestamp] of processedMessageTimestamps.entries()) {
         if (currentTime - timestamp > MESSAGE_ID_TTL) {
             processedMessageIds.delete(messageId);
@@ -137,9 +142,15 @@ function startWebSocketConnection(onMessageReceived) {
 }
 
 /**
- * 飞书插件主函数
+ * opencode 的 飞书插件主函数
+ * @param {Object} context - 插件上下文
+ * @param {Object} context.project - 项目信息
+ * @param {Object} context.client - opencode客户端
+ * @param {Object} context.$ - 依赖信息
+ * @param {string} context.directory - 目录信息
+ * @param {string} context.worktree - 工作区信息
  */
-export const FeishuPlugin = async ({ project, client, $, directory, worktree }) => {
+export const OpencodeFeishuPlugin = async ({ project, client, $, directory, worktree }) => {
     
     // 存储会话映射，用于双向通信
     const sessionMap = new Map();
@@ -228,8 +239,9 @@ export const FeishuPlugin = async ({ project, client, $, directory, worktree }) 
             const { aiResponse, otherParts } = extractAIResponse(result, userMessage);
 
             // 回复到飞书
-            await sendAIResponse(feishuClient, chatId, userMessage, aiResponse);
-//            await updateMessage(feishuClient, res.data.message_id, aiResponse);
+//            recallMessage(feishuClient, res.data.message_id);
+//            await sendAIResponse(feishuClient, chatId, userMessage, aiResponse);
+            await updateMessage(feishuClient, res.data.message_id, userMessage, aiResponse);
             
         } catch (error) {
             console.error(`${FeishuConfig.getLogPrefix()}[-> OpenCode] 处理失败:`, error.message);
@@ -245,8 +257,14 @@ export const FeishuPlugin = async ({ project, client, $, directory, worktree }) 
         }
     }
 
+    /**
+     * 启动 飞书的WebSocket 连接，并订阅飞书事件
+     */
     startWebSocketConnection(handleFeishuMessage);
 
+    /**
+     * 监听所有opencode事件
+     */
     return {
         /**
          * 监听所有事件

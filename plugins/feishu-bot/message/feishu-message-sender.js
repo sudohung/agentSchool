@@ -193,35 +193,56 @@ export async function sendEmptyResponse(client, chatId) {
  *        - 当 msgType 为 'interactive' 时，传入卡片内容对象 {title, content}
  * @returns {Promise<Object>} 飞书 API 响应结果
  */
-export async function updateMessage(client, messageId, content) {
+export async function updateMessage(client, messageId, userMessage, content) {
     try {
         const msgType = 'interactive';
         // 根据消息类型处理内容
         let messageContent;
+        let res = {}
         if (msgType === 'text') {
             // 文本消息：将字符串内容转换为 JSON
             messageContent = JSON.stringify({ text: content });
+
+            // 调用飞书 API 更新消息
+            res = await client.im.v1.message.update({
+                path: {
+                    message_id: messageId
+                },
+                data: {
+                    msg_type: msgType,
+                    content: messageContent
+                }
+            });
+
         } else if (msgType === 'interactive') {
+            const truncatedMessage = userMessage.length > 20
+                ? `${userMessage.substring(0, 20)}...`
+                : userMessage;
+
             // 交互式卡片：使用默认卡片格式
-            const { title = '消息通知', content: cardContent } = content;
+            const { title = truncatedMessage, content: cardContent } = content;
             messageContent = lark.messageCard.defaultCard({
-                title: title,
+                title: `回复：${truncatedMessage}`,
                 content: content
             });
+
+            res = client.im.v1.message.patch({
+                path: {
+                    message_id:messageId,
+                },
+                data: {
+                    content:messageContent,
+                },
+            }
+            ).then(res => {
+                console.log(res);
+            }).catch(e => {
+                console.error(JSON.stringify(e.response.data, null, 4));
+            });
+
         } else {
             throw new Error(`不支持的消息类型：${msgType}`);
         }
-
-        // 调用飞书 API 更新消息
-        const res = await client.im.v1.message.update({
-            path: {
-                message_id: messageId
-            },
-            data: {
-                msg_type: msgType,
-                content: messageContent
-            }
-        });
         
         console.log(`[Feishu] 消息编辑成功：${messageId}`);
         return res;
@@ -238,7 +259,7 @@ export async function updateMessage(client, messageId, content) {
  * @returns {Promise<Object>} 飞书 API 响应结果
  */
 
-export async function recallMessage(messageId) {
+export async function recallMessage(client, messageId) {
   try {
     const response = await client.im.v1.message.delete({
       path: {

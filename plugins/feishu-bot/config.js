@@ -1,6 +1,23 @@
 /**
  * 飞书机器人配置管理
  */
+
+// 加载 .env 文件（ESM 模式）
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// 加载 .env 文件
+dotenv.config({ path: join(__dirname, '.env') });
+
+// 调试：打印加载结果
+console.log('[FeishuConfig] 加载 .env 文件:', join(__dirname, '.env'));
+console.log('[FeishuConfig] FEISHU_APP_ID:', process.env.FEISHU_APP_ID ? '已设置' : '未设置');
+console.log('[FeishuConfig] FEISHU_APP_SECRET:', process.env.FEISHU_APP_SECRET ? '已设置' : '未设置');
+
 export const FeishuConfig = {
   // 从环境变量获取配置，支持本地开发和生产环境
   appId: process.env.FEISHU_APP_ID || '',

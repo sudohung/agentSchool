@@ -12,5 +12,6 @@ export {
     sendAIResponse,
     sendEventNotification,
     sendEmptyResponse,
-    updateMessage
+    updateMessage,
+    recallMessage
 } from './feishu-message-sender.js';
