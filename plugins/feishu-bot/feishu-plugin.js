@@ -5,16 +5,9 @@
 
 import * as lark from '@larksuiteoapi/node-sdk';
 import { 
-    extractAIResponse 
-} from './message/message-parser.js';
-import {
-    sendThinkingMessage,
-    sendErrorMessage,
-    sendAIResponse,
-    sendEmptyResponse,
-    updateMessage,
-    recallMessage,
-    sendEventNotification
+    handleFeishuMessage,
+    sendEventNotification,
+    sendErrorMessage
 } from './message/index.js';
 import { FeishuConfig } from './config.js';
 import { createFeishuWSClient } from './client/index.js';
@@ -68,6 +61,7 @@ function cleanupExpiredMessages(currentTime) {
     }
 }
 
+// 启动飞书长连接客户端
 function startWebSocketConnection(onMessageReceived) {
     console.log(`正在启动 feishu 处理消息`);
     return feishuWSClient.start(onMessageReceived);
@@ -82,7 +76,7 @@ function startWebSocketConnection(onMessageReceived) {
  * @param {string} context.directory - 目录信息
  * @param {string} context.worktree - 工作区信息
  */
-export const OpencodeFeishuPlugin = async ({ project, client, $, directory, worktree }) => {
+export const OpencodeFeishuPlugin = async ({ project, agentClient, $, directory, worktree }) => {
     
     // 存储会话映射，用于双向通信
     const sessionMap = new Map();
@@ -90,7 +84,7 @@ export const OpencodeFeishuPlugin = async ({ project, client, $, directory, work
     const processingMessages = new Set();
     
     // 插件初始化日志
-    await client.app.log({
+    await agentClient.app.log({
         body: {
             service: "feishu-plugin",
             level: "info",
@@ -103,96 +97,16 @@ export const OpencodeFeishuPlugin = async ({ project, client, $, directory, work
     });
 
     /**
-     * 处理飞书收到的消息（转发给 OpenCode AI）
-     */
-    async function handleFeishuMessage(chatId, userMessage) {
-        // 创建唯一标识防止重复处理
-        const messageKey = `${chatId}:${userMessage}`;
-        if (processingMessages.has(messageKey)) {
-            console.log(`[Feishu] 消息已在处理中，跳过: ${messageKey}`);
-            return;
-        }
-
-        try {
-
-            processingMessages.add(messageKey);
-            console.log(`${FeishuConfig.getLogPrefix()}[-> OpenCode] 处理消息：${userMessage}`);
-
-            // 先发送思考状态
-            const res = await sendThinkingMessage(feishuClient, chatId);
-            console.log(`[Feishu -> OpenCode] 处理think消息：${JSON.stringify(res)}`);
-
-
-            // 创建或获取会话
-            let sessionId = sessionMap.get(chatId);
-            if (!sessionId) {
-                const session = await client.session.create({
-                    body: { title: `feishu-${chatId}-${Date.now()}` }
-                });
-                
-            // 打印完整的 session 结构用于调试
-            if (FeishuConfig.isDebugEnabled()) {
-                console.log(`${FeishuConfig.getLogPrefix()} === Session 完整结构 ===`);
-                console.log(`${FeishuConfig.getLogPrefix()} session:`, JSON.stringify(session, null, 2));
-                console.log(`${FeishuConfig.getLogPrefix()} session.id:`, session.id);
-                console.log(`${FeishuConfig.getLogPrefix()} session.data:`, session.data);
-                console.log(`${FeishuConfig.getLogPrefix()} session.path:`, session.path);
-                console.log(`${FeishuConfig.getLogPrefix()} ======================`);
-            }
-                
-                // 正确获取 session ID，检查多种可能的字段名
-                sessionId = session.id || session.data?.id || session.path?.id;
-                
-                if (!sessionId) {
-                    console.error('[Feishu] Session 创建成功但未获取到 ID:', session);
-                    throw new Error('无法获取 Session ID');
-                }
-                
-                console.log(`${FeishuConfig.getLogPrefix()} 创建新会话：${sessionId}`);
-                sessionMap.set(chatId, sessionId);
-            }
-            
-            // 发送消息给 OpenCode AI
-            const result = await client.session.prompt({
-                path: { id: sessionId },
-                body: {
-                    parts: [{ type: "text", text: userMessage }],
-                },
-            });
-            
-            // 打印完整的 result 结构用于调试
-//            console.log('[Opencode] === Prompt Result 完整结构 ===');
-//            console.log('[Opencode] result:', JSON.stringify(result, null, 2));
-//            console.log('[Opencode] result.data:', result.data);
-//            console.log('[Opencode] result.info:', result.info);
-//            console.log('[Opencode] ======================');
-            
-            // 提取 AI 回复
-            const { aiResponse, otherParts } = extractAIResponse(result, userMessage);
-
-            // 回复到飞书
-//            recallMessage(feishuClient, res.data.message_id);
-//            await sendAIResponse(feishuClient, chatId, userMessage, aiResponse);
-            await updateMessage(feishuClient, res.data.message_id, userMessage, aiResponse);
-            
-        } catch (error) {
-            console.error(`${FeishuConfig.getLogPrefix()}[-> OpenCode] 处理失败:`, error.message);
-            if (FeishuConfig.isDebugEnabled()) {
-                console.error(`${FeishuConfig.getLogPrefix()}[-> OpenCode] 错误详情:`, error);
-            }
-            await sendErrorMessage(feishuClient, chatId, error.message);
-        } finally {
-            // 清理处理标记
-            setTimeout(() => {
-                processingMessages.delete(messageKey);
-            }, FeishuConfig.messageConfig.processingTimeout); // 使用配置中的超时时间
-        }
-    }
-
-    /**
      * 启动 飞书的 WebSocket 连接，并订阅飞书事件
      */
-    await startWebSocketConnection(handleFeishuMessage);
+    await startWebSocketConnection((chatId, userMessage) => {
+        return handleFeishuMessage(chatId, userMessage, {
+            channelClient: feishuClient,
+            agentClient,
+            sessionMap,
+            processingMessages
+        });
+    });
 
     /**
      * 监听所有opencode事件

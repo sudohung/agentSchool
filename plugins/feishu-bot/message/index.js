@@ -15,3 +15,7 @@ export {
     updateMessage,
     recallMessage
 } from './feishu-message-sender.js';
+
+export {
+    handleFeishuMessage
+} from './feishu-message-handler.js';
