@@ -15,15 +15,19 @@ import {
     updateMessage,
     sendEventNotification
 } from './message/index.js';
+import { FeishuConfig } from './config.js';
 
-// 飞书客户端配置
-const feishuConfig = {
-    appId: 'cli_a922f5b358781ceb',
-    appSecret: 'Sc5Vtwl3I81PhimoZhkJ2dRxBQDbPQx5'
-};
+// 验证配置
+if (!FeishuConfig.isValid()) {
+    console.error('[FeishuBot] 缺少必要的环境变量配置：FEISHU_APP_ID 和 FEISHU_APP_SECRET');
+    throw new Error('飞书机器人配置不完整');
+}
 
 // 创建 飞书 客户端（用于发送消息）
-const feishuClient = new lark.Client(feishuConfig);
+const feishuClient = new lark.Client({
+    appId: FeishuConfig.appId,
+    appSecret: FeishuConfig.appSecret
+});
 
 // 飞书 长连接客户端（用于接收消息）
 let wsClient = null;
@@ -32,8 +36,8 @@ let isConnected = false;
 // 消息去重集合，存储已处理的 messageId
 const processedMessageIds = new Set();
 
-// 定期清理过期的 messageId（保留最近1小时）
-const MESSAGE_ID_TTL = 60 * 60 * 1000; // 1小时
+// 使用配置中的消息ID TTL
+const MESSAGE_ID_TTL = FeishuConfig.messageConfig.messageIdTtl;
 const processedMessageTimestamps = new Map();
 
 /**
@@ -51,21 +55,24 @@ function cleanupExpiredMessages(currentTime) {
     }
     
     if (cleanedCount > 0) {
-        console.log(`[Feishu] 清理了 ${cleanedCount} 条过期消息记录`);
-        console.log(`[Feishu] 当前缓存消息数：${processedMessageIds.size}`);
+        console.log(`${FeishuConfig.getLogPrefix()} 清理了 ${cleanedCount} 条过期消息记录`);
+        console.log(`${FeishuConfig.getLogPrefix()} 当前缓存消息数：${processedMessageIds.size}`);
     }
 }
 
 function startWebSocketConnection(onMessageReceived) {
     if (wsClient && isConnected) {
-        console.log('[Feishu] WebSocket 已连接，跳过重复启动');
+        console.log(`${FeishuConfig.getLogPrefix()} WebSocket 已连接，跳过重复启动`);
         return;
     }
 
     try {
         wsClient = new lark.WSClient({
-            ...feishuConfig,
-            loggerLevel: lark.LoggerLevel.info
+            appId: FeishuConfig.appId,
+            appSecret: FeishuConfig.appSecret,
+            loggerLevel: FeishuConfig.logConfig.level === 'debug' ? lark.LoggerLevel.debug : 
+                       FeishuConfig.logConfig.level === 'error' ? lark.LoggerLevel.error : 
+                       lark.LoggerLevel.info
         });
 
         wsClient.start({
@@ -75,7 +82,7 @@ function startWebSocketConnection(onMessageReceived) {
                         message: { chat_id, content }
                     } = data;
                     
-                    console.log(`[Feishu] 收到消息，聊天 ID: ${chat_id}, eventId: ${data.event_id}, create_time: ${data.create_time}`);
+                    console.log(`${FeishuConfig.getLogPrefix()} 收到消息，聊天 ID: ${chat_id}, eventId: ${data.event_id}, create_time: ${data.create_time}`);
 
                     // 基于 messageId 进行去重处理
                     const messageId = data.event?.message?.message_id || data.message?.message_id;
@@ -83,18 +90,18 @@ function startWebSocketConnection(onMessageReceived) {
                     
                     if (messageId) {
 
-                        // 比较时间戳，2 分钟前的数据不处理
+                        // 比较时间戳，使用配置中的消息过期时间
                         // 飞书的 create_time 是毫秒级时间戳（可能是字符串或数字）
                         const messageTime = typeof data.create_time === 'string' 
                             ? parseInt(data.create_time) 
                             : data.create_time;
-                        if (currentTime - messageTime > 2 * 60 * 1000) {
-                            console.log(`[Feishu] 消息过旧，跳过: ${messageId}， 内容：${JSON.stringify(content)}`);
+                        if (currentTime - messageTime > FeishuConfig.messageConfig.messageExpiryTime) {
+                            console.log(`${FeishuConfig.getLogPrefix()} 消息过旧，跳过: ${messageId}， 内容：${JSON.stringify(content)}`);
                             return;
                         }
                         // 检查是否已处理过
                         if (processedMessageIds.has(messageId)) {
-                            console.log(`[Feishu] 消息已处理过，跳过: ${messageId}`);
+                            console.log(`${FeishuConfig.getLogPrefix()} 消息已处理过，跳过: ${messageId}`);
                             return;
                         }
                         
@@ -102,7 +109,7 @@ function startWebSocketConnection(onMessageReceived) {
                         processedMessageIds.add(messageId);
                         processedMessageTimestamps.set(messageId, currentTime);
                         
-                        console.log(`[Feishu] 记录新消息: ${messageId}`);
+                        console.log(`${FeishuConfig.getLogPrefix()} 记录新消息: ${messageId}`);
                     }
                     
                     // 清理过期的消息记录（每处理10条消息清理一次）
@@ -122,9 +129,9 @@ function startWebSocketConnection(onMessageReceived) {
         });
 
         isConnected = true;
-        console.log('[Feishu] WebSocket 长连接已启动');
+        console.log(`${FeishuConfig.getLogPrefix()} WebSocket 长连接已启动`);
     } catch (error) {
-        console.error('[Feishu] WebSocket 启动失败:', error.message);
+        console.error(`${FeishuConfig.getLogPrefix()} WebSocket 启动失败:`, error.message);
         isConnected = false;
     }
 }
@@ -166,7 +173,7 @@ export const FeishuPlugin = async ({ project, client, $, directory, worktree }) 
         try {
 
             processingMessages.add(messageKey);
-            console.log(`[Feishu -> OpenCode] 处理消息：${userMessage}`);
+            console.log(`${FeishuConfig.getLogPrefix()}[-> OpenCode] 处理消息：${userMessage}`);
 
             // 先发送思考状态
             const res = await sendThinkingMessage(feishuClient, chatId);
@@ -180,13 +187,15 @@ export const FeishuPlugin = async ({ project, client, $, directory, worktree }) 
                     body: { title: `feishu-${chatId}-${Date.now()}` }
                 });
                 
-                // 打印完整的 session 结构用于调试
-                console.log('[Feishu] === Session 完整结构 ===');
-                console.log('[Feishu] session:', JSON.stringify(session, null, 2));
-                console.log('[Feishu] session.id:', session.id);
-                console.log('[Feishu] session.data:', session.data);
-                console.log('[Feishu] session.path:', session.path);
-                console.log('[Feishu] ======================');
+            // 打印完整的 session 结构用于调试
+            if (FeishuConfig.isDebugEnabled()) {
+                console.log(`${FeishuConfig.getLogPrefix()} === Session 完整结构 ===`);
+                console.log(`${FeishuConfig.getLogPrefix()} session:`, JSON.stringify(session, null, 2));
+                console.log(`${FeishuConfig.getLogPrefix()} session.id:`, session.id);
+                console.log(`${FeishuConfig.getLogPrefix()} session.data:`, session.data);
+                console.log(`${FeishuConfig.getLogPrefix()} session.path:`, session.path);
+                console.log(`${FeishuConfig.getLogPrefix()} ======================`);
+            }
                 
                 // 正确获取 session ID，检查多种可能的字段名
                 sessionId = session.id || session.data?.id || session.path?.id;
@@ -196,7 +205,7 @@ export const FeishuPlugin = async ({ project, client, $, directory, worktree }) 
                     throw new Error('无法获取 Session ID');
                 }
                 
-                console.log(`[Feishu] 创建新会话：${sessionId}`);
+                console.log(`${FeishuConfig.getLogPrefix()} 创建新会话：${sessionId}`);
                 sessionMap.set(chatId, sessionId);
             }
             
@@ -223,14 +232,16 @@ export const FeishuPlugin = async ({ project, client, $, directory, worktree }) 
 //            await updateMessage(feishuClient, res.data.message_id, aiResponse);
             
         } catch (error) {
-            console.error('[Feishu -> OpenCode] 处理失败:', error.message);
-            console.error('[Feishu -> OpenCode] 错误详情:', error);
+            console.error(`${FeishuConfig.getLogPrefix()}[-> OpenCode] 处理失败:`, error.message);
+            if (FeishuConfig.isDebugEnabled()) {
+                console.error(`${FeishuConfig.getLogPrefix()}[-> OpenCode] 错误详情:`, error);
+            }
             await sendErrorMessage(feishuClient, chatId, error.message);
         } finally {
             // 清理处理标记
             setTimeout(() => {
                 processingMessages.delete(messageKey);
-            }, 5000); // 5秒后清除标记
+            }, FeishuConfig.messageConfig.processingTimeout); // 使用配置中的超时时间
         }
     }
 
@@ -244,43 +255,56 @@ export const FeishuPlugin = async ({ project, client, $, directory, worktree }) 
             
             // 会话创建事件
             if (event.type === "session.created") {
-                await sendEventNotification(
-                    feishuClient,
-                    "chat_id_here", // 替换为实际聊天 ID
-                    "OpenCode 会话已创建",
-                    `项目：${project?.name || '未知'}\n会话 ID: ${event.session.id}`
-                );
+                // 使用默认聊天ID或从事件中获取
+                const targetChatId = FeishuConfig.defaultChatId || event.session?.chatId;
+                if (targetChatId) {
+                    await sendEventNotification(
+                        feishuClient,
+                        targetChatId,
+                        "OpenCode 会话已创建",
+                        `项目：${project?.name || '未知'}\n会话 ID: ${event.session.id}`
+                    );
+                }
             }
             
             // 会话完成事件
             if (event.type === "session.idle") {
-                await sendEventNotification(
-                    feishuClient,
-                    "chat_id_here",
-                    "会话已完成",
-                    `会话 ${event.session.id} 已完成处理`
-                );
+                const targetChatId = FeishuConfig.defaultChatId || event.session?.chatId;
+                if (targetChatId) {
+                    await sendEventNotification(
+                        feishuClient,
+                        targetChatId,
+                        "会话已完成",
+                        `会话 ${event.session.id} 已完成处理`
+                    );
+                }
             }
             
             // 工具执行事件
             if (event.type === "tool.execute.after") {
                 const toolName = event.tool.name;
-                await sendEventNotification(
-                    feishuClient,
-                    "chat_id_here",
-                    `工具执行：${toolName}`,
-                    `工具 ${toolName} 已执行完成`
-                );
+                const targetChatId = FeishuConfig.defaultChatId || event.session?.chatId;
+                if (targetChatId) {
+                    await sendEventNotification(
+                        feishuClient,
+                        targetChatId,
+                        `工具执行：${toolName}`,
+                        `工具 ${toolName} 已执行完成`
+                    );
+                }
             }
             
             // 错误事件
             if (event.type === "session.error") {
-                await sendErrorMessage(
-                    feishuClient,
-                    "chat_id_here",
-                    event.error.message,
-                    "❌ 发生错误"
-                );
+                const targetChatId = FeishuConfig.defaultChatId || event.session?.chatId;
+                if (targetChatId) {
+                    await sendErrorMessage(
+                        feishuClient,
+                        targetChatId,
+                        event.error.message,
+                        "❌ 发生错误"
+                    );
+                }
             }
         },
 

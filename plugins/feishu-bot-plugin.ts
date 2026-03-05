@@ -1,5 +1,6 @@
 import type { Plugin, tool } from "@opencode-ai/plugin"
 import * as lark from "@larksuiteoapi/node-sdk"
+import { getFeishuConfig, isValidConfig, getLogPrefix } from "./feishu-config"
 
 /**
  * 飞书 OpenCode 机器人插件
@@ -13,19 +14,33 @@ import * as lark from "@larksuiteoapi/node-sdk"
 export const FeishuBotPlugin: Plugin = async (ctx) => {
   const { client: opencodeClient, directory, worktree } = ctx
 
-  // 飞书配置
-  const baseConfig = {
-    appId: process.env.FEISHU_APP_ID || "",
-    appSecret: process.env.FEISHU_APP_SECRET || "",
+  // 获取飞书配置
+  const feishuConfig = getFeishuConfig();
+  
+  // 验证配置
+  if (!isValidConfig(feishuConfig)) {
+    await opencodeClient.app.log({
+      body: {
+        service: "feishu-bot",
+        level: "error",
+        message: "缺少必要的环境变量配置：FEISHU_APP_ID 和 FEISHU_APP_SECRET",
+      },
+    });
+    throw new Error("飞书机器人配置不完整");
   }
+  
+  const baseConfig = {
+    appId: feishuConfig.appId,
+    appSecret: feishuConfig.appSecret,
+  };
 
   // 创建飞书客户端
-  const feishuClient = new lark.Client(baseConfig)
+  const feishuClient = new (lark as any).Client(baseConfig)
   
   // 创建 WebSocket 客户端（长连接）
-  const wsClient = new lark.WSClient({
+  const wsClient = new (lark as any).WSClient({
     ...baseConfig,
-    loggerLevel: lark.LoggerLevel.info,
+    loggerLevel: (lark as any).LoggerLevel.info,
   })
 
   // 会话映射存储
@@ -39,7 +54,7 @@ export const FeishuBotPlugin: Plugin = async (ctx) => {
   /**
    * 处理飞书消息
    */
-  const handleFeishuMessage = async (data: lark.im.message.receive_v1.Data) => {
+  const handleFeishuMessage = async (data: any) => {
     try {
       const { message } = data
       const { message_type, content, chat_id, sender } = message
@@ -94,7 +109,7 @@ export const FeishuBotPlugin: Plugin = async (ctx) => {
   const createOpenCodeSession = async (task: string, chatId: string, userId: string) => {
     try {
       // 创建 OpenCode 会话
-      const OPENCODE_URL = process.env.OPENCODE_API_URL || "http://localhost:4096"
+      const OPENCODE_URL = feishuConfig.opencodeApiUrl
       
       const response = await fetch(`${OPENCODE_URL}/session`, {
         method: "POST",
@@ -154,7 +169,7 @@ export const FeishuBotPlugin: Plugin = async (ctx) => {
         body: {
           service: "feishu-bot",
           level: "info",
-          message: "🚀 飞书机器人插件初始化中...",
+          message: `${getLogPrefix()} 🚀 飞书机器人插件初始化中...`,
         },
       })
 
@@ -169,7 +184,7 @@ export const FeishuBotPlugin: Plugin = async (ctx) => {
         body: {
           service: "feishu-bot",
           level: "info",
-          message: "✅ 飞书长连接已建立，开始监听消息",
+          message: `${getLogPrefix()} ✅ 飞书长连接已建立，开始监听消息`,
         },
       })
     },
@@ -196,7 +211,7 @@ export const FeishuBotPlugin: Plugin = async (ctx) => {
                 content: JSON.stringify({ text: args.text }),
               },
             })
-            return `✅ 消息已发送: ${response.data?.msg_id}`
+             return `✅ 消息已发送: ${response.data?.message_id}`
           } catch (error: any) {
             return `❌ 发送失败: ${error.message}`
           }
@@ -247,7 +262,7 @@ export const FeishuBotPlugin: Plugin = async (ctx) => {
         if (mapping) {
           try {
             // 获取会话结果
-            const OPENCODE_URL = process.env.OPENCODE_API_URL || "http://localhost:4096"
+            const OPENCODE_URL = feishuConfig.opencodeApiUrl
             const response = await fetch(`${OPENCODE_URL}/session/${sessionId}`)
             const sessionData = await response.json()
             
