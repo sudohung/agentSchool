@@ -193,9 +193,9 @@ export async function sendEmptyResponse(client, chatId) {
  *        - 当 msgType 为 'interactive' 时，传入卡片内容对象 {title, content}
  * @returns {Promise<Object>} 飞书 API 响应结果
  */
-export async function updateMessage(client, messageId, userMessage, content) {
+export async function updateMessage(client, messageId, msgType, userMessage, content) {
     try {
-        const msgType = 'interactive';
+//        const msgType = 'interactive';
         // 根据消息类型处理内容
         let messageContent;
         let res = {}

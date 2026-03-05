@@ -61,7 +61,7 @@ export async function handleFeishuMessage(chatId, userMessage, { channelClient, 
         const { aiResponse, otherParts } = extractAIResponse(result, userMessage);
 
         // 回复到飞书
-        await updateMessage(channelClient, res.data.message_id, userMessage, aiResponse);
+        await updateMessage(channelClient, res.data.message_id, "interactive",userMessage, aiResponse);
         
     } catch (error) {
         console.error(`${FeishuConfig.getLogPrefix()}[-> Agent] 处理失败:`, error.message);

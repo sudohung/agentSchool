@@ -72,6 +72,10 @@ export class OpencodeAgent extends IAgentStrategy {
 
             const result = await this.client.session.prompt({
                 path: { id: sessionId },
+                model: {
+                  providerID: "CodingPlanX",
+                  modelID: "glm-5"
+                },
                 body: {
                     parts: [{ type: "text", text: message }],
                 },

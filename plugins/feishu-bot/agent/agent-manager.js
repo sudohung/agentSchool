@@ -235,7 +235,7 @@ export class AgentManager {
     async sendMessage(sessionId, message) {
         // 获取或创建当前会话的锁
         let sessionLock = this.#sessionLocks.get(sessionId);
-        
+
         if (!sessionLock) {
             // 没有锁，直接执行
             sessionLock = Promise.resolve();
@@ -248,7 +248,7 @@ export class AgentManager {
         
         // 更新锁，捕获错误防止未处理的 Promise 拒绝
         this.#sessionLocks.set(sessionId, currentTask.catch(() => {}));
-        
+
         // 等待当前任务完成
         return await currentTask;
     }
