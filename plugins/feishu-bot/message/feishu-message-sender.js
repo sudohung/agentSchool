@@ -230,3 +230,28 @@ export async function updateMessage(client, messageId, content) {
         throw error;
     }
 }
+
+/**
+ * 撤回飞书消息
+ * @param {lark.Client} client - 飞书客户端实例
+ * @param {string} messageId - 要撤回的消息 ID
+ * @returns {Promise<Object>} 飞书 API 响应结果
+ */
+
+export async function recallMessage(messageId) {
+  try {
+    const response = await client.im.v1.message.delete({
+      path: {
+        message_id: messageId
+      }
+    });
+
+    if (response.code === 0) {
+      console.log('消息撤回成功');
+    } else {
+      console.log(`消息撤回失败: ${response.msg}`);
+    }
+  } catch (error) {
+    console.error('调用接口失败:', error);
+  }
+}
