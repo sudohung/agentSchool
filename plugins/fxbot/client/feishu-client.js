@@ -1,7 +1,7 @@
 import * as lark from '@larksuiteoapi/node-sdk';
-import { createOpencodeClient } from "@opencode-ai/sdk"
+import { createOpencodeClient, createOpencode } from "@opencode-ai/sdk"
 import {
-    handleFeishuMessage,sendCardMessage
+    handleFeishuMessage,sendCardMessage,updateMessage,sendTextMessage
 } from '../../feishu-bot/message/index.js';
 import { createFeishuWSClient } from '../../feishu-bot/client/index.js';
 import { FeishuConfig } from '../../feishu-bot/config.js';
@@ -18,6 +18,47 @@ const feishuClient = new lark.Client(baseConfig);
 const opencodeClient = createOpencodeClient({
   baseUrl: "http://127.0.0.1:4096",
 })
+
+// 启动事件监听器
+;(async () => {
+    const events = await opencodeClient.event.subscribe()
+    let mid;
+    for await (const event of events.stream) {
+        console.log("[OpenCode] 收到事件:", event.type)
+        console.log("[OpenCode] 收到事件11:", JSON.stringify(event))
+
+        // 根据事件类型发送飞书通知
+        if (event.type === "message.part.updated") {
+            if (!mid) {
+                mid = await sendTextMessage(
+                    feishuClient,
+                    "oc_b009e81f843b41a12da1cbb083b7efd1",
+                    "新会话"
+                )
+            } else {
+                if (event.properties.part.type == "reasoning") {
+                    const msg = event.properties.part.text;
+                    if (msg) {
+                        await updateMessage(feishuClient, mid.data.message_id,"text",
+                        event.properties.part.sessionID, msg );
+                    }
+                }
+            }
+        }
+        // 根据事件类型发送飞书通知
+        if (event.type === "session.idle") {
+            await updateMessage(feishuClient, mid.data.message_id, "text",
+            event.properties.sessionID, "" );
+        }
+    }
+})().catch(console.error)
+
+//
+//const opencodeClient = await createOpencode({
+//  hostname: "127.0.0.1",
+//  port: 4096
+//})
+//console.log(`opencodeClient  ${opencodeClient}`)
 
 console.log(`opencode sessions  ${opencodeClient}`)
 
