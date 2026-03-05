@@ -1,0 +1,210 @@
+[FeishuBot] 收到事件: {
+"type": "message.part.delta",
+"properties": {
+"sessionID": "ses_34364356cffeI4d3c2hy5jOJlX",
+"messageID": "msg_cbc9bcadc001HEILZ0Hj3Jv813",
+"partID": "prt_cbc9bdcbf001Jacfb78zV0jaOK",
+"field": "text",
+"delta": "u-bot"
+}
+}
+[FeishuBot] 收到事件: {
+"type": "message.part.updated",
+"properties": {
+"part": {
+"id": "prt_cbc9bdc9b001Km4G3XmfCvZee6",
+"sessionID": "ses_34364356cffeI4d3c2hy5jOJlX",
+"messageID": "msg_cbc9bcadc001HEILZ0Hj3Jv813",
+"type": "reasoning",
+"text": "用户询问当前工作目录，根据环境信息直接回答即可。",
+"time": {
+"start": 1772690857115,
+"end": 1772690857440
+}
+}
+}
+}
+[FeishuBot] 收到事件: {
+"type": "message.part.updated",
+"properties": {
+"part": {
+"id": "prt_cbc9bdcbf001Jacfb78zV0jaOK",
+"sessionID": "ses_34364356cffeI4d3c2hy5jOJlX",
+"messageID": "msg_cbc9bcadc001HEILZ0Hj3Jv813",
+"type": "text",
+"text": "E:\\workspace\\xpproject\\agentSchool\\plugins\\feishu-bot",
+"time": {
+"start": 1772690857443,
+"end": 1772690857443
+}
+}
+}
+}
+[FeishuBot] 收到事件: {
+"type": "message.part.updated",
+"properties": {
+"part": {
+"id": "prt_cbc9bddeb001Tn9Zog2vsj3ulc",
+"sessionID": "ses_34364356cffeI4d3c2hy5jOJlX",
+"messageID": "msg_cbc9bcadc001HEILZ0Hj3Jv813",
+"type": "step-finish",
+"reason": "stop",
+"snapshot": "33481251d5bedacbecfcb19af9bceb532138e3cf",
+"cost": 0,
+"tokens": {
+"total": 27292,
+"input": 27257,
+"output": 35,
+"reasoning": 13,
+"cache": {
+"read": 0,
+"write": 0
+}
+}
+}
+}
+}
+[FeishuBot] 收到事件: {
+"type": "message.updated",
+"properties": {
+"info": {
+"id": "msg_cbc9bcadc001HEILZ0Hj3Jv813",
+"sessionID": "ses_34364356cffeI4d3c2hy5jOJlX",
+"role": "assistant",
+"time": {
+"created": 1772690852572
+},
+"parentID": "msg_cbc9bcac4001PneIg6povG1oi7",
+"modelID": "qwen3.5-plus",
+"providerID": "CodingPlanX",
+"mode": "build",
+"agent": "build",
+"path": {
+"cwd": "E:\\workspace\\xpproject\\agentSchool\\plugins\\feishu-bot",
+"root": "E:\\workspace\\xpproject\\agentSchool"
+},
+"cost": 0,
+"tokens": {
+"total": 27292,
+"input": 27257,
+"output": 35,
+"reasoning": 13,
+"cache": {
+"read": 0,
+"write": 0
+}
+},
+"finish": "stop"
+}
+}
+}
+[FeishuBot] 收到事件: {
+"type": "message.updated",
+"properties": {
+"info": {
+"id": "msg_cbc9bcadc001HEILZ0Hj3Jv813",
+"sessionID": "ses_34364356cffeI4d3c2hy5jOJlX",
+"role": "assistant",
+"time": {
+"created": 1772690852572,
+"completed": 1772690857861
+},
+"parentID": "msg_cbc9bcac4001PneIg6povG1oi7",
+"modelID": "qwen3.5-plus",
+"providerID": "CodingPlanX",
+"mode": "build",
+"agent": "build",
+"path": {
+"cwd": "E:\\workspace\\xpproject\\agentSchool\\plugins\\feishu-bot",
+"root": "E:\\workspace\\xpproject\\agentSchool"
+},
+"cost": 0,
+"tokens": {
+"total": 27292,
+"input": 27257,
+"output": 35,
+"reasoning": 13,
+"cache": {
+"read": 0,
+"write": 0
+}
+},
+"finish": "stop"
+}
+}
+}
+[FeishuBot] 收到事件: {
+"type": "session.status",
+"properties": {
+"sessionID": "ses_34364356cffeI4d3c2hy5jOJlX",
+"status": {
+"type": "busy"
+}
+}
+}
+[FeishuBot] 收到事件: {
+"type": "session.status",
+"properties": {
+"sessionID": "ses_34364356cffeI4d3c2hy5jOJlX",
+"status": {
+"type": "idle"
+}
+}
+}
+[FeishuBot] 收到事件: {
+"type": "session.idle",
+"properties": {
+"sessionID": "ses_34364356cffeI4d3c2hy5jOJlX"
+}
+}
+[Feishu] 消息编辑成功：om_x100b55a594d6b0b4c3b7ea8632a6349
+[FeishuBot] 收到事件: {
+"type": "message.updated",
+"properties": {
+"info": {
+"id": "msg_cbc9bcac4001PneIg6povG1oi7",
+"sessionID": "ses_34364356cffeI4d3c2hy5jOJlX",
+"role": "user",
+"time": {
+"created": 1772690852548
+},
+"summary": {
+"diffs": []
+},
+"agent": "build",
+"model": {
+"providerID": "CodingPlanX",
+"modelID": "qwen3.5-plus"
+}
+}
+}
+}
+[FeishuBot] 收到事件: {
+"type": "session.updated",
+"properties": {
+"info": {
+"id": "ses_34364356cffeI4d3c2hy5jOJlX",
+"slug": "calm-river",
+"projectID": "183e80dd0ef282185357a925c6ae109951df42f5",
+"directory": "E:\\workspace\\xpproject\\agentSchool\\plugins\\feishu-bot",
+"title": "feishu-oc_b009e81f843b41a12da1cbb083b7efd1-1772690852496",
+"version": "1.2.17",
+"summary": {
+"additions": 0,
+"deletions": 0,
+"files": 0
+},
+"time": {
+"created": 1772690852500,
+"updated": 1772690857994
+}
+}
+}
+}
+[FeishuBot] 收到事件: {
+"type": "session.diff",
+"properties": {
+"sessionID": "ses_34364356cffeI4d3c2hy5jOJlX",
+"diff": []
+}
+}

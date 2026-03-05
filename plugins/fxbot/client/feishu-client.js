@@ -1,12 +1,34 @@
 import * as lark from '@larksuiteoapi/node-sdk';
-import { createOpencodeClient } from "@opencode-ai/sdk"
+import { createOpencode, createOpencodeClient } from "@opencode-ai/sdk"
+import {
+    sendThinkingMessage,
+    sendErrorMessage,
+    sendAIResponse,
+    sendEmptyResponse,
+    updateMessage,
+    recallMessage,
+    sendEventNotification
+} from '../../feishu-bot/message/index.js';
 
 const baseConfig = {
-    appId: 'cli_a922f5b358781ceb',
-    appSecret: 'Sc5Vtwl3I81PhimoZhkJ2dRxBQDbPQx5'
+    appId: 'cli_a9059178d1b8dcd1',
+    appSecret: 'utn16AUDhHarUUWY2yaZScMX4OJNBY4K'
 };
 
 const larkClient = new lark.Client(baseConfig);
+//const opencodeClient = await createOpencode({
+//  hostname: "127.0.0.1",
+//  port: 5096,
+//  config: {
+//    model: "CodingPlanX/qwen3.5-plus",
+//  },
+//})
+
+const opencodeClient = createOpencodeClient({
+  baseUrl: "http://localhost:4096",
+})
+
+console.log(`opencode sessions  ${opencodeClient}`)
 
 // 创建 WebSocket feishu 客户端
 const wsClient = new lark.WSClient({...baseConfig, loggerLevel: lark.LoggerLevel.debug});
@@ -22,10 +44,13 @@ wsClient.start({
       
       // 解析用户消息
       const userMessage = JSON.parse(content).text;
-      
+
       // 调用 OpenCode SDK 处理消息
       let aiResponse = '新年好';
-      
+
+      // 调用 OpenCode SDK 处理消息
+      await sendAIResponse(larkClient, chat_id, userMessage, aiResponse);
+
       // 示例操作：接收消息后，调用「发送消息」API 进行消息回复。
       await larkClient.im.v1.message.create({
         params: {

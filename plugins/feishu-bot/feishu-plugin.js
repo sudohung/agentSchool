@@ -17,6 +17,7 @@ import {
     sendEventNotification
 } from './message/index.js';
 import { FeishuConfig } from './config.js';
+import { createFeishuWSClient } from './client/index.js';
 
 // 验证配置
 if (!FeishuConfig.isValid()) {
@@ -32,13 +33,15 @@ const feishuClient = new lark.Client({
 
 // 飞书 长连接客户端（用于接收消息）
 let wsClient = null;
-let isConnected = false;
 
-// 消息去重集合，存储已处理的 messageId
-const processedMessageIds = new Set();
-
-// 消息去重时间戳集合，存储已处理消息的时间戳
-const processedMessageTimestamps = new Map();
+// 创建飞书长连接客户端实例
+const feishuWSClient = createFeishuWSClient({
+    appId: FeishuConfig.appId,
+    appSecret: FeishuConfig.appSecret,
+    logLevel: FeishuConfig.logConfig.level,
+    messageExpiryTime: FeishuConfig.messageConfig.messageExpiryTime,
+    messageIdTtl: FeishuConfig.messageConfig.messageIdTtl
+});
 
 /******************** 主要方法 ****************************/
 
@@ -66,79 +69,8 @@ function cleanupExpiredMessages(currentTime) {
 }
 
 function startWebSocketConnection(onMessageReceived) {
-    if (wsClient && isConnected) {
-        console.log(`${FeishuConfig.getLogPrefix()} WebSocket 已连接，跳过重复启动`);
-        return;
-    }
-
-    try {
-        wsClient = new lark.WSClient({
-            appId: FeishuConfig.appId,
-            appSecret: FeishuConfig.appSecret,
-            loggerLevel: FeishuConfig.logConfig.level === 'debug' ? lark.LoggerLevel.debug : 
-                       FeishuConfig.logConfig.level === 'error' ? lark.LoggerLevel.error : 
-                       lark.LoggerLevel.info
-        });
-
-        wsClient.start({
-            eventDispatcher: new lark.EventDispatcher({}).register({
-                'im.message.receive_v1': async (data) => {
-                    const {
-                        message: { chat_id, content }
-                    } = data;
-                    
-                    console.log(`${FeishuConfig.getLogPrefix()} 收到消息，聊天 ID: ${chat_id}, eventId: ${data.event_id}, create_time: ${data.create_time}`);
-
-                    // 基于 messageId 进行去重处理
-                    const messageId = data.event?.message?.message_id || data.message?.message_id;
-                    const currentTime = Date.now();
-                    
-                    if (messageId) {
-
-                        // 比较时间戳，使用配置中的消息过期时间
-                        // 飞书的 create_time 是毫秒级时间戳（可能是字符串或数字）
-                        const messageTime = typeof data.create_time === 'string' 
-                            ? parseInt(data.create_time) 
-                            : data.create_time;
-                        if (currentTime - messageTime > FeishuConfig.messageConfig.messageExpiryTime) {
-                            console.log(`${FeishuConfig.getLogPrefix()} 消息过旧，跳过: ${messageId}， 内容：${JSON.stringify(content)}`);
-                            return;
-                        }
-                        // 检查是否已处理过
-                        if (processedMessageIds.has(messageId)) {
-                            console.log(`${FeishuConfig.getLogPrefix()} 消息已处理过，跳过: ${messageId}`);
-                            return;
-                        }
-                        
-                        // 记录处理过的消息
-                        processedMessageIds.add(messageId);
-                        processedMessageTimestamps.set(messageId, currentTime);
-                        
-                        console.log(`${FeishuConfig.getLogPrefix()} 记录新消息: ${messageId}`);
-                    }
-                    
-                    // 清理过期的消息记录（每处理10条消息清理一次）
-                    if (processedMessageIds.size % 10 === 0) {
-                        cleanupExpiredMessages(currentTime);
-                    }
-                    console.log(`[Feishu] 收到消息，聊天 内容: ${data}`);
-
-                    // 触发回调处理消息
-                    if (onMessageReceived) {
-                        await onMessageReceived(chat_id, JSON.parse(content).text);
-                    }
-
-                    return {}
-                }
-            })
-        });
-
-        isConnected = true;
-        console.log(`${FeishuConfig.getLogPrefix()} WebSocket 长连接已启动`);
-    } catch (error) {
-        console.error(`${FeishuConfig.getLogPrefix()} WebSocket 启动失败:`, error.message);
-        isConnected = false;
-    }
+    console.log(`正在启动 feishu 处理消息`);
+    return feishuWSClient.start(onMessageReceived);
 }
 
 /**
@@ -258,9 +190,9 @@ export const OpencodeFeishuPlugin = async ({ project, client, $, directory, work
     }
 
     /**
-     * 启动 飞书的WebSocket 连接，并订阅飞书事件
+     * 启动 飞书的 WebSocket 连接，并订阅飞书事件
      */
-    startWebSocketConnection(handleFeishuMessage);
+    await startWebSocketConnection(handleFeishuMessage);
 
     /**
      * 监听所有opencode事件
@@ -270,7 +202,7 @@ export const OpencodeFeishuPlugin = async ({ project, client, $, directory, work
          * 监听所有事件
          */
         event: async ({ event }) => {
-            
+
             // 会话创建事件
             if (event.type === "session.created") {
                 // 使用默认聊天ID或从事件中获取
