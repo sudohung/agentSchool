@@ -238,6 +238,99 @@ export class AgentManager {
         return sessionId;
     }
 
+
+     /**
+      * 重置会话：删除旧会话，清理本地映射和锁，立即创建新会话
+      * @param {string} chatId - 聊天 ID
+      * @returns {Promise<string>} 新会话 ID
+      */
+     async resetSession(chatId) {
+         const oldSessionId = this.#sessionMap.get(chatId);
+         
+         if (oldSessionId) {
+         
+             try {
+//                 await this.#agent.deleteSession(oldSessionId); // 先不用删除服务端的会话
+                 console.log(`${this.#getLogPrefix()} 已删除服务端会话: ${oldSessionId}`);
+             } catch (error) {
+                 console.error(`${this.#getLogPrefix()} 删除服务端会话失败:`, error.message);
+             }
+             
+             this.#sessionMap.delete(chatId);
+             this.#sessionLocks.delete(oldSessionId);
+             console.log(`${this.#getLogPrefix()} 已清理本地会话映射和锁: ${chatId}`);
+         }
+         
+         const title = `feishu-${chatId}-${Date.now()}`;
+         const newSessionId = await this.#agent.createSession(title);
+         this.#sessionMap.set(chatId, newSessionId);
+         
+         console.log(`${this.#getLogPrefix()} 已创建新会话: ${newSessionId}`);
+         return newSessionId;
+     }
+
+    /**
+     * 切换当前 Agent
+     * @param {string} agentKey - agentMap 中的 key
+     * @returns {boolean} 是否切换成功
+     */
+    setCurrentAgent(agentKey) {
+        let newAgent;
+        
+        // 兼容 Map 和 Object 两种格式
+        if (typeof this.#agentMap.get === 'function') {
+            newAgent = this.#agentMap.get(agentKey);
+        } else {
+            newAgent = this.#agentMap[agentKey];
+        }
+        
+        if (newAgent) {
+            this.#agent = newAgent;
+            console.log(`${this.#getLogPrefix()} 已切换 Agent: ${agentKey}`);
+            return true;
+        }
+        console.warn(`${this.#getLogPrefix()} 切换 Agent 失败，未找到: ${agentKey}`);
+        return false;
+    }
+
+    /**
+     * 获取当前 Agent 名称
+     * @returns {string}
+     */
+    getCurrentAgentName() {
+        return this.#agent.getName();
+    }
+
+    /**
+     * 列出当前 Agent 的所有会话
+     * @returns {Promise<Array>} 会话列表
+     */
+    async listSessions() {
+        return await this.#agent.listSessions();
+    }
+
+    /**
+     * 获取会话消息列表
+     * @param {string} sessionId - 会话 ID
+     * @returns {Promise<Array>} 消息列表
+     */
+    async getSessionMessages(sessionId) {
+        return await this.#agent.getSessionMessages(sessionId);
+    }
+
+    /**
+     * 切换当前会话
+     * @param {string} chatId - 聊天 ID
+     * @param {string} sessionId - 新的会话 ID
+     * @returns {string} 切换后的会话 ID
+     */
+    switchSession(chatId, sessionId) {
+        this.#sessionMap.set(chatId, sessionId);
+        console.log(`${this.#getLogPrefix()} 切换会话: ${chatId} -> ${sessionId}`);
+        return sessionId;
+    }
+
+
     /**
      * 发送消息到 Agent（带锁机制，保证同一会话的消息顺序执行）
      * @param {string} sessionId - 会话 ID

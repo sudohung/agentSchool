@@ -66,6 +66,32 @@ export class IAgentStrategy {
     }
 
     /**
+     * 删除会话
+     * @param {string} sessionId - 会话 ID
+     * @returns {Promise<boolean>} 删除结果
+     */
+    async deleteSession(sessionId) {
+        throw new Error('子类必须实现 deleteSession 方法');
+    }
+
+    /**
+     * 列出所有会话
+     * @returns {Promise<Array>} 会话列表
+     */
+    async listSessions() {
+        throw new Error('子类必须实现 listSessions 方法');
+    }
+
+    /**
+     * 获取会话消息列表
+     * @param {string} sessionId - 会话 ID
+     * @returns {Promise<Array>} 消息列表
+     */
+    async getSessionMessages(sessionId) {
+        throw new Error('子类必须实现 getSessionMessages 方法');
+    }
+
+    /**
      * 发送消息并获取响应
      * @param {string} sessionId - 会话 ID
      * @param {string} message - 用户消息

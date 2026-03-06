@@ -67,6 +67,55 @@ export class OpencodeAgent extends IAgentStrategy {
     }
 
     /**
+     * 删除会话
+     * @param {string} sessionId - 会话 ID
+     * @returns {Promise<boolean>} 删除结果
+     */
+    async deleteSession(sessionId) {
+        try {
+            await this.client.session.delete({
+                path: { id: sessionId }
+            });
+            console.log(`[${this.getName()}] 删除会话成功: ${sessionId}`);
+            return true;
+        } catch (error) {
+            console.error(`[${this.getName()}] 删除会话失败:`, error.message);
+            throw error;
+        }
+    }
+
+    /**
+     * 列出所有会话
+     * @returns {Promise<Array>} 会话列表
+     */
+    async listSessions() {
+        try {
+            const sessions = await this.client.session.list();
+            return sessions.data || sessions;
+        } catch (error) {
+            console.error(`[${this.getName()}] 列出会话失败:`, error.message);
+            throw error;
+        }
+    }
+
+    /**
+     * 获取会话消息列表
+     * @param {string} sessionId - 会话 ID
+     * @returns {Promise<Array>} 消息列表
+     */
+    async getSessionMessages(sessionId) {
+        try {
+            const result = await this.client.session.messages({
+                path: { id: sessionId }
+            });
+            return result.data || result;
+        } catch (error) {
+            console.error(`[${this.getName()}] 获取会话消息失败:`, error.message);
+            throw error;
+        }
+    }
+
+    /**
      * 发送消息并获取响应
      * @param {string} sessionId - 会话 ID
      * @param {string} message - 用户消息
