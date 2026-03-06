@@ -190,22 +190,64 @@ class SessionCommandHandler extends CommandHandler {
 }
 
 /**
- * 构建命令处理责任链
+ * AI 消息处理器 - 处理普通消息，调用 AI 生成回复
  */
-function buildCommandChain() {
+class AIMessageHandler extends CommandHandler {
+    async handle(chatId, message, context) {
+        const { channelClient, agentManager } = context;
+        
+        console.log(`${FeishuConfig.getLogPrefix()} 执行 AI 消息处理`);
+        
+        // 发送思考状态
+//        const res = await sendThinkingMessage(channelClient, chatId);
+//        console.log(`[Feishu -> Agent] 处理 think 消息：${JSON.stringify(res)}`);
+        
+        // 获取或创建会话
+        const sessionId = await agentManager.getSession(chatId);
+        console.log(`${FeishuConfig.getLogPrefix()} 使用会话：${sessionId}`);
+        
+        if (FeishuConfig.isDebugEnabled()) {
+            console.log(`${FeishuConfig.getLogPrefix()} 使用会话：${sessionId}`);
+        }
+        
+        // 发送消息给 Agent AI
+        const result = await agentManager.sendMessage(sessionId, message);
+        
+        // 提取 AI 回复
+        const { aiResponse, otherParts } = extractAIResponse(result, message);
+        
+//        // 回复到飞书
+//        await updateMessage(channelClient, res.data.message_id, "interactive", message, aiResponse);
+        
+        return { 
+            type: 'ai_response', 
+            action: 'message_processed',
+            sessionId,
+            message: aiResponse
+        };
+    }
+}
+
+/**
+ * 构建消息处理责任链
+ */
+function buildMessageChain() {
     const newHandler = new NewCommandHandler();
     const instantHandler = new InstantCommandHandler();
     const sessionsHandler = new SessionsCommandHandler();
     const sessionHandler = new SessionCommandHandler();
+    const aiHandler = new AIMessageHandler();
     
     newHandler.setNext(instantHandler);
     instantHandler.setNext(sessionsHandler);
     sessionsHandler.setNext(sessionHandler);
-    
+
+    // AIMessageHandler 必须是最后处理的 ->
+    sessionHandler.setNext(aiHandler);
     return newHandler;
 }
 
-const commandChain = buildCommandChain();
+const messageChain = buildMessageChain();
 
 /**
  * 消息处理器配置
@@ -235,15 +277,16 @@ export async function handleFeishuMessage(chatId, userMessage, { channelClient, 
         agentManager.markProcessing(chatId, userMessage);
         console.log(`${FeishuConfig.getLogPrefix()}[-> Agent] 处理消息：${userMessage}`);
 
+        // 思考中
+        const res = await sendThinkingMessage(channelClient, chatId);
+
         // 通过责任链处理命令
-        const commandResult = await commandChain.handle(chatId, userMessage, { agentManager });
+        const commandResult = await messageChain.handle(chatId, userMessage, { agentManager });
         
         // 如果是命令，直接返回结果
         if (commandResult) {
             console.log(`${FeishuConfig.getLogPrefix()} 命令处理结果: ${JSON.stringify(commandResult)}`);
-            
-            // 发送命令执行结果
-            const res = await sendThinkingMessage(channelClient, chatId);
+
             await updateMessage(channelClient, res.data.message_id, "interactive", userMessage, commandResult.message);
             
             // 如果是 /new 命令，后续消息应该使用新会话
@@ -251,28 +294,8 @@ export async function handleFeishuMessage(chatId, userMessage, { channelClient, 
             agentManager.markCompleted(chatId, userMessage);
             return;
         }
+        console.error(`${FeishuConfig.getLogPrefix()} 命令处理失败:`, commandResult);
 
-        // 先发送思考状态
-        const res = await sendThinkingMessage(channelClient, chatId);
-        console.log(`[Feishu -> Agent] 处理 think 消息：${JSON.stringify(res)}`);
-
-        // 获取或创建会话（AgentManager 内部管理 sessionMap）
-        const sessionId = await agentManager.getSession(chatId);
-        console.log(`${FeishuConfig.getLogPrefix()} 使用会话：${sessionId}`);
-
-        if (FeishuConfig.isDebugEnabled()) {
-            console.log(`${FeishuConfig.getLogPrefix()} 使用会话：${sessionId}`);
-        }
-        
-        // 发送消息给 Agent AI
-        const result = await agentManager.sendMessage(sessionId, userMessage);
-        
-        // 提取 AI 回复
-        const { aiResponse, otherParts } = extractAIResponse(result, userMessage);
-
-        // 回复到飞书
-        await updateMessage(channelClient, res.data.message_id, "interactive",userMessage, aiResponse);
-        
     } catch (error) {
         console.error(`${FeishuConfig.getLogPrefix()}[-> Agent] 处理失败:`, error.message);
         console.error(`${FeishuConfig.getLogPrefix()}[-> Agent] 处理失败 stack:`, error.stack);

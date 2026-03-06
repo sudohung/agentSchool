@@ -13,27 +13,27 @@ export class FeishuWSClient {
      * @type {lark.WSClient}
      */
     #wsClient = null;
-    
+
     /**
      * @type {boolean}
      */
     #isConnected = false;
-    
+
     /**
      * @type {Set<string>}
      */
     #processedMessageIds = new Set();
-    
+
     /**
      * @type {Map<string, number>}
      */
     #processedMessageTimestamps = new Map();
-    
+
     /**
      * @type {Object}
      */
     #config = null;
-    
+
     /**
      * 创建飞书长连接客户端
      * @param {Object} config - 配置参数
@@ -47,7 +47,7 @@ export class FeishuWSClient {
         if (!config.appId || !config.appSecret) {
             throw new Error('飞书长连接客户端配置不完整：缺少 appId 或 appSecret');
         }
-        
+
         this.#config = {
             appId: config.appId,
             appSecret: config.appSecret,
@@ -56,7 +56,7 @@ export class FeishuWSClient {
             messageIdTtl: config.messageIdTtl || 10 * 60 * 1000 // 10 分钟
         };
     }
-    
+
     /**
      * 获取日志前缀
      * @returns {string}
@@ -64,14 +64,14 @@ export class FeishuWSClient {
     #getLogPrefix() {
         return '[FeishuWSClient]';
     }
-    
+
     /**
      * 清理过期的消息记录
      * @param {number} currentTime - 当前时间戳
      */
     #cleanupExpiredMessages(currentTime) {
         let cleanedCount = 0;
-        
+
         for (const [messageId, timestamp] of this.#processedMessageTimestamps.entries()) {
             if (currentTime - timestamp > this.#config.messageIdTtl) {
                 this.#processedMessageIds.delete(messageId);
@@ -79,13 +79,13 @@ export class FeishuWSClient {
                 cleanedCount++;
             }
         }
-        
+
         if (cleanedCount > 0) {
             console.log(`${this.#getLogPrefix()} 清理了 ${cleanedCount} 条过期消息记录`);
             console.log(`${this.#getLogPrefix()} 当前缓存消息数：${this.#processedMessageIds.size}`);
         }
     }
-    
+
     /**
      * 检查消息是否已处理
      * @param {string} messageId - 消息 ID
@@ -94,22 +94,22 @@ export class FeishuWSClient {
      */
     #shouldSkipMessage(messageId, messageTime) {
         const currentTime = Date.now();
-        
+
         // 检查消息是否过旧
         if (currentTime - messageTime > this.#config.messageExpiryTime) {
             console.log(`${this.#getLogPrefix()} 消息过旧，跳过：${messageId}`);
             return true;
         }
-        
+
         // 检查是否已处理过
         if (this.#processedMessageIds.has(messageId)) {
             console.log(`${this.#getLogPrefix()} 消息已处理过，跳过：${messageId}`);
             return true;
         }
-        
+
         return false;
     }
-    
+
     /**
      * 记录已处理的消息
      * @param {string} messageId - 消息 ID
@@ -120,7 +120,7 @@ export class FeishuWSClient {
         this.#processedMessageTimestamps.set(messageId, currentTime);
         console.log(`${this.#getLogPrefix()} 记录新消息：${messageId}`);
     }
-    
+
     /**
      * 启动 WebSocket 长连接
      * @param {Function} onMessageReceived - 消息接收回调函数 (chatId, messageText) => Promise<void>
@@ -132,73 +132,101 @@ export class FeishuWSClient {
             console.log(`${this.#getLogPrefix()} WebSocket 已连接，跳过重复启动`);
             return true;
         }
-        
+
         try {
             // 创建 WebSocket 客户端
             this.#wsClient = new lark.WSClient({
                 appId: this.#config.appId,
                 appSecret: this.#config.appSecret,
-                loggerLevel: this.#config.logLevel === 'debug' ? lark.LoggerLevel.debug : 
-                           this.#config.logLevel === 'error' ? lark.LoggerLevel.error : 
+                loggerLevel: this.#config.logLevel === 'debug' ? lark.LoggerLevel.debug :
+                           this.#config.logLevel === 'error' ? lark.LoggerLevel.error :
                            lark.LoggerLevel.info
             });
-            
+
             // 启动 WebSocket 连接并注册事件处理器
             this.#wsClient.start({
                 eventDispatcher: new lark.EventDispatcher({}).register({
                     'im.message.receive_v1': async (data) => {
+                        console.log(`${this.#getLogPrefix()} [im.message.receive_v1] 事件详情:`, JSON.stringify(data, null, 2));
+
                         const {
                             message: { chat_id, content }
                         } = data;
-                        
+
                         console.log(`${this.#getLogPrefix()} 收到消息，聊天 ID: ${chat_id}, eventId: ${data.event_id}, create_time: ${data.create_time}`);
-                        
+
                         // 提取消息 ID（兼容不同结构）
                         const messageId = data.event?.message?.message_id || data.message?.message_id;
-                        
+
                         if (messageId) {
                             // 解析消息时间戳
-                            const messageTime = typeof data.create_time === 'string' 
-                                ? parseInt(data.create_time) 
+                            const messageTime = typeof data.create_time === 'string'
+                                ? parseInt(data.create_time)
                                 : data.create_time;
-                            
+
                             // 检查是否应该跳过此消息
                             if (this.#shouldSkipMessage(messageId, messageTime)) {
                                 return {};
                             }
-                            
+
                             // 记录已处理的消息
                             this.#recordProcessedMessage(messageId);
-                            
+
                             // 定期清理过期记录（每处理 10 条消息清理一次）
                             if (this.#processedMessageIds.size % 10 === 0) {
                                 this.#cleanupExpiredMessages(Date.now());
                             }
                         }
-                        
-//                        console.log(`[Feishu] 收到消息，聊天内容：${JSON.stringify(data)}`);
-                        
+
+                        //   console.log(`[Feishu] 收到消息，聊天内容：${JSON.stringify(data)}`);
+
                         // 触发回调处理消息
                         if (onMessageReceived) {
                             await onMessageReceived(chat_id, JSON.parse(content).text);
                         }
-                        
+
+                        return {};
+                    },
+                     // 默认事件处理器 - 捕获所有其他事件
+                    '__default__': async (data) => {
+                        const eventType = data.event_type || data.type || 'unknown';
+                        console.log(`${this.#getLogPrefix()} [默认处理] 收到未知事件：${eventType}`);
+                            console.log(`${this.#getLogPrefix()} [默认处理] 事件详情:`, JSON.stringify(data, null, 2));
+
+                        // 可以在这里添加默认的日志记录或其他处理逻辑
+                        if (FeishuConfig.isDebugEnabled()) {
+                            console.log(`${this.#getLogPrefix()} [默认处理] 事件详情:`, JSON.stringify(data, null, 2));
+                        }
+
+                        // 对于某些重要事件，可以发送到飞书通知
+                        if (['contact.user.created_v1', 'contact.user.deleted_v1'].includes(eventType)) {
+                            const targetChatId = FeishuConfig.defaultChatId;
+                            if (targetChatId) {
+                                await sendEventNotification(
+                                    feishuClient,
+                                    targetChatId,
+                                    `系统事件：${eventType}`,
+                                    `检测到系统事件：${eventType}\n时间：${new Date().toLocaleString('zh-CN')}`
+                                );
+                            }
+                        }
+
                         return {};
                     }
                 })
             });
-            
+
             this.#isConnected = true;
             console.log(`${this.#getLogPrefix()} WebSocket 长连接已启动`);
             return true;
-            
+
         } catch (error) {
             console.error(`${this.#getLogPrefix()} WebSocket 启动失败:`, error.message);
             this.#isConnected = false;
             return false;
         }
     }
-    
+
     /**
      * 停止 WebSocket 连接
      * @returns {Promise<boolean>} 停止是否成功
@@ -208,14 +236,14 @@ export class FeishuWSClient {
             console.log(`${this.#getLogPrefix()} WebSocket 客户端未创建`);
             return false;
         }
-        
+
         try {
             // WSClient 没有显式的 stop 方法，通过清空引用来释放资源
             this.#wsClient = null;
             this.#isConnected = false;
             this.#processedMessageIds.clear();
             this.#processedMessageTimestamps.clear();
-            
+
             console.log(`${this.#getLogPrefix()} WebSocket 长连接已停止`);
             return true;
         } catch (error) {
@@ -223,7 +251,7 @@ export class FeishuWSClient {
             return false;
         }
     }
-    
+
     /**
      * 获取连接状态
      * @returns {boolean} 连接状态
@@ -231,7 +259,7 @@ export class FeishuWSClient {
     isConnected() {
         return this.#isConnected;
     }
-    
+
     /**
      * 获取已处理的消息数量
      * @returns {number} 已处理消息数量
@@ -239,7 +267,7 @@ export class FeishuWSClient {
     getProcessedMessageCount() {
         return this.#processedMessageIds.size;
     }
-    
+
     /**
      * 重置消息去重缓存
      */
