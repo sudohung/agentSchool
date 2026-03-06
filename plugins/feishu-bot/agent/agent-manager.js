@@ -370,12 +370,54 @@ export class AgentManager {
         await this.#agent.log(level, message, extra);
     }
 
-    /**
+/**
      * 获取会话映射
      * @returns {Map<string, string>}
      */
     getSessionMap() {
         return this.#sessionMap;
+    }
+
+    /**
+     * 通过 sessionId 获取 chatId
+     * @param {string} sessionId - 会话 ID
+     * @returns {string|null} chatId，如果未找到返回 null
+     */
+    getChatIdBySessionId(sessionId) {
+        if (!sessionId) {
+            return null;
+        }
+        
+        for (const [chatId, sid] of this.#sessionMap.entries()) {
+            if (sid === sessionId) {
+                return chatId;
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * 通过 sessionId 获取 chatId（批量查找，支持多个 sessionId）
+     * @param {string[]} sessionIds - 会话 ID 数组
+     * @returns {Map<string, string>} sessionId -> chatId 的映射
+     */
+    getChatIdsBySessionIds(sessionIds) {
+        const result = new Map();
+        
+        if (!sessionIds || sessionIds.length === 0) {
+            return result;
+        }
+        
+        const sessionIdSet = new Set(sessionIds);
+        
+        for (const [chatId, sessionId] of this.#sessionMap.entries()) {
+            if (sessionIdSet.has(sessionId)) {
+                result.set(sessionId, chatId);
+            }
+        }
+        
+        return result;
     }
 
     /**

@@ -119,34 +119,54 @@ feishuWSClient.start((chatId, userMessage) => {
 // 启动事件监听器
 ;(async () => {
     const events = await opencodeClient.event.subscribe()
-    let mid;
+    // 增加一个map 记录chatId 和 mid
+    const chatIdMidMap = new Map();
     for await (const event of events.stream) {
-        console.log("[OpenCode] 收到事件:", event.type)
+        // 取mapsize
+        const chatSize = chatIdMidMap.size;
+        console.log(`[OpenCode] chatSize:${chatSize} ,收到事件:${event.type}`)
 //        console.log("[OpenCode] 收到事件11:", JSON.stringify(event))
 
         // 根据事件类型发送飞书通知
         if (event.type === "message.part.updated") {
-            if (!mid) {
-                mid = await sendTextMessage(
-                    feishuClient,
-                    FeishuConfig.defaultChatId || "oc_b009e81f843b41a12da1cbb083b7efd1",
-                    "新会话"
-                )
-            } else {
-                if (event.properties.part.type == "reasoning") {
-                    const msg = event.properties.part.text;
-                    if (msg) {
-                        await updateMessage(feishuClient, mid.data.message_id,"text",
-                        event.properties?.part?.sessionID, msg );
-                    }
-                }
+            let mid = null;
+            const chatId = agentManager.getChatIdBySessionId(event.properties?.part?.sessionID)
+            if (chatIdMidMap.has(chatId)) {
+                mid = chatIdMidMap.get(chatId)
+            }
+            if (chatId) {
+
+                 if (!mid) {
+                    mid = await sendTextMessage(
+                        feishuClient,
+                        chatId || FeishuConfig.defaultChatId || "oc_b009e81f843b41a12da1cbb083b7efd1",
+                        "新会话"
+                    )
+                    chatIdMidMap.set(chatId, mid)
+                 } else {
+                     if (event.properties.part.type == "reasoning") {
+                         const msg = event.properties.part.text;
+                         if (msg) {
+                             await updateMessage(feishuClient, mid.data.message_id,"text",
+                             event.properties?.part?.sessionID, msg );
+                         }
+                     }
+
+                 }
             }
         }
         // 根据事件类型发送飞书通知
         if (event.type === "session.idle") {
+            // 等等500ms
+            await new Promise(resolve => setTimeout(resolve, 500));
+            let mid = null;
+            const chatId = agentManager.getChatIdBySessionId(event.properties.sessionID)
+            if (chatIdMidMap.has(chatId)) {
+                mid = chatIdMidMap.get(chatId)
+            }
             await updateMessage(feishuClient, mid.data.message_id, "text",
             event.properties.sessionID, " " );
-            mid = null;
+            chatIdMidMap.delete(chatId)
         }
     }
 })().catch(console.error)
