@@ -429,7 +429,6 @@ function buildMessageChain(preprocessStrategies = []) {
     builder.add(new SessionsCommandHandler());
     builder.add(new SessionCommandHandler());
     builder.add(new SessionCommandHandler());
-    builder.add(new GlobalPromptHandler());
     builder.add(new AIMessageHandler());
     
     return builder.build();
