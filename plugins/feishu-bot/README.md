@@ -31,7 +31,7 @@
 复制 `.env.example` 文件为 `.env` 并填写相应的配置：
 
 ```bash
-cp .env.example .env
+cp .env.full.example .env.full
 ```
 
 **必需配置：**
@@ -76,8 +76,8 @@ npm install
 ### 3. 配置环境变量
 
 ```bash
-cp .env.example .env
-# 编辑 .env 文件填写配置
+cp .env.full.example .env.full
+# 编辑 .env.full 文件填写配置
 ```
 
 ## 监听的事件

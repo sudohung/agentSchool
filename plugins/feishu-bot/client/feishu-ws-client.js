@@ -150,13 +150,13 @@ export class FeishuWSClient {
                         console.log(`${this.#getLogPrefix()} [im.message.receive_v1] 事件详情:`, JSON.stringify(data, null, 2));
 
                         const {
-                            message: { chat_id, content }
+                            message: { chat_id, chat_type, message_type, message_id, content}
                         } = data;
 
                         console.log(`${this.#getLogPrefix()} 收到消息，聊天 ID: ${chat_id}, eventId: ${data.event_id}, create_time: ${data.create_time}`);
 
                         // 提取消息 ID（兼容不同结构）
-                        const messageId = data.event?.message?.message_id || data.message?.message_id;
+                        const messageId = message_id;
 
                         if (messageId) {
                             // 解析消息时间戳
@@ -182,7 +182,7 @@ export class FeishuWSClient {
 
                         // 触发回调处理消息
                         if (onMessageReceived) {
-                            await onMessageReceived(chat_id, JSON.parse(content).text);
+                            await onMessageReceived(chat_id, JSON.parse(content).text, data.message);
                         }
 
                         return {};

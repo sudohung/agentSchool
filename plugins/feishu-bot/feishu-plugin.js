@@ -113,8 +113,8 @@ export const OpencodeFeishuPlugin = async (context) => {
     /**
      * 启动 飞书的 WebSocket 连接，并订阅飞书事件
      */
-    await startWebSocketConnection((chatId, userMessage) => {
-        return handleFeishuMessage(chatId, userMessage, {
+    await startWebSocketConnection((chatId, userMessage, messageContext) => {
+        return handleFeishuMessage(chatId, userMessage, messageContext, {
             channelClient: feishuClient,
             agentManager
         });

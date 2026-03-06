@@ -155,8 +155,8 @@ npm install
 #### 2. 配置环境变量
 
 ```bash
-cp .env.example .env
-# 编辑 .env 文件，填入你的飞书 AppID 和 AppSecret
+cp .env.full.example .env.full
+# 编辑 .env.full 文件，填入你的飞书 AppID 和 AppSecret
 ```
 
 #### 3. 运行测试

@@ -194,15 +194,16 @@ class SessionCommandHandler extends CommandHandler {
  */
 class MentionFilterHandler extends CommandHandler {
     async handle(chatId, message, context) {
-        // 检查消息是否以 @user_id_1 开头
-        if (message.trim().startsWith('@user_id_1')) {
-            console.log(`${FeishuConfig.getLogPrefix()} 移除消息中的 @user_id_1 mention`);
+            console.log(`${FeishuConfig.getLogPrefix()} MentionFilterHandler message: ${message} `);
+        // 检查消息是否包含有 @_user_1
+        if (message.includes('@_user_1')) {
+            console.log(`${FeishuConfig.getLogPrefix()} 移除消息中的 @_user_1 mention`);
             // 移除开头的 @user_id_1 及其后的空格
-            const cleanedMessage = message.replace(/^@user_id_1\s*/, '').trim();
+            const cleanedMessage = message.replace(/@_user_1\s*/g, '').trim();
             console.log(`${FeishuConfig.getLogPrefix()} 清理后的消息：${cleanedMessage}`);
             
             // 将清理后的消息传递给下一个处理器
-            return await this.nextHandler.handle(chatId, cleanedMessage, context);
+            return super.handle(chatId, cleanedMessage, context);
         }
         
         // 如果不包含 @user_id_1，直接传递给下一个处理器
@@ -217,7 +218,7 @@ class AIMessageHandler extends CommandHandler {
     async handle(chatId, message, context) {
         const { channelClient, agentManager } = context;
         
-        console.log(`${FeishuConfig.getLogPrefix()} 执行 AI 消息处理`);
+        console.log(`${FeishuConfig.getLogPrefix()} 执行 AI 消息处理 message：${message}`);
         
         // 发送思考状态
 //        const res = await sendThinkingMessage(channelClient, chatId);
@@ -258,19 +259,92 @@ function buildMessageChain() {
     const instantHandler = new InstantCommandHandler();
     const sessionsHandler = new SessionsCommandHandler();
     const sessionHandler = new SessionCommandHandler();
-    const aiHandler = new AIMessageHandler();
-    
+
+    // mentionFilterHandler 必须在最前面，先移除 @_user_1 再匹配命令
     mentionFilterHandler.setNext(newHandler);
     newHandler.setNext(instantHandler);
     instantHandler.setNext(sessionsHandler);
     sessionsHandler.setNext(sessionHandler);
 
     // AIMessageHandler 必须是最后处理的 ->
+    const aiHandler = new AIMessageHandler();
     sessionHandler.setNext(aiHandler);
-    return newHandler;
+    return mentionFilterHandler;
 }
 
 const messageChain = buildMessageChain();
+
+
+/**
+ * Context 过滤接口 - 拦截不同消息
+ */
+class ContextFilterHandler {
+    setNext(handler) {
+        this.nextHandler = handler;
+        return handler;
+    }
+
+    async handle(messageContext, context) {
+        if (this.nextHandler) {
+            return await this.nextHandler.handle(messageContext, context);
+        }
+        return {
+           type: 'default',
+           text: '',
+           raw: {},
+           pass: true,
+           reason: '过滤结束默认通过'
+       };;
+    }
+}
+
+/**
+ * 文本消息内容处理器
+ */
+class TextFilterHandler extends ContextFilterHandler {
+    async handle(messageContext, context) {
+        //
+        return super.handle(messageContext, context);
+    }
+}
+/**
+ * 群消息消息内容过滤
+ */
+class GroupFilterHandler extends ContextFilterHandler {
+    async handle(messageContext, context) {
+        if (messageContext && messageContext.chat_type === 'group') {
+            // 群发消息时：没有@ 机器人，不处理(先用这个处理，后续改为机器人的openid)
+            if (!messageContext.mentions
+                || !Array.isArray(messageContext.mentions)
+                || !messageContext.mentions.some(m => m.key === '@_user_1')) {
+                console.log(`${FeishuConfig.getLogPrefix()} 处理群消息内容`);
+                return {
+                    type: 'group',
+                    text: messageContext.content.text,
+                    raw: messageContext.content,
+                    pass: false,
+                    reason: '群消息且不含@机器人'
+                };
+            }
+
+        }
+        return super.handle(messageContext, context);
+    }
+}
+
+
+/**
+ * 构建 Content 处理责任链
+ */
+function buildContextFilterChain() {
+    const textFilterHandler = new TextFilterHandler();
+    const groupFilterHandler = new GroupFilterHandler();
+    textFilterHandler.setNext(groupFilterHandler);
+    return textFilterHandler;
+}
+
+const contextFilterChain = buildContextFilterChain();
+
 
 /**
  * 消息处理器配置
@@ -283,13 +357,13 @@ const messageChain = buildMessageChain();
  * 处理飞书收到的消息（转发给 Agent AI）
  * @param {string} chatId - 聊天 ID
  * @param {string} userMessage - 用户消息
- * @param {Object} content - 消息内容对象
- * @param {Object} config - 配置对象
- * @param {Object} config.channelClient - 飞书客户端
- * @param {AgentManager} config.agentManager - Agent 管理器
+ * @param {string} messageContext - 消息上下文（包含原始消息对象等信息）eventData.json: groupChat.message
+ * @param {Object} options - 配置对象
+ * @param {Object} options.channelClient - 飞书客户端
+ * @param {AgentManager} options.agentManager - Agent 管理器
  * @returns {Promise<void>}
  */
-export async function handleFeishuMessage(chatId, userMessage, content, { channelClient, agentManager }) {
+export async function handleFeishuMessage(chatId, userMessage, messageContext,{  channelClient, agentManager }) {
     // 检查消息是否正在处理中（去重）
     if (agentManager.isProcessing(chatId, userMessage)) {
         console.log(`[Feishu] 消息已在处理中，跳过：${chatId}:${userMessage}`);
@@ -301,21 +375,34 @@ export async function handleFeishuMessage(chatId, userMessage, content, { channe
         agentManager.markProcessing(chatId, userMessage);
         console.log(`${FeishuConfig.getLogPrefix()}[-> Agent] 处理消息：${userMessage}`);
 
+        console.log(`${FeishuConfig.getLogPrefix()}[-> Agent] =======> messageContext：${JSON.stringify(messageContext)}`);
+
+        // 通过责任链处理 content 内容
+        const contextFilterResult = await contextFilterChain.handle(messageContext, { agentManager, channelClient, chatId });
+        // 记录内容处理结果
+        if (!contextFilterResult || !contextFilterResult.pass) {
+            console.log(`${FeishuConfig.getLogPrefix()} Content 处理结果：类型=${contextFilterResult.type}`);
+            
+            // 打印详细信息
+            console.log(`${FeishuConfig.getLogPrefix()} unpass 原因：${contextFilterResult.reason}`);
+            return;
+        }
+
+        //
+
+
         // 思考中
         const res = await sendThinkingMessage(channelClient, chatId);
 
         // 通过责任链处理命令
-        const commandResult = await messageChain.handle(chatId, userMessage, { agentManager });
+        const commandResult = await messageChain.handle(chatId, userMessage, { agentManager, channelClient });
         
         // 如果是命令，直接返回结果
         if (commandResult) {
-            console.log(`${FeishuConfig.getLogPrefix()}:${agentManager.getCurrentAgentName()} messageId=${res.data.message_id} ;msg=${userMessage};命令处理结果: ${JSON.stringify(commandResult)}`);
+            console.log(`${FeishuConfig.getLogPrefix()}:${agentManager.getCurrentAgentName()} messageId=${res.data.message_id} ;msg=${userMessage};命令处理结果：${JSON.stringify(commandResult)}`);
 
             await updateMessage(channelClient, res.data.message_id, "interactive", userMessage, commandResult.message);
-            
-            // 如果是 /new 命令，后续消息应该使用新会话
-            // 如果是 /instant 命令，sendMessage 会自动使用新的 agent
-            agentManager.markCompleted(chatId, userMessage);
+
             return;
         }
         console.error(`${FeishuConfig.getLogPrefix()} 命令处理失败:`, commandResult);

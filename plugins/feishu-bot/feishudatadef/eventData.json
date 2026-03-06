@@ -54,5 +54,45 @@
       "sender_type": "user",
       "tenant_key": "1acf2853bd0c5b94"
     }
+  },
+  "groupChat": {
+    "schema": "2.0",
+    "event_id": "d5254ad5cab204ddf71e65740a894fdd",
+    "token": "",
+    "create_time": "1772812250082",
+    "event_type": "im.message.receive_v1",
+    "tenant_key": "1acf2853bd0c5b94",
+    "app_id": "cli_a9201cb705399cbd",
+    "message": {
+      "chat_id": "oc_09204a45e9e7c4c5582ec606e6974b64",
+      "chat_type": "group",
+      "content": "{\"text\":\"@_user_1 \"}",
+      "create_time": "1772812249818",
+      "mentions": [
+        {
+          "id": {
+            "open_id": "ou_a9cb6f8c784b7ba9f90c2b90117e2bc1",
+            "union_id": "on_01c3bec0b2ce55d49a156ee75c0130ac",
+            "user_id": null
+          },
+          "key": "@_user_1",
+          "name": "众星之子",
+          "tenant_key": "1acf2853bd0c5b94"
+        }
+      ],
+      "message_id": "om_x100b559b3356ccb4b37c9584a764096",
+      "message_type": "text",
+      "update_time": "1772812249915",
+      "user_agent": "Mozilla/5.0 (Linux; Android 16; 2410DPN6CC Build/BP2A.250605.031.A3; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/132.0.6834.152 Mobile Safari/537.36 Lark/7.62.6 LarkLocale/zh_CN ChannelName/Feishu appid/1161; appname/Feishu; ttnet SDK-Version/7.62.5"
+    },
+    "sender": {
+      "sender_id": {
+        "open_id": "ou_876aae79dd601923ba73d825d5e1d155",
+        "union_id": "on_006375bc8efbc960f1a698e9b920f48c",
+        "user_id": null
+      },
+      "sender_type": "user",
+      "tenant_key": "1acf2853bd0c5b94"
+    }
   }
 }

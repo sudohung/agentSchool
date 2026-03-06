@@ -107,8 +107,8 @@ const feishuWSClient = createFeishuWSClient({
     messageIdTtl: FeishuConfig.messageConfig.messageIdTtl
 });
 
-feishuWSClient.start((chatId, userMessage) => {
-    return handleFeishuMessage(chatId, userMessage, {
+feishuWSClient.start((chatId, userMessage, messageContext) => {
+    return handleFeishuMessage(chatId, userMessage, messageContext, {
         channelClient: feishuClient,
         agentManager
     });
