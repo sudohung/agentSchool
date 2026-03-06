@@ -31,7 +31,7 @@ export class ChatManager {
         this.client = client || createFeishuClient();
     }
 
-    /**
+/**
      * 创建群聊
      * @param {Object} options - 创建选项
      * @param {string} options.name - 群名称
@@ -40,6 +40,7 @@ export class ChatManager {
      * @param {string} [options.user_id_type='open_id'] - 用户 ID 类型: open_id, union_id, user_id
      * @param {string} [options.chat_mode='group'] - 群聊模式: group, p2p_chat
      * @param {string} [options.chat_type='private'] - 群类型: private, public, union
+     * @param {string} [options.owner_id=''] - 指定群主的用户ID（open_id），默认空则创建者为群主
      * @returns {Promise<Object>} 创建结果 { chat_id, name, chat_type }
      */
     async createChat(options) {
@@ -49,7 +50,8 @@ export class ChatManager {
             user_id_list, 
             user_id_type = 'open_id',
             chat_mode = 'group', 
-            chat_type = 'private' 
+            chat_type = 'private',
+            owner_id = ''
         } = options;
 
         if (!name) {
@@ -70,7 +72,8 @@ export class ChatManager {
                     description: description || '',
                     user_id_list,
                     chat_mode,
-                    chat_type
+                    chat_type,
+                    owner_id
                 }
             });
 
@@ -319,9 +322,9 @@ export class ChatManager {
         }
 
         try {
-            const response = await this.client.im.chat.setOwner({
-                path: { chat_id: chatId },
-                params: { user_id_type: ownerIdType },
+            const response = await this.client.request({
+                method: 'POST',
+                url: `/im/v1/chats/${chatId}/set_owner?user_id_type=${ownerIdType}`,
                 data: {
                     owner_id: ownerId
                 }

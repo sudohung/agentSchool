@@ -40,9 +40,9 @@ class NewCommandHandler extends CommandHandler {
         if (message.trim() === '/new') {
             console.log(`${FeishuConfig.getLogPrefix()} 执行 /new 命令，重置会话`);
             const newSessionId = await context.agentManager.resetSession(chatId);
-            return { 
-                type: 'command', 
-                action: 'new_session', 
+            return {
+                type: 'command',
+                action: 'new_session',
                 sessionId: newSessionId,
                 message: `已创建新会话: ${newSessionId}`
             };
@@ -190,6 +190,27 @@ class SessionCommandHandler extends CommandHandler {
 }
 
 /**
+ * @mention 过滤器 - 移除消息开头的 @user_id_1
+ */
+class MentionFilterHandler extends CommandHandler {
+    async handle(chatId, message, context) {
+        // 检查消息是否以 @user_id_1 开头
+        if (message.trim().startsWith('@user_id_1')) {
+            console.log(`${FeishuConfig.getLogPrefix()} 移除消息中的 @user_id_1 mention`);
+            // 移除开头的 @user_id_1 及其后的空格
+            const cleanedMessage = message.replace(/^@user_id_1\s*/, '').trim();
+            console.log(`${FeishuConfig.getLogPrefix()} 清理后的消息：${cleanedMessage}`);
+            
+            // 将清理后的消息传递给下一个处理器
+            return await this.nextHandler.handle(chatId, cleanedMessage, context);
+        }
+        
+        // 如果不包含 @user_id_1，直接传递给下一个处理器
+        return super.handle(chatId, message, context);
+    }
+}
+
+/**
  * AI 消息处理器 - 处理普通消息，调用 AI 生成回复
  */
 class AIMessageHandler extends CommandHandler {
@@ -232,12 +253,14 @@ class AIMessageHandler extends CommandHandler {
  * 构建消息处理责任链
  */
 function buildMessageChain() {
+    const mentionFilterHandler = new MentionFilterHandler();
     const newHandler = new NewCommandHandler();
     const instantHandler = new InstantCommandHandler();
     const sessionsHandler = new SessionsCommandHandler();
     const sessionHandler = new SessionCommandHandler();
     const aiHandler = new AIMessageHandler();
     
+    mentionFilterHandler.setNext(newHandler);
     newHandler.setNext(instantHandler);
     instantHandler.setNext(sessionsHandler);
     sessionsHandler.setNext(sessionHandler);
@@ -260,12 +283,13 @@ const messageChain = buildMessageChain();
  * 处理飞书收到的消息（转发给 Agent AI）
  * @param {string} chatId - 聊天 ID
  * @param {string} userMessage - 用户消息
+ * @param {Object} content - 消息内容对象
  * @param {Object} config - 配置对象
  * @param {Object} config.channelClient - 飞书客户端
  * @param {AgentManager} config.agentManager - Agent 管理器
  * @returns {Promise<void>}
  */
-export async function handleFeishuMessage(chatId, userMessage, { channelClient, agentManager }) {
+export async function handleFeishuMessage(chatId, userMessage, content, { channelClient, agentManager }) {
     // 检查消息是否正在处理中（去重）
     if (agentManager.isProcessing(chatId, userMessage)) {
         console.log(`[Feishu] 消息已在处理中，跳过：${chatId}:${userMessage}`);

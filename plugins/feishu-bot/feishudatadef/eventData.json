@@ -1,28 +1,58 @@
 {
-  "schema": "2.0",
-  "event_id": "14ef9949512ae5853ca0fd3e25253da9",
-  "token": "",
-  "create_time": "1772645572273",
-  "event_type": "im.message.receive_v1",
-  "tenant_key": "1aeaa37208c95ce0",
-  "app_id": "cli_a922f5b358781ceb",
-  "message": {
-    "chat_id": "oc_c24385129ea39807f27932861a714909",
-    "chat_type": "p2p",
-    "content": "{\"text\":\"搜索 无需\"}",
-    "create_time": "1772645571983",
-    "message_id": "om_x100b55b282f3a8a8c3885c2334704c2",
-    "message_type": "text",
-    "update_time": "1772645571983",
-    "user_agent": "Mozilla/5.0 (Linux; Android 16; 2410DPN6CC Build/BP2A.250605.031.A3; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/132.0.6834.152 Mobile Safari/537.36 Lark/7.62.6 LarkLocale/zh_CN ChannelName/Feishu appid/1161; appname/Feishu; ttnet SDK-Version/7.62.5"
-  },
-  "sender": {
-    "sender_id": {
-      "open_id": "ou_2585e4c3afa78133704ee4aecf4a8122",
-      "union_id": "on_9f9cc252fa8edc33f1936a07b512512b",
-      "user_id": "17685474"
+  "text":{
+    "schema": "2.0",
+    "event_id": "14ef9949512ae5853ca0fd3e25253da9",
+    "token": "",
+    "create_time": "1772645572273",
+    "event_type": "im.message.receive_v1",
+    "tenant_key": "1aeaa37208c95ce0",
+    "app_id": "cli_a922f5b358781ceb",
+    "message": {
+      "chat_id": "oc_c24385129ea39807f27932861a714909",
+      "chat_type": "p2p",
+      "content": "{\"text\":\"搜索 无需\"}",
+      "create_time": "1772645571983",
+      "message_id": "om_x100b55b282f3a8a8c3885c2334704c2",
+      "message_type": "text",
+      "update_time": "1772645571983",
+      "user_agent": "Mozilla/5.0 (Linux; Android 16; 2410DPN6CC Build/BP2A.250605.031.A3; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/132.0.6834.152 Mobile Safari/537.36 Lark/7.62.6 LarkLocale/zh_CN ChannelName/Feishu appid/1161; appname/Feishu; ttnet SDK-Version/7.62.5"
     },
-    "sender_type": "user",
-    "tenant_key": "1aeaa37208c95ce0"
+    "sender": {
+      "sender_id": {
+        "open_id": "ou_2585e4c3afa78133704ee4aecf4a8122",
+        "union_id": "on_9f9cc252fa8edc33f1936a07b512512b",
+        "user_id": "17685474"
+      },
+      "sender_type": "user",
+      "tenant_key": "1aeaa37208c95ce0"
+    }
+  },
+  "image": {
+    "schema": "2.0",
+    "event_id": "90362ddc750b06d6a60b737ec9a41898",
+    "token": "",
+    "create_time": "1772809234213",
+    "event_type": "im.message.receive_v1",
+    "tenant_key": "1acf2853bd0c5b94",
+    "app_id": "cli_a9201cb705399cbd",
+    "message": {
+      "chat_id": "oc_6dd1435d38ded363101df1adac9a241b",
+      "chat_type": "group",
+      "content": "{\"image_key\":\"img_v3_02vh_75540f52-6320-4886-8238-8b62e6f7599g\"}",
+      "create_time": "1772809234010",
+      "message_id": "om_x100b559a8fd16ca0b39ff886c0e6fbb",
+      "message_type": "image",
+      "update_time": "1772809234010",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6778.268 Safari/537.36 Lark/7.63.7 LarkLocale/zh_CN ttnet SDK-Version/7.63.17"
+    },
+    "sender": {
+      "sender_id": {
+        "open_id": "ou_876aae79dd601923ba73d825d5e1d155",
+        "union_id": "on_006375bc8efbc960f1a698e9b920f48c",
+        "user_id": null
+      },
+      "sender_type": "user",
+      "tenant_key": "1acf2853bd0c5b94"
+    }
   }
 }

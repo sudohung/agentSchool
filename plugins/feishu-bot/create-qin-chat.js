@@ -35,6 +35,7 @@ async function createQinChat() {
         const result = await chatManager.createChat({
             name: '新建群聊',
             description: '新建群聊',
+            owner_id: USER_INFO.open_id,
             user_id_list: [USER_INFO.open_id],
             chat_mode: 'group',
             chat_type: 'private'
