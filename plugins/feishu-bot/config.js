@@ -25,6 +25,9 @@ export const FeishuConfig = {
 
   // 默认聊天ID（可选）
   defaultChatId: process.env.FEISHU_DEFAULT_CHAT_ID || '',
+
+  // 默认聊天ID（可选）
+  opencodeProvider: process.env.OPENCODE_PROVIDER || '',
   
   // OpenCode API 配置
   opencodeApiUrl: process.env.OPENCODE_API_URL || 'http://localhost:4096',

@@ -80,6 +80,7 @@ export class OpencodeAgent extends IAgentStrategy {
                 callbacks.onMessageReceived(sessionId, message);
             }
 
+            console.log(`[${this.getName()}] model use:`, JSON.stringify(this.model) );
             const result = await this.client.session.prompt({
                 path: { id: sessionId },
                 body: {

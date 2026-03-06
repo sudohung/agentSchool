@@ -37,41 +37,6 @@ const kimik25Client = createOpencodeClient({
   baseUrl: "http://127.0.0.1:4096",
 })
 
-// 启动事件监听器
-;(async () => {
-    const events = await opencodeClient.event.subscribe()
-    let mid;
-    for await (const event of events.stream) {
-//        console.log("[OpenCode] 收到事件:", event.type)
-//        console.log("[OpenCode] 收到事件11:", JSON.stringify(event))
-
-        // 根据事件类型发送飞书通知
-        if (event.type === "message.part.updated") {
-            if (!mid) {
-                mid = await sendTextMessage(
-                    feishuClient,
-                    FeishuConfig.defaultChatId || "oc_b009e81f843b41a12da1cbb083b7efd1",
-                    "新会话"
-                )
-            } else {
-                if (event.properties.part.type == "reasoning") {
-                    const msg = event.properties.part.text;
-                    if (msg) {
-                        await updateMessage(feishuClient, mid.data.message_id,"text",
-                        event.properties?.part?.sessionID, msg );
-                    }
-                }
-            }
-        }
-        // 根据事件类型发送飞书通知
-        if (event.type === "session.idle") {
-            await updateMessage(feishuClient, mid.data.message_id, "text",
-            event.properties.sessionID, " " );
-            mid = null;
-        }
-    }
-})().catch(console.error)
-
 //
 //const opencodeClient = await createOpencode({
 //  hostname: "127.0.0.1",
@@ -82,11 +47,12 @@ const kimik25Client = createOpencodeClient({
 console.log(`opencode sessions  ${opencodeClient}`)
 
 // 创建 Agent 策略实例
-const agent = new OpencodeAgent(opencodeClient).initModel("CodingPlan","qwen3.5-plus");
-const planAgent = new OpencodeAgent(qwen35PlusClient).initModel("CodingPlan","glm-5");
-const auxAgent = new OpencodeAgent(glm5Client).initModel("CodingPlan","glm-5");
-const workerAgent = new OpencodeAgent(qwen3max202601Client).initModel("CodingPlan","qwen3-max-2026-01-23");
-const subAgent = new OpencodeAgent(kimik25Client).initModel("CodingPlan","kimi-k2.5");
+const agent = new OpencodeAgent(opencodeClient).initModel(FeishuConfig.opencodeProvider,"qwen3.5-plus");
+const planAgent = new OpencodeAgent(qwen35PlusClient).initModel(FeishuConfig.opencodeProvider,"glm-5");
+const auxAgent = new OpencodeAgent(glm5Client).initModel(FeishuConfig.opencodeProvider,"glm-5");
+const workerAgent = new OpencodeAgent(qwen3max202601Client).initModel(FeishuConfig.opencodeProvider,"qwen3-max-2026-01-23");
+const subAgent = new OpencodeAgent(kimik25Client).initModel(FeishuConfig.opencodeProvider,"kimi-k2.5");
+
 // 创建 Agent 策略实例
 const agentMap = new Map();
 agentMap.set("main", agent);
@@ -104,7 +70,6 @@ const agentManager = createAgentManager({
     messageIdTtl: FeishuConfig.messageConfig.messageIdTtl,
     agentMap: agentMap, // 可选：预先定义一些 Agent 实例
     callbacks: {
-        
         // 自定义事件回调示例
         onCustomEvent: (eventName, data) => {
             console.log(`[fxbot] 触发自定义事件：${eventName}`, data);
@@ -150,3 +115,38 @@ feishuWSClient.start((chatId, userMessage) => {
 });
 
 
+
+// 启动事件监听器
+;(async () => {
+    const events = await opencodeClient.event.subscribe()
+    let mid;
+    for await (const event of events.stream) {
+        console.log("[OpenCode] 收到事件:", event.type)
+//        console.log("[OpenCode] 收到事件11:", JSON.stringify(event))
+
+        // 根据事件类型发送飞书通知
+        if (event.type === "message.part.updated") {
+            if (!mid) {
+                mid = await sendTextMessage(
+                    feishuClient,
+                    FeishuConfig.defaultChatId || "oc_b009e81f843b41a12da1cbb083b7efd1",
+                    "新会话"
+                )
+            } else {
+                if (event.properties.part.type == "reasoning") {
+                    const msg = event.properties.part.text;
+                    if (msg) {
+                        await updateMessage(feishuClient, mid.data.message_id,"text",
+                        event.properties?.part?.sessionID, msg );
+                    }
+                }
+            }
+        }
+        // 根据事件类型发送飞书通知
+        if (event.type === "session.idle") {
+            await updateMessage(feishuClient, mid.data.message_id, "text",
+            event.properties.sessionID, " " );
+            mid = null;
+        }
+    }
+})().catch(console.error)
