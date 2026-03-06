@@ -36,6 +36,11 @@ export class AgentManager {
     /**
      * @type {Map<string, string>}
      */
+    #agentMap;
+
+    /**
+     * @type {Map<string, string>}
+     */
     #sessionMap;
 
     /**
@@ -62,12 +67,13 @@ export class AgentManager {
      * 创建 Agent 管理器
      * @param {AgentManagerConfig} config - 配置对象
      */
-    constructor({ agent, processingTimeout, messageIdTtl, callbacks = {} }) {
+    constructor({ agent, processingTimeout, messageIdTtl, agentMap = {}, callbacks = {} }) {
         if (!agent || !(agent instanceof Object)) {
             throw new Error('Agent 管理器配置无效：缺少有效的 agent 实例');
         }
 
         this.#agent = agent;
+        this.#agentMap = agentMap;
         this.#sessionMap = new Map();
         this.#processingMessages = new Set();
         this.#processingTimeout = processingTimeout || FeishuConfig?.messageConfig?.processingTimeout || 30000;
@@ -82,6 +88,12 @@ export class AgentManager {
     #initAgentCallbacks() {
         if (typeof this.#agent.setCallbacks === 'function') {
             this.#agent.setCallbacks(this.#createCallbackWrapper());
+        }
+        // 遍历 agentMap
+        for (const [key, agentInstance] of Object.entries(this.#agentMap)) {
+            if (typeof agentInstance.setCallbacks === 'function') {
+                agentInstance.setCallbacks(this.#createCallbackWrapper());
+            }
         }
     }
 
@@ -243,7 +255,9 @@ export class AgentManager {
         
         // 创建新的 Promise 链，确保顺序执行
         const currentTask = sessionLock.then(async () => {
-            return await this.#agent.sendMessage(sessionId, message);
+            const curAgent = this.#agentMap.get(message) || this.#agent;
+            this.#agent = curAgent; // 切换当前 Agent 实例
+            return await curAgent.sendMessage(sessionId, message);
         });
         
         // 更新锁，捕获错误防止未处理的 Promise 拒绝

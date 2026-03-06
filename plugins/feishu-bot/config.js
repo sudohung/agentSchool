@@ -22,7 +22,7 @@ export const FeishuConfig = {
   // 从环境变量获取配置，支持本地开发和生产环境
   appId: process.env.FEISHU_APP_ID || '',
   appSecret: process.env.FEISHU_APP_SECRET || '',
-  
+
   // 默认聊天ID（可选）
   defaultChatId: process.env.FEISHU_DEFAULT_CHAT_ID || '',
   

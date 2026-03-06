@@ -7,15 +7,33 @@ import { createFeishuWSClient } from '../../feishu-bot/client/index.js';
 import { FeishuConfig } from '../../feishu-bot/config.js';
 import { createAgentManager, OpencodeAgent } from '../../feishu-bot/agent/index.js';
 
+// 验证配置
+if (!FeishuConfig.isValid()) {
+    console.error('[FeishuBot] 缺少必要的环境变量配置：FEISHU_APP_ID 和 FEISHU_APP_SECRET');
+    throw new Error('飞书机器人配置不完整');
+}
 
-const baseConfig = {
-    appId: 'cli_a9059178d1b8dcd1',
-    appSecret: 'utn16AUDhHarUUWY2yaZScMX4OJNBY4K'
-};
+// 创建 飞书 客户端（用于发送消息）
+const feishuClient = new lark.Client({
+    appId: FeishuConfig.appId,
+    appSecret: FeishuConfig.appSecret
+});
 
-const feishuClient = new lark.Client(baseConfig);
-
+// 创建 OpenCode 客户端实例
 const opencodeClient = createOpencodeClient({
+  baseUrl: "http://127.0.0.1:4096",
+})
+
+const qwen35PlusClient = createOpencodeClient({
+  baseUrl: "http://127.0.0.1:4096",
+})
+const glm5Client = createOpencodeClient({
+  baseUrl: "http://127.0.0.1:4096",
+})
+const qwen3max202601Client = createOpencodeClient({
+  baseUrl: "http://127.0.0.1:4096",
+})
+const kimik25Client = createOpencodeClient({
   baseUrl: "http://127.0.0.1:4096",
 })
 
@@ -24,15 +42,15 @@ const opencodeClient = createOpencodeClient({
     const events = await opencodeClient.event.subscribe()
     let mid;
     for await (const event of events.stream) {
-        console.log("[OpenCode] 收到事件:", event.type)
-        console.log("[OpenCode] 收到事件11:", JSON.stringify(event))
+//        console.log("[OpenCode] 收到事件:", event.type)
+//        console.log("[OpenCode] 收到事件11:", JSON.stringify(event))
 
         // 根据事件类型发送飞书通知
         if (event.type === "message.part.updated") {
             if (!mid) {
                 mid = await sendTextMessage(
                     feishuClient,
-                    "oc_b009e81f843b41a12da1cbb083b7efd1",
+                    FeishuConfig.defaultChatId || "oc_b009e81f843b41a12da1cbb083b7efd1",
                     "新会话"
                 )
             } else {
@@ -40,7 +58,7 @@ const opencodeClient = createOpencodeClient({
                     const msg = event.properties.part.text;
                     if (msg) {
                         await updateMessage(feishuClient, mid.data.message_id,"text",
-                        event.properties.part.sessionID, msg );
+                        event.properties?.part?.sessionID, msg );
                     }
                 }
             }
@@ -48,7 +66,8 @@ const opencodeClient = createOpencodeClient({
         // 根据事件类型发送飞书通知
         if (event.type === "session.idle") {
             await updateMessage(feishuClient, mid.data.message_id, "text",
-            event.properties.sessionID, "" );
+            event.properties.sessionID, " " );
+            mid = null;
         }
     }
 })().catch(console.error)
@@ -63,13 +82,27 @@ const opencodeClient = createOpencodeClient({
 console.log(`opencode sessions  ${opencodeClient}`)
 
 // 创建 Agent 策略实例
-const agent = new OpencodeAgent(opencodeClient);
+const agent = new OpencodeAgent(opencodeClient).initModel("CodingPlan","qwen3.5-plus");
+const planAgent = new OpencodeAgent(qwen35PlusClient).initModel("CodingPlan","glm-5");
+const auxAgent = new OpencodeAgent(glm5Client).initModel("CodingPlan","glm-5");
+const workerAgent = new OpencodeAgent(qwen3max202601Client).initModel("CodingPlan","qwen3-max-2026-01-23");
+const subAgent = new OpencodeAgent(kimik25Client).initModel("CodingPlan","kimi-k2.5");
+// 创建 Agent 策略实例
+const agentMap = new Map();
+agentMap.set("main", agent);
+agentMap.set("planAgent", planAgent);
+agentMap.set("auxAgent", auxAgent);
+agentMap.set("workerAgent", workerAgent);
+agentMap.set("subAgent", subAgent);
+
+
 
 // 创建 Agent 管理器（封装 sessionMap 和 processingMessages）
 const agentManager = createAgentManager({
     agent,
     processingTimeout: FeishuConfig.messageConfig.processingTimeout,
     messageIdTtl: FeishuConfig.messageConfig.messageIdTtl,
+    agentMap: agentMap, // 可选：预先定义一些 Agent 实例
     callbacks: {
         
         // 自定义事件回调示例

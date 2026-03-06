@@ -9,6 +9,7 @@ import { IAgentStrategy } from './agent-strategy.js';
  * OpenCode Agent 策略实现
  */
 export class OpencodeAgent extends IAgentStrategy {
+
     /**
      * @param {Object} client - OpenCode 客户端实例
      */
@@ -19,6 +20,15 @@ export class OpencodeAgent extends IAgentStrategy {
         }
         console.log('[OpencodeAgent] 初始化，client 类型:', typeof client, client ? '有值' : '空值');
         this.client = client;
+
+        this.model = {providerID: "CodingPlan",modelID: "glm-5"}
+
+    }
+
+    initModel(providerID, modelID ) {
+        // 这里可以添加模型初始化逻辑，例如预加载模型列表或设置默认模型
+        this.model = {providerID: providerID,modelID: modelID }
+        return this;
     }
 
     /**
@@ -72,11 +82,8 @@ export class OpencodeAgent extends IAgentStrategy {
 
             const result = await this.client.session.prompt({
                 path: { id: sessionId },
-                model: {
-                  providerID: "CodingPlanX",
-                  modelID: "glm-5"
-                },
                 body: {
+                    model: this.model || {}, // 使用默认模型
                     parts: [{ type: "text", text: message }],
                 },
             });

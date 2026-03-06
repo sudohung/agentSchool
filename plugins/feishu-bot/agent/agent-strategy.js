@@ -49,6 +49,14 @@ export class IAgentStrategy {
     }
 
     /**
+     * 获取 Agent 名称
+     * @returns {string}
+     */
+    initModel(providerId, modelId) {
+        throw new Error('子类必须实现 initModel 方法');
+    }
+
+    /**
      * 创建新会话
      * @param {string} title - 会话标题
      * @returns {Promise<string>} 会话 ID

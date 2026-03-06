@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useCurrentFrame, interpolate, spring, useVideoConfig } from "remotion";
 import { FractalTree } from "./FractalTree";
-import { AgentCollaborationFlowCorrected } from "./AgentCollaborationFlowCorrected";
+import { AgentCollaborationFlowExact } from "./AgentCollaborationFlowExact";
 
 export const RollingBall = () => {
   const { width } = useVideoConfig();
@@ -123,7 +123,7 @@ const AnimationSelector = () => {
           Agent协作
         </button>
       </div>
-      {selected === "ball" ? <RollingBall /> : selected === "tree" ? <FractalTree maxDepth={10} /> : <AgentCollaborationFlowCorrected />}
+      {selected === "ball" ? <RollingBall /> : selected === "tree" ? <FractalTree maxDepth={10} /> : <AgentCollaborationFlowExact />}
     </div>
   );
 };
