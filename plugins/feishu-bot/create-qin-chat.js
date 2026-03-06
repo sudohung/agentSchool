@@ -1,5 +1,5 @@
 /**
- * 创建名为'琴女'的群聊脚本
+ * 创建名为'新建群聊'的群聊脚本
  * 使用指定的 open_id 创建群聊
  */
 
@@ -23,8 +23,8 @@ const chatManager = createChatManager(feishuClient);
 
 // 用户信息
 const USER_INFO = {
-    open_id: 'ou_03bddb45268dc5a725067f671a8e8c80',
-    union_id: 'on_a5e4f1a44ec54825be879f0ff634f25a'
+    open_id: 'ou_876aae79dd601923ba73d825d5e1d155',
+    union_id: 'on_006375bc8efbc960f1a698e9b920f48c'
 };
 
 async function createQinChat() {
@@ -33,8 +33,8 @@ async function createQinChat() {
         console.log('使用用户 open_id:', USER_INFO.open_id);
         
         const result = await chatManager.createChat({
-            name: '琴女',
-            description: '琴女群聊',
+            name: '新建群聊',
+            description: '新建群聊',
             user_id_list: [USER_INFO.open_id],
             chat_mode: 'group',
             chat_type: 'private'

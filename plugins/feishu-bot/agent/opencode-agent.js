@@ -36,7 +36,7 @@ export class OpencodeAgent extends IAgentStrategy {
      * @returns {string}
      */
     getName() {
-        return 'OpencodeAgent';
+        return 'OpencodeAgent:' + this.model.modelID;
     }
 
     /**

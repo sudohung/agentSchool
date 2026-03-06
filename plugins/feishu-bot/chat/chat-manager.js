@@ -303,6 +303,82 @@ export class ChatManager {
         }
     }
 
+/**
+     * 设置群主
+     * @param {string} chatId - 群ID
+     * @param {string} ownerId - 新群主的用户ID
+     * @param {string} [ownerIdType='open_id'] - 用户ID类型: open_id, union_id, user_id
+     * @returns {Promise<Object>} 设置结果
+     */
+    async setOwner(chatId, ownerId, ownerIdType = 'open_id') {
+        if (!chatId) {
+            throw new Error('群ID不能为空');
+        }
+        if (!ownerId) {
+            throw new Error('新群主ID不能为空');
+        }
+
+        try {
+            const response = await this.client.im.chat.setOwner({
+                path: { chat_id: chatId },
+                params: { user_id_type: ownerIdType },
+                data: {
+                    owner_id: ownerId
+                }
+            });
+
+            console.log(`[ChatManager] 群主设置成功: ${ownerId}`);
+            return {
+                success: true,
+                owner_id: response.data?.owner_id
+            };
+        } catch (error) {
+            console.error('[ChatManager] 设置群主失败:', error.message);
+            if (error.response?.data) {
+                console.error('[ChatManager] 错误详情:', JSON.stringify(error.response.data, null, 2));
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * 设置群管理员
+     * @param {string} chatId - 群ID
+     * @param {string[]} adminIds - 管理员用户ID列表
+     * @param {string} [adminIdType='open_id'] - 用户ID类型: open_id, union_id, user_id
+     * @returns {Promise<Object>} 设置结果
+     */
+    async setAdmin(chatId, adminIds, adminIdType = 'open_id') {
+        if (!chatId) {
+            throw new Error('群ID不能为空');
+        }
+        if (!adminIds || adminIds.length === 0) {
+            throw new Error('管理员ID列表不能为空');
+        }
+
+        try {
+            const response = await this.client.im.chat.setAdmin({
+                path: { chat_id: chatId },
+                params: { user_id_type: adminIdType },
+                data: {
+                    admin_ids: adminIds
+                }
+            });
+
+            console.log(`[ChatManager] 管理员设置成功: ${adminIds.length} 人`);
+            return {
+                success: true,
+                admin_ids: response.data?.admin_ids || []
+            };
+        } catch (error) {
+            console.error('[ChatManager] 设置管理员失败:', error.message);
+            if (error.response?.data) {
+                console.error('[ChatManager] 错误详情:', JSON.stringify(error.response.data, null, 2));
+            }
+            throw error;
+        }
+    }
+
     /**
      * 发送群消息
      * @param {string} chatId - 群ID

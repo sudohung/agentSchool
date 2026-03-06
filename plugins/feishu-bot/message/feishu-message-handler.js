@@ -285,7 +285,7 @@ export async function handleFeishuMessage(chatId, userMessage, { channelClient, 
         
         // 如果是命令，直接返回结果
         if (commandResult) {
-            console.log(`${FeishuConfig.getLogPrefix()} 命令处理结果: ${JSON.stringify(commandResult)}`);
+            console.log(`${FeishuConfig.getLogPrefix()}:${agentManager.getCurrentAgentName()} messageId=${res.data.message_id} ;msg=${userMessage};命令处理结果: ${JSON.stringify(commandResult)}`);
 
             await updateMessage(channelClient, res.data.message_id, "interactive", userMessage, commandResult.message);
             
