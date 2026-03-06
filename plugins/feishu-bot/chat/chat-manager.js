@@ -36,19 +36,31 @@ export class ChatManager {
      * @param {Object} options - 创建选项
      * @param {string} options.name - 群名称
      * @param {string} [options.description] - 群描述
-     * @param {string[]} options.user_id_list - 初始成员 open_id 列表
-     * @param {string} [options.chat_mode='group'] - 群聊模式
-     * @param {string} [options.chat_type='private'] - 群类型
-     * @returns {Promise<Object>} 创建结果 { chat_id, name }
+     * @param {string[]} options.user_id_list - 初始成员 ID 列表
+     * @param {string} [options.user_id_type='open_id'] - 用户 ID 类型: open_id, union_id, user_id
+     * @param {string} [options.chat_mode='group'] - 群聊模式: group, p2p_chat
+     * @param {string} [options.chat_type='private'] - 群类型: private, public, union
+     * @returns {Promise<Object>} 创建结果 { chat_id, name, chat_type }
      */
     async createChat(options) {
-        const { name, description, user_id_list, chat_mode = 'group', chat_type = 'private' } = options;
+        const { 
+            name, 
+            description, 
+            user_id_list, 
+            user_id_type = 'open_id',
+            chat_mode = 'group', 
+            chat_type = 'private' 
+        } = options;
 
         if (!name) {
             throw new Error('群名称不能为空');
         }
         if (!user_id_list || user_id_list.length === 0) {
             throw new Error('至少需要一个初始成员');
+        }
+
+        if (chat_type === 'union' && user_id_type !== 'union_id') {
+            console.warn('[ChatManager] 创建联合群时建议使用 union_id 类型的用户 ID');
         }
 
         try {
@@ -62,15 +74,54 @@ export class ChatManager {
                 }
             });
 
-            console.log(`[ChatManager] 群聊创建成功: ${name}`);
+            console.log(`[ChatManager] 群聊创建成功: ${name} (类型: ${chat_type})`);
             return {
                 chat_id: response.data.chat_id,
-                name: response.data.name
+                name: response.data.name,
+                chat_type
             };
         } catch (error) {
             console.error('[ChatManager] 创建群聊失败:', error.message);
+            if (error.response?.data) {
+                console.error('[ChatManager] 错误详情:', JSON.stringify(error.response.data, null, 2));
+            }
             throw error;
         }
+    }
+
+    /**
+     * 创建外部群/联合群
+     * @param {Object} options - 创建选项
+     * @param {string} options.name - 群名称
+     * @param {string} [options.description] - 群描述
+     * @param {string[]} options.member_list - 成员列表，支持混合类型: { open_id: 'ou_xxx' } 或 { union_id: 'on_xxx' }
+     * @returns {Promise<Object>} 创建结果 { chat_id, name }
+     */
+    async createUnionChat(options) {
+        const { name, description, member_list } = options;
+
+        if (!name) {
+            throw new Error('群名称不能为空');
+        }
+        if (!member_list || member_list.length === 0) {
+            throw new Error('至少需要一个初始成员');
+        }
+
+        const userIdList = member_list.map(member => {
+            if (member.open_id) return member.open_id;
+            if (member.union_id) return member.union_id;
+            if (member.user_id) return member.user_id;
+            throw new Error('成员必须包含 open_id, union_id 或 user_id');
+        });
+
+        return await this.createChat({
+            name,
+            description,
+            user_id_list: userIdList,
+            user_id_type: 'union_id',
+            chat_mode: 'group',
+            chat_type: 'union'
+        });
     }
 
     /**
