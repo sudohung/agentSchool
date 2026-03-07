@@ -3,6 +3,7 @@ import { SessionCreatedHandler } from './session-created.js';
 import { SessionIdleHandler } from './session-idle.js';
 import { ToolExecuteHandler } from './tool-execute.js';
 import { SessionErrorHandler } from './session-error.js';
+import { MessageUpdateHandler } from './message-update.js';
 
 export {
     EventHandler,
@@ -10,7 +11,8 @@ export {
     SessionCreatedHandler,
     SessionIdleHandler,
     ToolExecuteHandler,
-    SessionErrorHandler
+    SessionErrorHandler,
+    MessageUpdateHandler
 };
 
 /**
@@ -20,6 +22,7 @@ export function createEventHandlerChain(project) {
     const chain = new EventHandlerChain();
     
     chain.add(new SessionCreatedHandler(project));
+    chain.add(new MessageUpdateHandler());
     chain.add(new SessionIdleHandler());
     chain.add(new ToolExecuteHandler());
     chain.add(new SessionErrorHandler());

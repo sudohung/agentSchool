@@ -10,7 +10,7 @@ export class SessionCreatedHandler extends EventHandler {
     async process(event, context) {
         return await sendEventNotification(
             "OpenCode 会话已创建",
-            `项目：${this.project?.name || '未知'}\n会话 ID: ${event.session.id}`
+            `会话 ID: ${event.properties?.info?.id}`
         );
     }
 }

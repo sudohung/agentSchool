@@ -121,7 +121,7 @@ class PreprocessHandler extends AbstractHandler {
             processedMessage = await strategy.process(messageContent, processedMessage);
         }
         
-        console.log(`${FeishuConfig.getLogPrefix()} [预处理完成] 原始: ${userMessage}, 处理后: ${processedMessage}`);
+//        console.log(`${FeishuConfig.getLogPrefix()} [预处理完成] 原始: ${userMessage}, 处理后: ${processedMessage}`);
         
         // 传递处理后的消息
         return await super.handle(chatId, processedMessage, { ...context, processedMessage });
@@ -404,7 +404,7 @@ class BanChatFilterHandler extends AbstractFilterHandler {
         this.cacheTime = 0;
         this.cacheTtl = 60 * 1000; // 1分钟缓存
         // 使用相对路径，确保在不同环境下都能正确找到文件
-        this.banFilePath =  path.join(__dirname, '..', 'ban','ban.json');
+        this.banFilePath =  path.join('..', 'ban','ban.json');
     }
 
     getBlockedChatIds() {
@@ -433,7 +433,6 @@ class BanChatFilterHandler extends AbstractFilterHandler {
     async handle(messageContext, context) {
         const chatId = messageContext?.chat_id;
         const blockedChatIds = this.getBlockedChatIds();
-                    console.log(`${FeishuConfig.getLogPrefix()} 过滤黑名单中。。。 chatId：${chatId}`);
 
         if (chatId && blockedChatIds.has(chatId)) {
             console.log(`${FeishuConfig.getLogPrefix()} 过滤黑名单 chatId：${chatId}`);
@@ -535,8 +534,8 @@ export async function handleFeishuMessage(chatId, userMessage, messageContext, {
 
     try {
         agentManager.markProcessing(chatId, userMessage);
-        console.log(`${FeishuConfig.getLogPrefix()}[-> Agent] 处理消息：${userMessage}`);
-        console.log(`${FeishuConfig.getLogPrefix()}[-> Agent] messageContext：${JSON.stringify(messageContext)}`);
+        console.log(`${FeishuConfig.getLogPrefix()}[handleFeishuMessage-> Agent] 开始处理消息：${userMessage}`);
+//        console.log(`${FeishuConfig.getLogPrefix()}[-> Agent] messageContext：${JSON.stringify(messageContext)}`);
 
         // 通过责任链过滤内容
         const contextFilterResult = await contextFilterChain.handle(messageContext, { agentManager, channelClient, chatId });

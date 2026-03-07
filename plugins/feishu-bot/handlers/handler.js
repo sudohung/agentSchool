@@ -41,8 +41,11 @@ export class EventHandlerChain {
     }
 
     async handle(event, context) {
+        console.log(`[AgentEventHandlerChain] 收到事件：${event.type}, event: ${JSON.stringify(event)}`);
+
         for (const handler of this.handlers) {
             if (event.type === handler.eventType) {
+//                console.log(`[EventHandlerChain] 处理事件：${handler.eventType}, event: ${JSON.stringify(event)}`);
                 return await handler.process(event, context);
             }
         }

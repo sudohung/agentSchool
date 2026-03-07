@@ -6,6 +6,9 @@ import {
 import { createFeishuWSClient } from '../../feishu-bot/client/index.js';
 import { FeishuConfig } from '../../feishu-bot/config.js';
 import { createAgentManager, OpencodeAgent } from '../../feishu-bot/agent/index.js';
+// 引入webhook
+import { sendWebhookMessage, sendEventNotification, sendErrorMessage } from '../../feishu-bot/webhook/webhook-sender.js';
+import { createEventHandlerChain } from '../../feishu-bot/handlers/index.js';
 
 // 验证配置
 if (!FeishuConfig.isValid()) {
@@ -139,11 +142,14 @@ feishuWSClient.start((chatId, userMessage, messageContext) => {
     const events = await opencodeClient.event.subscribe()
     // 增加一个map 记录chatId 和 mid
     const chatIdMidMap = new Map();
+
+    const eventChain = createEventHandlerChain();
     for await (const event of events.stream) {
         // 取mapsize
         const chatSize = chatIdMidMap.size;
 //        console.log(`[OpenCode] chatSize:${chatSize} ,收到事件:${event.type}`)
 //        console.log("[OpenCode] 收到事件11:", JSON.stringify(event))
+
 
         // 根据事件类型发送飞书通知
         if (event.type === "message.part.updated") {
@@ -173,8 +179,11 @@ feishuWSClient.start((chatId, userMessage, messageContext) => {
                  }
             }
         }
+
+
         // 根据事件类型发送飞书通知
         if (event.type === "session.idle") {
+
             // 等等500ms
             await new Promise(resolve => setTimeout(resolve, 500));
             let mid = null;
@@ -185,6 +194,20 @@ feishuWSClient.start((chatId, userMessage, messageContext) => {
             await updateMessage(feishuClient, mid.data.message_id, "text",
             event.properties.sessionID, " " );
             chatIdMidMap.delete(chatId)
+        }
+
+        await eventChain.handle(event, {  });
+
+
+        // 监听session 失败事件
+        if (event.type === "session.error") {
+            // 等等500ms
+            console.log(`[OpenCode] 收到 session.error 事件: ${JSON.stringify(event)}`);
+
+            sendWebhookMessage(
+                `会话异常：${event.properties.sessionID}`,
+                `会话 ${event.properties.sessionID} 发生异常，错误信息：${event.properties.errorMessage}\n时间：${new Date().toLocaleString('zh-CN')}`
+            );
         }
     }
 })().catch(console.error)

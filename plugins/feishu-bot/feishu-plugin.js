@@ -28,6 +28,7 @@ export const OpencodeFeishuPlugin = async (context) => {
      * 监听所有opencode事件
      */
     return {
+
         /**
          * 监听所有事件
          */
@@ -35,16 +36,5 @@ export const OpencodeFeishuPlugin = async (context) => {
             await eventChain.handle(event, { project });
         },
 
-        /**
-         * 监听消息更新事件
-         */
-        "message.updated": async (input, output) => {
-        },
-
-        /**
-         * 监听文件编辑事件
-         */
-        "file.edited": async (input, output) => {
-        }
     };
 };
