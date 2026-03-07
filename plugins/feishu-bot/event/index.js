@@ -4,6 +4,7 @@ import { SessionIdleHandler } from './session-idle.js';
 import { ToolExecuteHandler } from './tool-execute.js';
 import { SessionErrorHandler } from './session-error.js';
 import { MessageUpdateHandler } from './message-update.js';
+import { SessionStatusHandler } from './session-status.js';
 
 export {
     EventHandler,
@@ -12,7 +13,8 @@ export {
     SessionIdleHandler,
     ToolExecuteHandler,
     SessionErrorHandler,
-    MessageUpdateHandler
+    MessageUpdateHandler,
+    SessionStatusHandler
 };
 
 /**
@@ -26,6 +28,7 @@ export function createEventHandlerChain(project) {
     chain.add(new SessionIdleHandler());
     chain.add(new ToolExecuteHandler());
     chain.add(new SessionErrorHandler());
+    chain.add(new SessionStatusHandler());
 
     return chain;
 }
