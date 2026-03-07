@@ -570,11 +570,11 @@ export async function handleFeishuMessage(chatId, userMessage, messageContext, {
 
     } catch (error) {
         console.error(`${FeishuConfig.getLogPrefix()}[-> Agent] 处理失败:`, error.message);
-        console.error(`${FeishuConfig.getLogPrefix()}[-> Agent] 处理失败 stack:`, error.stack);
+        console.error(`${FeishuConfig.getLogPrefix()}[-> Agent] 处理失败 stack:`, error);
         if (FeishuConfig.isDebugEnabled()) {
             console.error(`${FeishuConfig.getLogPrefix()}[-> Agent] 错误详情:`, error);
         }
-        await sendErrorMessage(channelClient, chatId, error.message);
+        await sendErrorMessage(channelClient, chatId, `回复${userMessage} -> ${error.message}`);
     } finally {
         agentManager.markCompleted(chatId, userMessage);
     }
