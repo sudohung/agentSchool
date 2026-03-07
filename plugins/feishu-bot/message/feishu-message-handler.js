@@ -12,6 +12,11 @@ import { FeishuConfig } from '../config.js';
 import { extractAIResponse } from './message-parser.js';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+// ESM: compute __dirname for this module so we can build reliable relative paths
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import {
     sendThinkingMessage,
     sendErrorMessage,
@@ -403,8 +408,8 @@ class BanChatFilterHandler extends AbstractFilterHandler {
         this.cache = null;
         this.cacheTime = 0;
         this.cacheTtl = 60 * 1000; // 1分钟缓存
-        // 使用相对路径，确保在不同环境下都能正确找到文件
-        this.banFilePath =  path.join('..', 'ban','ban.json');
+        // 使用相对于当前模块的路径，确保在不同启动目录下也能正确找到文件
+        this.banFilePath = path.join(__dirname, '..', 'ban', 'ban.json');
     }
 
     getBlockedChatIds() {

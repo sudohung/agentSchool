@@ -41,6 +41,10 @@ export class EventHandlerChain {
     }
 
     async handle(event, context) {
+        // 排除 server.heartbeat
+        if (event.type === 'server.heartbeat') {
+            return null;
+        }
         console.log(`[AgentEventHandlerChain] 收到事件：${event.type}, event: ${JSON.stringify(event)}`);
 
         for (const handler of this.handlers) {
