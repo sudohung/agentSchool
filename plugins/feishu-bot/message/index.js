@@ -4,7 +4,6 @@
  */
 
 export {
-    createFeishuClient,
     sendTextMessage,
     sendCardMessage,
     sendThinkingMessage,

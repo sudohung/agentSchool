@@ -24,7 +24,7 @@ function createFeishuClient() {
 }
 
 /**
- * 群聊管理器类
+ * 聊天管理器类
  */
 export class ChatManager {
     constructor(client) {
@@ -421,6 +421,18 @@ export class ChatManager {
             throw error;
         }
     }
+
+    // 客户端基础管理
+
+    /**
+     * 获取飞书客户端实例
+      * @returns {Object} 飞书客户端实例
+      */
+    getClient() {
+        console.log(`[ChatManager] 获取飞书客户端实例 ${this.client ? '成功' : '失败'}`);
+        return this.client;
+    }
+
 }
 
 /**

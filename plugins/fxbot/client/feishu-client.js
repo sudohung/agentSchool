@@ -9,6 +9,8 @@ import { createAgentManager, OpencodeAgent } from '../../feishu-bot/agent/index.
 // 引入webhook
 import { sendWebhookMessage, sendEventNotification, sendErrorMessage } from '../../feishu-bot/webhook/webhook-sender.js';
 import { createEventHandlerChain } from '../../feishu-bot/handlers/index.js';
+import { createChatManager } from '../../feishu-bot/chat/index.js';
+
 
 // 验证配置
 if (!FeishuConfig.isValid()) {
@@ -82,7 +84,8 @@ agentMap.set("auxAgent", auxAgent);
 agentMap.set("workerAgent", workerAgent);
 agentMap.set("subAgent", subAgent);
 
-
+// 创建交流管理器
+const chatManager = createChatManager(feishuClient);
 
 // 创建 Agent 管理器（封装 sessionMap 和 processingMessages）
 const agentManager = createAgentManager({
@@ -115,6 +118,9 @@ const agentManager = createAgentManager({
                 default:
                     console.log(`[fxbot] 未知事件类型：${eventName}`);
             }
+        },
+        onError: (sessionId, data) => {
+            console.error(`[feishuClient] 会话 ${sessionId} 发生错误:`, data);
         }
     }
 });
@@ -130,14 +136,14 @@ const feishuWSClient = createFeishuWSClient({
 
 feishuWSClient.start((chatId, userMessage, messageContext) => {
     return handleFeishuMessage(chatId, userMessage, messageContext, {
-        channelClient: feishuClient,
+        chatManager: chatManager,
         agentManager
     });
 });
 
 
 
-// 启动事件监听器
+// 启动opencode事件监听器
 ;(async () => {
     const events = await opencodeClient.event.subscribe()
     // 增加一个map 记录chatId 和 mid
@@ -162,7 +168,7 @@ feishuWSClient.start((chatId, userMessage, messageContext) => {
 
                  if (!mid) {
                     mid = await sendTextMessage(
-                        feishuClient,
+                        chatManager,
                         chatId || FeishuConfig.defaultChatId || "oc_b009e81f843b41a12da1cbb083b7efd1",
                         "新会话"
                     )
@@ -171,7 +177,7 @@ feishuWSClient.start((chatId, userMessage, messageContext) => {
                      if (event.properties.part.type == "reasoning") {
                          const msg = event.properties.part.text;
                          if (msg) {
-                             await updateMessage(feishuClient, mid.data.message_id,"text",
+                             await updateMessage(chatManager, mid.data.message_id,"text",
                              event.properties?.part?.sessionID, msg );
                          }
                      }
@@ -191,7 +197,7 @@ feishuWSClient.start((chatId, userMessage, messageContext) => {
             if (chatIdMidMap.has(chatId)) {
                 mid = chatIdMidMap.get(chatId)
             }
-            await updateMessage(feishuClient, mid.data.message_id, "text",
+            await updateMessage(chatManager, mid.data.message_id, "text",
             event.properties.sessionID, " " );
             chatIdMidMap.delete(chatId)
         }

@@ -22,7 +22,6 @@ import {
     sendErrorMessage,
     updateMessage
 } from './index.js';
-import { AgentManager } from '../agent/agent-manager.js';
 
 /**
  * ==================== 基础抽象类 ====================
@@ -296,7 +295,7 @@ class SessionCommandHandler extends AbstractHandler {
  */
 class AIMessageHandler extends AbstractHandler {
     async handle(chatId, message, context) {
-        const { channelClient, agentManager } = context;
+        const { chatManager, agentManager } = context;
         
         console.log(`${FeishuConfig.getLogPrefix()} 执行 AI 消息处理`);
         
@@ -531,7 +530,7 @@ export function createTextReplaceStrategy(rules = []) {
 /**
  * 处理飞书收到的消息（转发给 Agent AI）
  */
-export async function handleFeishuMessage(chatId, userMessage, messageContext, { channelClient, agentManager }) {
+export async function handleFeishuMessage(chatId, userMessage, messageContext, { chatManager, agentManager }) {
     if (agentManager.isProcessing(chatId, userMessage)) {
         console.log(`[Feishu] 消息已在处理中，跳过：${chatId}:${userMessage}`);
         return;
@@ -543,7 +542,7 @@ export async function handleFeishuMessage(chatId, userMessage, messageContext, {
 //        console.log(`${FeishuConfig.getLogPrefix()}[-> Agent] messageContext：${JSON.stringify(messageContext)}`);
 
         // 通过责任链过滤内容
-        const contextFilterResult = await contextFilterChain.handle(messageContext, { agentManager, channelClient, chatId });
+        const contextFilterResult = await contextFilterChain.handle(messageContext, { agentManager, chatId });
         
         if (!contextFilterResult || !contextFilterResult.pass) {
             console.log(`${FeishuConfig.getLogPrefix()} 过滤结果：类型=${contextFilterResult.type}, 原因=${contextFilterResult.reason}`);
@@ -551,18 +550,18 @@ export async function handleFeishuMessage(chatId, userMessage, messageContext, {
         }
 
         // 发送思考状态
-        const res = await sendThinkingMessage(channelClient, chatId);
+        const res = await sendThinkingMessage(chatManager, chatId);
 
         // 通过责任链处理消息（包含预处理）
         const commandResult = await messageChain.handle(chatId, userMessage, { 
             agentManager, 
-            channelClient, 
+            chatManager,
             messageContext 
         });
         
         if (commandResult) {
             console.log(`${FeishuConfig.getLogPrefix()} ${agentManager.getCurrentAgentName()} messageId=${res.data.message_id} 结果：${JSON.stringify(commandResult)}`);
-            await updateMessage(channelClient, res.data.message_id, "interactive", userMessage, commandResult.message);
+            await updateMessage(chatManager, res.data.message_id, "interactive", userMessage, commandResult.message);
             return;
         }
         
@@ -574,7 +573,7 @@ export async function handleFeishuMessage(chatId, userMessage, messageContext, {
         if (FeishuConfig.isDebugEnabled()) {
             console.error(`${FeishuConfig.getLogPrefix()}[-> Agent] 错误详情:`, error);
         }
-        await sendErrorMessage(channelClient, chatId, `回复${userMessage} -> ${error.message}`);
+        await sendErrorMessage(chatManager, chatId, `回复: ${userMessage} -> ${error.message}`);
     } finally {
         agentManager.markCompleted(chatId, userMessage);
     }

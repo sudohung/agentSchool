@@ -186,33 +186,8 @@ export class FeishuWSClient {
                         }
 
                         return {};
-                    },
-                     // 默认事件处理器 - 捕获所有其他事件
-                    '__default__': async (data) => {
-                        const eventType = data.event_type || data.type || 'unknown';
-                        console.log(`${this.#getLogPrefix()} [默认处理] 收到未知事件：${eventType}`);
-                            console.log(`${this.#getLogPrefix()} [默认处理] 事件详情:`, JSON.stringify(data, null, 2));
-
-                        // 可以在这里添加默认的日志记录或其他处理逻辑
-                        if (FeishuConfig.isDebugEnabled()) {
-                            console.log(`${this.#getLogPrefix()} [默认处理] 事件详情:`, JSON.stringify(data, null, 2));
-                        }
-
-                        // 对于某些重要事件，可以发送到飞书通知
-                        if (['contact.user.created_v1', 'contact.user.deleted_v1'].includes(eventType)) {
-                            const targetChatId = FeishuConfig.defaultChatId;
-                            if (targetChatId) {
-                                await sendEventNotification(
-                                    feishuClient,
-                                    targetChatId,
-                                    `系统事件：${eventType}`,
-                                    `检测到系统事件：${eventType}\n时间：${new Date().toLocaleString('zh-CN')}`
-                                );
-                            }
-                        }
-
-                        return {};
                     }
+
                 })
             });
 
