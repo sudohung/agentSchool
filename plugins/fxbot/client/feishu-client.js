@@ -184,11 +184,7 @@ feishuWSClient.start((chatId, userMessage, messageContext) => {
 
                  }
             }
-        }
-
-
-        // 根据事件类型发送飞书通知
-        if (event.type === "session.idle") {
+        } else if (event.type === "session.idle") {
 
             // 等等500ms
             await new Promise(resolve => setTimeout(resolve, 500));
@@ -200,20 +196,25 @@ feishuWSClient.start((chatId, userMessage, messageContext) => {
             await updateMessage(chatManager, mid.data.message_id, "text",
             event.properties.sessionID, " " );
             chatIdMidMap.delete(chatId)
-        }
-
-        await eventChain.handle(event, {  });
-
-
-        // 监听session 失败事件
-        if (event.type === "session.error") {
-            // 等等500ms
-            console.log(`[OpenCode] 收到 session.error 事件: ${JSON.stringify(event)}`);
-
-            sendWebhookMessage(
-                `会话异常：${event.properties.sessionID}`,
-                `会话 ${event.properties.sessionID} 发生异常，错误信息：${event.properties.errorMessage}\n时间：${new Date().toLocaleString('zh-CN')}`
-            );
+        } else {
+            // 所有其他事件都交给责任链处理
+            await eventChain.handle(event, { 
+                notify: async (title, content) => {
+                    // 获取当前会话对应的 chatId
+                    const sessionId = event.properties?.sessionID;
+                    const chatId = agentManager.getChatIdBySessionId(sessionId);
+                    if (!chatId) {
+                        console.warn(`[Feishu] 未找到会话 ${sessionId} 对应的 chatId`);
+                        return false;
+                    }
+                    // 将 title 和 content 合并为一条纯文本消息（移除 markdown 格式）
+                    const plainContent = content.replace(/\*\*/g, ''); // 移除 ** 标记
+                    return await sendCardMessage(chatManager, chatId, plainContent, title);
+                },
+                notifyWebhook: async (title, content) => {
+                    return await sendWebhookMessage(title, content);
+                }
+            });
         }
     }
 })().catch(console.error)
