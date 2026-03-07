@@ -19,7 +19,10 @@ console.log('[FeishuConfig] FEISHU_APP_ID:', process.env.FEISHU_APP_ID ? '已设
 console.log('[FeishuConfig] FEISHU_APP_SECRET:', process.env.FEISHU_APP_SECRET ? '已设置' : '未设置');
 
 export const FeishuConfig = {
-  // 从环境变量获取配置，支持本地开发和生产环境
+  // Webhook URL（用于发送通知）
+  webhookUrl: process.env.FEISHU_WEBHOOK_URL || '',
+
+  // 飞书应用配置
   appId: process.env.FEISHU_APP_ID || '',
   appSecret: process.env.FEISHU_APP_SECRET || '',
 

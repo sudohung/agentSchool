@@ -10,6 +10,8 @@
 
 import { FeishuConfig } from '../config.js';
 import { extractAIResponse } from './message-parser.js';
+import fs from 'fs';
+import path from 'path';
 import {
     sendThinkingMessage,
     sendErrorMessage,
@@ -393,11 +395,67 @@ class GroupFilterHandler extends AbstractFilterHandler {
 }
 
 /**
+ * 黑名单 chatId 过滤器
+ */
+class BanChatFilterHandler extends AbstractFilterHandler {
+    constructor() {
+        super();
+        this.cache = null;
+        this.cacheTime = 0;
+        this.cacheTtl = 60 * 1000; // 1分钟缓存
+        // 使用相对路径，确保在不同环境下都能正确找到文件
+        this.banFilePath =  path.join(__dirname, '..', 'ban','ban.json');
+    }
+
+    getBlockedChatIds() {
+        const now = Date.now();
+        console.log(`${FeishuConfig.getLogPrefix()} 获取黑名单列表，缓存状态: ${this.cache ? '有效' : '无效'}`);
+        console.log(`${FeishuConfig.getLogPrefix()} 获取黑名单列表，banFilePath: ${this.banFilePath}`);
+        if (this.cache && (now - this.cacheTime) < this.cacheTtl) {
+            return this.cache;
+        }
+        try {
+            if (fs.existsSync(this.banFilePath)) {
+                const data = JSON.parse(fs.readFileSync(this.banFilePath, 'utf-8'));
+                this.cache = new Set(data.blockedChatId || []);
+                this.cacheTime = now;
+                console.log(`${FeishuConfig.getLogPrefix()} 重新加载黑名单列表，当前数量: ${this.cache.size}`);
+            } else {
+                this.cache = new Set();
+            }
+        } catch (error) {
+            console.error(`${FeishuConfig.getLogPrefix()} 读取黑名单文件失败:`, error.message);
+            this.cache = new Set();
+        }
+        return this.cache;
+    }
+
+    async handle(messageContext, context) {
+        const chatId = messageContext?.chat_id;
+        const blockedChatIds = this.getBlockedChatIds();
+                    console.log(`${FeishuConfig.getLogPrefix()} 过滤黑名单中。。。 chatId：${chatId}`);
+
+        if (chatId && blockedChatIds.has(chatId)) {
+            console.log(`${FeishuConfig.getLogPrefix()} 过滤黑名单 chatId：${chatId}`);
+            return {
+                type: 'ban',
+                text: '',
+                raw: messageContext,
+                pass: false,
+                reason: `chatId ${chatId} 在黑名单中`
+            };
+        }
+        return await super.handle(messageContext, context);
+    }
+}
+
+/**
  * 构建上下文过滤链
  */
 function buildContextFilterChain() {
     const builder = new MessageChainBuilder();
     builder.add(new GroupFilterHandler());
+    builder.add(new BanChatFilterHandler());
     return builder.build();
 }
 

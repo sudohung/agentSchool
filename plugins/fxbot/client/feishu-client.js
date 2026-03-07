@@ -48,6 +48,18 @@ console.log(`opencode sessions  ${opencodeClient}`)
 
 // 创建 Agent 策略实例
 const agent = new OpencodeAgent(opencodeClient).initModel(FeishuConfig.opencodeProvider,"qwen3.5-plus");
+const bk1 = new OpencodeAgent(opencodeClient).initModel("opencode","minimax-m2.5-free");
+const bk2 = new OpencodeAgent(opencodeClient).initModel("opencode","big-pickle");
+
+const or1 = new OpencodeAgent(opencodeClient).initModel("openrouter","z-ai/glm-4.5-air:free");
+const or2 = new OpencodeAgent(opencodeClient).initModel("openrouter","minimax-m2.5-free");
+
+const cop1 = new OpencodeAgent(opencodeClient).initModel("github-copilot","gpt-5-mini");
+const cop2 = new OpencodeAgent(opencodeClient).initModel("github-copilot","gpt-4o");
+const cop3 = new OpencodeAgent(opencodeClient).initModel("github-copilot","gpt-4.1");
+
+
+
 const planAgent = new OpencodeAgent(qwen35PlusClient).initModel(FeishuConfig.opencodeProvider,"glm-5");
 const auxAgent = new OpencodeAgent(glm5Client).initModel(FeishuConfig.opencodeProvider,"glm-5");
 const workerAgent = new OpencodeAgent(qwen3max202601Client).initModel(FeishuConfig.opencodeProvider,"qwen3-max-2026-01-23");
@@ -56,6 +68,12 @@ const subAgent = new OpencodeAgent(kimik25Client).initModel(FeishuConfig.opencod
 // 创建 Agent 策略实例
 const agentMap = new Map();
 agentMap.set("main", agent);
+agentMap.set("bk1", bk1);
+agentMap.set("bk2", bk2);
+agentMap.set("or1", or1);
+agentMap.set("cop1", cop1);
+agentMap.set("cop2", cop2);
+agentMap.set("cop3", cop3);
 agentMap.set("planAgent", planAgent);
 agentMap.set("auxAgent", auxAgent);
 agentMap.set("workerAgent", workerAgent);
@@ -124,7 +142,7 @@ feishuWSClient.start((chatId, userMessage, messageContext) => {
     for await (const event of events.stream) {
         // 取mapsize
         const chatSize = chatIdMidMap.size;
-        console.log(`[OpenCode] chatSize:${chatSize} ,收到事件:${event.type}`)
+//        console.log(`[OpenCode] chatSize:${chatSize} ,收到事件:${event.type}`)
 //        console.log("[OpenCode] 收到事件11:", JSON.stringify(event))
 
         // 根据事件类型发送飞书通知
