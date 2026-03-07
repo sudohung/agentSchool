@@ -210,3 +210,5 @@
 }
 
 [AgentEventHandlerChain] 收到事件：question.replied, event: {"type":"question.replied","properties":{"sessionID":"ses_33883ffbeffe2cuONqgzMoqx4g","requestID":"que_cc77c3662001zASlw1z7h4RdAX","answers":[[" 定义/翻译 (推荐)"]]}}
+
+[AgentEventHandlerChain] 收到事件：session.status, event: {"type":"session.status","properties":{"sessionID":"ses_3375f5616ffejRjn9Ojtj4nykI","status":{"type":"retry","attempt":9,"message":"week allocated quota exceeded.","next":1772893540211}}}

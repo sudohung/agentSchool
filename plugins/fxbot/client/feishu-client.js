@@ -8,7 +8,7 @@ import { FeishuConfig } from '../../feishu-bot/config.js';
 import { createAgentManager, OpencodeAgent } from '../../feishu-bot/agent/index.js';
 // 引入webhook
 import { sendWebhookMessage, sendEventNotification, sendErrorMessage } from '../../feishu-bot/webhook/webhook-sender.js';
-import { createEventHandlerChain } from '../../feishu-bot/handlers/index.js';
+import { createEventHandlerChain } from '../../feishu-bot/event/index.js';
 import { createChatManager } from '../../feishu-bot/chat/index.js';
 
 

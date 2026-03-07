@@ -4,7 +4,7 @@
  */
 
 import { FeishuConfig } from './config.js';
-import { createEventHandlerChain } from './handlers/index.js';
+import { createEventHandlerChain } from './event/index.js';
 
 // 验证配置
 if (!FeishuConfig.isValid()) {
