@@ -148,6 +148,7 @@ feishuWSClient.start((chatId, userMessage, messageContext) => {
     const events = await opencodeClient.event.subscribe()
     // 增加一个map 记录chatId 和 mid
     const chatIdMidMap = new Map();
+    const chatIdAskMidMap = new Map();
 
     const eventChain = createEventHandlerChain();
     for await (const event of events.stream) {
@@ -157,17 +158,59 @@ feishuWSClient.start((chatId, userMessage, messageContext) => {
 //        console.log("[OpenCode] 收到事件11:", JSON.stringify(event))
 
         let mid = null;
-        const chatId = agentManager.getChatIdBySessionId(event.properties?.part?.sessionID)
+        let askMid = null;
+        const chatId = agentManager.getChatIdBySessionId(event.properties?.part?.sessionID ||
+            event.properties?.sessionID)
         if (chatIdMidMap.has(chatId)) {
             mid = chatIdMidMap.get(chatId)
         }
 
-        "question.asked"
+
         if (event.type === "question.asked") {
              // 将问题发送到子消息栏给用户回复
+             // {"type":"question.asked","properties":{"id":"que_cce603a9b001Hr7Y1Nl9JyjDrR","sessionID":"ses_331a00d20ffeUzLd1p6OHkgiLb","questions":[{"question":
+             //    "你想切换到哪个目录？","header":"目录选择","options":[{"label":"plugins","description":"切换到 plugins 目录"},{"label":"当前目录下的其他目录","description":"切换到其他子目录"}]}],"tool":{"messageID":"msg_cce60312d001EPPkc2pjQxzLDB","callID":"call_48918c0eddfc4b4086377607"}}}
+            // questions 拼接成字符串 question: [option: xxx, option: bbb]
+
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            if (chatIdAskMidMap.has(chatId)) {
+                askMid = chatIdAskMidMap.get(chatId)
+            }
+            // questions 拼接成字符串
+            if (chatId && !askMid) {
+                const question = event.properties.questions.map(q => `${q.question} ${q.header} ${q.options.map(o => o.label).join(",\r\t")}`)
+
+                askMid = await sendTextMessage(
+                    chatManager,
+                    chatId,
+                    `
+                    工具提问：${event.properties.questions[0].question}，
+                    问题详情：${event.properties.questions[0].header}，
+                    选项：\r\t${question}，
+                    请回复选项来回答问题。`,
+                )
+                chatIdAskMidMap.set(chatId, askMid)
+            }
+        }
+        if (event.type === "permission.asked") {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            console.log(`[OpenCode] permission.asked event, chatId:${chatId}, permission:${JSON.stringify(event)}`)
+            //  {"type":"permission.asked","properties":{"id":"per_cce42f5a0001qw4cim8rataS3b","sessionID":"ses_331be5570ffeNNCoK3qbxlpuI3","permission":"externa
+            //    l_directory","patterns":["C:/Users/hung/AppData/Roaming/npm/*"],"metadata":{"filepath":"C:\\Users\\hung\\AppData\\Roaming\\npm\\opencode.cmd","parentDir":"C:\\Users\\hung\\AppData\\Roaming\\npm"},"always":["C:/Users/hung/AppData/Roaming/npm/*"],"tool":{"messageID":"msg_cce42ed25001Rg9Yg0xbTIh7Xi","callID":"call_a17b6f925f5d484fac32ddaa"}}}
+            // 将请求消息发给用户
+            if (chatIdAskMidMap.has(chatId)) {
+                askMid = chatIdAskMidMap.get(chatId)
+            }
+            if (chatId && !askMid) {
+                askMid = await sendTextMessage(
+                    chatManager,
+                    chatId,
+                    `工具调用权限请求：${event.properties.permission}，\n请求内容：${event.properties.patterns}，\n 是否允许？`,
+                )
+                chatIdAskMidMap.set(chatId, askMid)
+            }
         }
 
-        // 根据事件类型发送飞书通知
         if (event.type === "message.part.updated") {
             if (chatId) {
                 if (!mid) {
@@ -177,7 +220,7 @@ feishuWSClient.start((chatId, userMessage, messageContext) => {
                         "新会话"
                     )
                     chatIdMidMap.set(chatId, mid)
-                } else {
+                }else {
                      if (event.properties.part.type == "reasoning") {
                          const msg = event.properties.part.text;
                          if (msg) {
@@ -214,7 +257,8 @@ feishuWSClient.start((chatId, userMessage, messageContext) => {
                 },
                 notifyWebhook: async (title, content) => {
                     return await sendWebhookMessage(title, content);
-                }
+                },
+                chatManager, agentManager
             });
         }
     }

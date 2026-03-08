@@ -317,6 +317,23 @@ export class AgentManager {
     }
 
     /**
+     * 获取指定 Agent 实例
+     * @param {string} agentKey - Agent 键
+     * @returns {IAgentStrategy|null} Agent 实例，如果未找到返回 null
+     */
+    getAgent(agentKey) {
+        if (!agentKey) {
+            return this.#agent;
+        }
+        
+        if (typeof this.#agentMap.get === 'function') {
+            return this.#agentMap.get(agentKey) || null;
+        } else {
+            return this.#agentMap[agentKey] || null;
+        }
+    }
+
+    /**
      * 列出当前 Agent 的所有会话
      * @returns {Promise<Array>} 会话列表
      */

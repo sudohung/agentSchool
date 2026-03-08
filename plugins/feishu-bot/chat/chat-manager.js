@@ -33,6 +33,7 @@ export class ChatManager {
         
         // Agent 上下文管理：chatId -> { agentKey, sessionId, metadata }
         this.#agentContextMap = new Map();
+        this.#permissionRequestMap = new Map();
     }
     
     /**
@@ -40,6 +41,12 @@ export class ChatManager {
      * @type {Map<string, Object>}
      */
     #agentContextMap;
+
+    /**
+     * 权限请求映射表：chatId -> { permissionId, details }
+     * @type {Map<string, Object>}
+     */
+    #permissionRequestMap;
 
 /**
      * 创建群聊
@@ -633,6 +640,63 @@ export class ChatManager {
         
         if (count > 0) {
             console.log(`[ChatManager] 共清理 ${count} 个过期上下文`);
+        }
+    }
+
+    /**
+     * 设置权限请求
+     * @param {string} chatId - 聊天 ID
+     * @param {string} permissionId - 权限 ID
+     * @param {Object} details - 权限请求详情
+     */
+    setPermissionRequest(chatId, permissionId, details) {
+        this.#permissionRequestMap.set(chatId, {
+            permissionId,
+            ...details
+        });
+        console.log(`[ChatManager] 设置权限请求：chatId=${chatId}, permissionId=${permissionId}`);
+    }
+
+    /**
+     * 获取权限请求
+     * @param {string} chatId - 聊天 ID
+     * @returns {Object|null} 权限请求详情，如果不存在返回 null
+     */
+    getPermissionRequest(chatId) {
+        return this.#permissionRequestMap.get(chatId) || null;
+    }
+
+    /**
+     * 删除权限请求
+     * @param {string} chatId - 聊天 ID
+     * @returns {boolean} 是否删除成功
+     */
+    removePermissionRequest(chatId) {
+        const deleted = this.#permissionRequestMap.delete(chatId);
+        if (deleted) {
+            console.log(`[ChatManager] 已删除权限请求：chatId=${chatId}`);
+        }
+        return deleted;
+    }
+
+    /**
+     * 清理过期的权限请求
+     * @param {number} maxAge - 最大存活时间（毫秒），默认 5 分钟
+     */
+    cleanupExpiredPermissionRequests(maxAge = 300000) {
+        const now = Date.now();
+        let count = 0;
+        
+        for (const [chatId, permissionRequest] of this.#permissionRequestMap.entries()) {
+            if (now - permissionRequest.createdAt > maxAge) {
+                this.#permissionRequestMap.delete(chatId);
+                count++;
+                console.log(`[ChatManager] 清理过期权限请求：chatId=${chatId}`);
+            }
+        }
+        
+        if (count > 0) {
+            console.log(`[ChatManager] 共清理 ${count} 个过期权限请求`);
         }
     }
 

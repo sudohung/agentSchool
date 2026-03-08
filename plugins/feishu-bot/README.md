@@ -11,10 +11,11 @@
 - 📥 **接收飞书消息**: 监听飞书群聊消息，自动转发给 OpenCode Agent
 - 📤 **发送处理结果**: 将 OpenCode Agent 的处理结果实时发送回飞书
 - 📧 **事件通知**: 监听 OpenCode 各类事件（会话创建、完成、错误、工具执行等）
+- 🔐 **权限响应**: 支持权限请求通知和响应
 
 ### 消息处理
 - **智能去重**: 基于消息 ID 防止重复处理
-- **时效过滤**: 自动忽略过期消息（>2分钟）
+- **时效过滤**: 自动忽略过期消息（>2 分钟）
 - **防并发**: 防止同一消息被并发处理
 - **临时回复**: 立即发送"处理中..."状态，提升用户体验
 
@@ -23,6 +24,16 @@
 - 交互式卡片消息
 - 错误消息通知
 - 事件通知
+- 权限请求卡片
+
+### 命令支持
+- `/new` - 重置会话
+- `/instant:xxx` - 切换 Agent
+- `/sessions` - 列出会话
+- `/session:xxx` - 切换会话
+- `/abort` - 中断会话
+- `/permit:xxx` - 响应权限请求
+- `/reply:xxx` - 发送消息应答
 
 ## 配置
 
@@ -86,18 +97,49 @@ cp .env.full.example .env.full
 - `session.created` - 新会话创建
 - `session.idle` - 会话处理完成
 - `session.error` - 会话发生错误
+- `session.status` - 会话状态变化
+- `session.updated` - 会话更新
 
 ### 工具事件
 - `tool.execute.after` - 工具执行完成
 
+### 权限事件
+- `permission.asked` - 权限请求（自动发送卡片通知）
+
 ### 其他事件
 - `message.updated` - 消息更新
+- `message.part.delta` - 消息部分增量
+- `message.part.updated` - 消息部分更新
 - `file.edited` - 文件编辑
+- `question.replied` - 问题已回答
+- `question.rejected` - 问题已拒绝
 
 ## 使用方式
 
 ### 飞书端使用
 在飞书群聊中 @机器人 或发送包含特定关键词的消息，OpenCode Agent 会自动处理并返回结果。
+
+### 命令消息
+
+在飞书群聊中发送以下命令来控制会话和权限：
+
+| 命令 | 说明 | 示例 |
+|------|------|------|
+| `/new` | 重置当前会话，创建新会话 | `/new` |
+| `/instant:xxx` | 切换 Agent | `/instant:build` |
+| `/sessions` | 列出当前 Agent 的所有会话 | `/sessions` |
+| `/session:xxx` | 切换到指定会话并显示最新消息 | `/session:ses_xxx` |
+| `/abort` | 中断当前会话 | `/abort` |
+| `/permit:xxx` | 允许权限请求 | `/permit:per_xxx` |
+| `/permit:xxx:deny` | 拒绝权限请求 | `/permit:per_xxx:deny` |
+| `/reply:xxx` | 发送消息应答 | `/reply:请帮我分析这个文件` |
+
+### 权限响应
+
+当 OpenCode 需要外部目录/文件访问权限时，会发送权限请求卡片到飞书：
+- 点击卡片上的 **✅ 允许** 或 **❌ 拒绝** 按钮
+- 或使用命令 `/permit:permission_id` 允许
+- 或使用命令 `/permit:permission_id:deny` 拒绝
 
 ### 事件通知
 所有 OpenCode 事件都会自动发送到配置的默认聊天 ID 或事件关联的聊天 ID。

@@ -5,6 +5,7 @@ import { ToolExecuteHandler } from './tool-execute.js';
 import { SessionErrorHandler } from './session-error.js';
 import { MessageUpdateHandler } from './message-update.js';
 import { SessionStatusHandler } from './session-status.js';
+import { PermissionAskedHandler } from './permission-asked.js';
 
 export {
     EventHandler,
@@ -14,7 +15,8 @@ export {
     ToolExecuteHandler,
     SessionErrorHandler,
     MessageUpdateHandler,
-    SessionStatusHandler
+    SessionStatusHandler,
+    PermissionAskedHandler
 };
 
 /**
@@ -29,6 +31,7 @@ export function createEventHandlerChain(project) {
     chain.add(new ToolExecuteHandler());
     chain.add(new SessionErrorHandler());
     chain.add(new SessionStatusHandler());
+    chain.add(new PermissionAskedHandler(project));
 
     return chain;
 }

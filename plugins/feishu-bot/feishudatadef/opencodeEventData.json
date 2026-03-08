@@ -212,3 +212,7 @@
 [AgentEventHandlerChain] 收到事件：question.replied, event: {"type":"question.replied","properties":{"sessionID":"ses_33883ffbeffe2cuONqgzMoqx4g","requestID":"que_cc77c3662001zASlw1z7h4RdAX","answers":[[" 定义/翻译 (推荐)"]]}}
 
 [AgentEventHandlerChain] 收到事件：session.status, event: {"type":"session.status","properties":{"sessionID":"ses_3375f5616ffejRjn9Ojtj4nykI","status":{"type":"retry","attempt":9,"message":"week allocated quota exceeded.","next":1772893540211}}}
+
+{"type":"permission.asked","properties":{"id":"per_cce42f5a0001qw4cim8rataS3b","sessionID":"ses_331be5570ffeNNCoK3qbxlpuI3","permission":"external_directory","patterns":["C:/Users/hung/AppData/Roaming/npm/*"],"metadata":{"filepath":"C:\\Users\\hung\\AppData\\Roaming\\npm\\opencode.cmd","parentDir":"C:\\Users\\hung\\AppData\\Roaming\\npm"},"always":["C:/Users/hung/AppData/Roaming/npm/*"],"tool":{"messageID":"msg_cce42ed25001Rg9Yg0xbTIh7Xi","callID":"call_a17b6f925f5d484fac32ddaa"}}}
+
+[AgentEventHandlerChain] 收到事件：question.rejected, event: {"type":"question.rejected","properties":{"sessionID":"ses_331a00d20ffeUzLd1p6OHkgiLb","requestID":"que_cce603a9b001Hr7Y1Nl9JyjDrR"}}

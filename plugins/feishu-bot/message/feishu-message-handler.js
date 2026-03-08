@@ -334,6 +334,153 @@ class AbortCommandHandler extends AbstractHandler {
 }
 
 /**
+ * /permit:xxx 命令处理器 - 响应权限请求
+ * 格式：/permit:permission_id 或 /permit:permission_id:allow
+ */
+class PermitCommandHandler extends AbstractHandler {
+    async handle(chatId, message, context) {
+        // 命令格式 /permit:once 允许所有权限请求（测试用） "once","always","reject"
+        const permitMatch = message.trim().match(/^\/permit:(\S+)(?::(always|reject|once))?$/);
+
+        if (permitMatch) {
+            const action = permitMatch[1] || 'always';
+            
+
+            try {
+                const { agentManager, chatManager } = context;
+                
+                // 从 chatManager 获取权限请求信息
+                const permissionRequest = chatManager.getPermissionRequest(chatId);
+
+                if (!permissionRequest) {
+                    return {
+                        type: 'command',
+                        action: 'permit_permission',
+                        message: `未找到待处理的权限请求，请先收到权限请求后再响应`
+                    };
+                }
+                const permissionId = permissionRequest.permissionId;
+
+                console.log(`${FeishuConfig.getLogPrefix()} 执行 /permit 命令，id : ${permissionId},响应权限请求 操作：${action}`);
+                const sessionId = permissionRequest.sessionId;
+                const agentKey = await chatManager.getCurrentAgentKey(chatId, "main");
+                const agent = agentManager.getAgent(agentKey);
+                
+                if (!agent || !agent.client) {
+                    return {
+                        type: 'command',
+                        action: 'permit_permission',
+                        message: `权限响应失败：Agent 客户端未初始化`
+                    };
+                }
+                
+                const result = await agent.client.postSessionIdPermissionsPermissionId({
+                    path: { id: sessionId, permissionID: permissionId },
+                    body: { response: action }
+                });
+
+                console.log(`${FeishuConfig.getLogPrefix()} 权限响应结果：${ JSON.stringify(result)}` );
+                
+                // 清理已处理的权限请求
+                chatManager.removePermissionRequest(chatId);
+                
+                const actionText = action;
+                return {
+                    type: 'command',
+                    action: 'permit_permission',
+                    permissionId,
+                    action,
+                    sessionId,
+                    message: `已${actionText}权限请求：${permissionId}`
+                };
+            } catch (error) {
+                console.error(`${FeishuConfig.getLogPrefix()} 权限响应失败:`, error);
+                return {
+                    type: 'command',
+                    action: 'permit_permission',
+                    message: `权限响应失败：${error.message}`
+                };
+            }
+        }
+        return await super.handle(chatId, message, context);
+    }
+}
+
+/**
+ * /reply:xxx 命令处理器 - 发送消息应答
+ * 格式：/reply:message_content
+ */
+class ReplyCommandHandler extends AbstractHandler {
+    async handle(chatId, message, context) {
+        const replyMatch = message.trim().match(/^\/reply:(.+)$/);
+        if (replyMatch) {
+            const replyContent = replyMatch[1].trim();
+            
+            console.log(`${FeishuConfig.getLogPrefix()} 执行 /reply 命令，发送应答消息：${replyContent}`);
+            
+            try {
+                const { agentManager, chatManager } = context;
+                const sessionId = await agentManager.getSession(chatId);
+                const agentKey = await chatManager.getCurrentAgentKey(chatId, "main");
+                const agent = agentManager.getAgent(agentKey);
+                
+                if (!agent || !agent.client) {
+                    return {
+                        type: 'command',
+                        action: 'reply_message',
+                        message: `消息应答失败：Agent 客户端未初始化`
+                    };
+                }
+                
+                const result = await agent.client.session.prompt({
+                    path: { id: sessionId },
+                    body: {
+                        parts: [{ type: "text", text: replyContent }],
+                        noReply: false
+                    }
+                });
+                
+                const aiResponse = this.extractAIResponse(result);
+                
+                return {
+                    type: 'command',
+                    action: 'reply_message',
+                    sessionId,
+                    message: `应答消息已发送\n${aiResponse ? `AI 回复：${aiResponse}` : ''}`
+                };
+            } catch (error) {
+                console.error(`${FeishuConfig.getLogPrefix()} 消息应答失败:`, error.message);
+                return {
+                    type: 'command',
+                    action: 'reply_message',
+                    message: `消息应答失败：${error.message}`
+                };
+            }
+        }
+        return await super.handle(chatId, message, context);
+    }
+    
+    extractAIResponse(result) {
+        if (!result) return '';
+        
+        const data = result.data || result;
+        if (data?.info?.content) {
+            return data.info.content;
+        }
+        
+        if (data?.parts && Array.isArray(data.parts)) {
+            const textParts = data.parts
+                .filter(p => p.type === 'text')
+                .map(p => p.text || '')
+                .join('');
+            return textParts;
+        }
+        
+        return '';
+    }
+}
+
+/**
  * AI 消息处理器 - 处理普通消息，调用 AI 生成回复
  */
 class AIMessageHandler extends AbstractHandler {
@@ -535,6 +682,8 @@ function buildMessageChain(preprocessStrategies = []) {
     builder.add(new SessionsCommandHandler());
     builder.add(new SessionCommandHandler());
     builder.add(new AbortCommandHandler());
+    builder.add(new PermitCommandHandler());
+    builder.add(new ReplyCommandHandler());
     builder.add(new AIMessageHandler());
     
     return builder.build();
