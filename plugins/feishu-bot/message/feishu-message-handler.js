@@ -291,6 +291,49 @@ class SessionCommandHandler extends AbstractHandler {
 }
 
 /**
+ * /abort 命令处理器 - 中断当前会话
+ */
+class AbortCommandHandler extends AbstractHandler {
+    async handle(chatId, message, context) {
+        if (message.trim() === '/abort') {
+            console.log(`${FeishuConfig.getLogPrefix()} 执行 /abort 命令，中断当前会话`);
+            
+            try {
+
+                const { chatManager, agentManager } = context;
+                const sessionId = await agentManager.getSession(chatId);
+                console.log(`${FeishuConfig.getLogPrefix()} 使用会话：${sessionId}`);
+
+                if (FeishuConfig.isDebugEnabled()) {
+                    console.log(`${FeishuConfig.getLogPrefix()} 使用会话：${sessionId}`);
+                }
+
+                // chatManage
+                const agentKey = await chatManager.getCurrentAgentKey(chatId, "main")
+
+                // 重置本地会话映射，创建新会话
+                const obj = await agentManager.abortSession(agentKey, sessionId);
+                
+                return { 
+                    type: 'command', 
+                    action: 'abort_session',
+                    sessionId: sessionId,
+                    message: `已中断当前会话：${sessionId}`
+                };
+            } catch (error) {
+                console.error(`${FeishuConfig.getLogPrefix()} 中断会话失败:`, error.message);
+                return { 
+                    type: 'command', 
+                    action: 'abort_session',
+                    message: `中断会话失败：${error.message}`
+                };
+            }
+        }
+        return await super.handle(chatId, message, context);
+    }
+}
+
+/**
  * AI 消息处理器 - 处理普通消息，调用 AI 生成回复
  */
 class AIMessageHandler extends AbstractHandler {
@@ -491,7 +534,7 @@ function buildMessageChain(preprocessStrategies = []) {
     builder.add(new InstantCommandHandler());
     builder.add(new SessionsCommandHandler());
     builder.add(new SessionCommandHandler());
-    builder.add(new SessionCommandHandler());
+    builder.add(new AbortCommandHandler());
     builder.add(new AIMessageHandler());
     
     return builder.build();

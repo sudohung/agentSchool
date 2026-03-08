@@ -115,6 +115,21 @@ export class OpencodeAgent extends IAgentStrategy {
         }
     }
 
+    async abort(sessionId) {
+        try {
+            await this.client.session.abort({
+                path: { id: sessionId }
+            })
+        } catch (error) {
+             // 触发错误回调
+             const callbacks = this.getCallbacks();
+             if (callbacks?.onError) {
+                 callbacks.onError(sessionId, error);
+             }
+             throw error;
+         }
+}
+
     /**
      * 发送消息并获取响应
      * @param {string} sessionId - 会话 ID

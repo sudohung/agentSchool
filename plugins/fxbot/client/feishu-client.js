@@ -156,46 +156,47 @@ feishuWSClient.start((chatId, userMessage, messageContext) => {
 //        console.log(`[OpenCode] chatSize:${chatSize} ,收到事件:${event.type}`)
 //        console.log("[OpenCode] 收到事件11:", JSON.stringify(event))
 
+        let mid = null;
+        const chatId = agentManager.getChatIdBySessionId(event.properties?.part?.sessionID)
+        if (chatIdMidMap.has(chatId)) {
+            mid = chatIdMidMap.get(chatId)
+        }
+
+        "question.asked"
+        if (event.type === "question.asked") {
+             // 将问题发送到子消息栏给用户回复
+        }
 
         // 根据事件类型发送飞书通知
         if (event.type === "message.part.updated") {
-            let mid = null;
-            const chatId = agentManager.getChatIdBySessionId(event.properties?.part?.sessionID)
-            if (chatIdMidMap.has(chatId)) {
-                mid = chatIdMidMap.get(chatId)
-            }
             if (chatId) {
-
-                 if (!mid) {
+                if (!mid) {
                     mid = await sendTextMessage(
                         chatManager,
                         chatId || FeishuConfig.defaultChatId || "oc_b009e81f843b41a12da1cbb083b7efd1",
                         "新会话"
                     )
                     chatIdMidMap.set(chatId, mid)
-                 } else {
+                } else {
                      if (event.properties.part.type == "reasoning") {
                          const msg = event.properties.part.text;
                          if (msg) {
                              await updateMessage(chatManager, mid.data.message_id,"text",
                              event.properties?.part?.sessionID, msg );
                          }
-                     }
-
-                 }
+                    }
+                }
             }
         } else if (event.type === "session.idle") {
-
-            // 等等500ms
-            await new Promise(resolve => setTimeout(resolve, 500));
-            let mid = null;
-            const chatId = agentManager.getChatIdBySessionId(event.properties.sessionID)
-            if (chatIdMidMap.has(chatId)) {
-                mid = chatIdMidMap.get(chatId)
+            if (mid) {
+                console.log(`[OpenCode] session.idle:${JSON.stringify(mid)} }`)
+                // 等等500ms
+                await new Promise(resolve => setTimeout(resolve, 500));
+                const chatId = agentManager.getChatIdBySessionId(event.properties.sessionID)
+                await updateMessage(chatManager, mid.data.message_id, "text",
+                event.properties.sessionID, " " );
+                chatIdMidMap.delete(chatId)
             }
-            await updateMessage(chatManager, mid.data.message_id, "text",
-            event.properties.sessionID, " " );
-            chatIdMidMap.delete(chatId)
         } else {
             // 所有其他事件都交给责任链处理
             await eventChain.handle(event, { 

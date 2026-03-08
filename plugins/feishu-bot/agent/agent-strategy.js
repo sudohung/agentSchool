@@ -102,6 +102,15 @@ export class IAgentStrategy {
     }
 
     /**
+     * 中断会话
+     * @param {string} sessionId - 会话 ID
+     * @returns {Promise<Object>} AI 响应结果
+     */
+    async abort(sessionId) {
+        throw new Error('子类必须实现 abort 方法');
+    }
+
+    /**
      * 记录日志
      * @param {string} level - 日志级别
      * @param {string} message - 日志内容

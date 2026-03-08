@@ -345,6 +345,10 @@ export class AgentManager {
         return sessionId;
     }
 
+    async abortSession(agentKey, sessionId) {
+        const curAgent = this.#agentMap.get(agentKey) || this.#agent;
+        return curAgent.abort(sessionId);
+    }
 
     /**
      * 发送消息到 Agent（带锁机制，保证同一会话的消息顺序执行）
