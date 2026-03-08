@@ -27,9 +27,19 @@ function createFeishuClient() {
  * 聊天管理器类
  */
 export class ChatManager {
-    constructor(client) {
+    constructor(client, agentManager = null) {
         this.client = client || createFeishuClient();
+        this.agentManager = agentManager;
+        
+        // Agent 上下文管理：chatId -> { agentKey, sessionId, metadata }
+        this.#agentContextMap = new Map();
     }
+    
+    /**
+     * Agent 上下文映射表
+     * @type {Map<string, Object>}
+     */
+    #agentContextMap;
 
 /**
      * 创建群聊
@@ -426,11 +436,204 @@ export class ChatManager {
 
     /**
      * 获取飞书客户端实例
-      * @returns {Object} 飞书客户端实例
-      */
+     * @returns {Object} 飞书客户端实例
+     */
     getClient() {
         console.log(`[ChatManager] 获取飞书客户端实例 ${this.client ? '成功' : '失败'}`);
         return this.client;
+    }
+
+    /**
+     * 设置当前 Agent
+     * @param {string} chatId - 聊天 ID
+     * @param {string} agentKey - Agent 键
+     * @returns {boolean} 设置结果
+     */
+    setCurrentAgent(chatId, agentKey) {
+        if (!this.agentManager) {
+            console.warn('[ChatManager] agentManager 未初始化，无法切换 Agent');
+            return false;
+        }
+
+        const success = this.agentManager.existsAgent(agentKey); // 验证 Agent 是否存在
+
+        if (success) {
+            // 更新上下文
+            const context = this.#getOrCreateContext(chatId);
+            context.agentKey = agentKey;
+            console.log(`[ChatManager] 已更新 chatId=${chatId} 的 Agent 上下文：${agentKey}`);
+        }
+
+        return success;
+    }
+
+    /**
+     * 获取当前 Agent 名称
+     * @param {string} chatId - 聊天 ID
+     * @returns {string} Agent 名称
+     */
+    getCurrentAgentName(chatId) {
+        if (!this.agentManager) {
+            console.warn('[ChatManager] agentManager 未初始化，无法获取 Agent 名称');
+            return 'unknown';
+        }
+
+        return this.agentManager.getCurrentAgentName(this.getCurrentAgentKey(chatId));
+    }
+    
+    /**
+     * 获取当前 Agent Key
+     * @param {string} chatId - 聊天 ID
+     * @returns {string|null} Agent Key，如果未设置返回 null
+     */
+    getCurrentAgentKey(chatId, defaultKey) {
+        const context = this.#agentContextMap.get(chatId);
+        if (!context?.agentKey && defaultKey) {
+            this.setCurrentAgent(chatId, defaultKey)
+            return defaultKey
+        };
+        return context?.agentKey;
+    }
+
+    /**
+     * 列出当前 Agent 的所有会话
+     * @returns {Promise<Array>} 会话列表
+     */
+    async listSessions() {
+        if (!this.agentManager) {
+            console.warn('[ChatManager] agentManager 未初始化，无法列出会话');
+            return [];
+        }
+        return await this.agentManager.listSessions();
+    }
+
+    /**
+     * 切换当前会话
+     * @param {string} chatId - 聊天 ID
+     * @param {string} sessionId - 新的会话 ID
+     * @returns {string} 切换后的会话 ID
+     */
+    switchSession(chatId, sessionId) {
+        if (!this.agentManager) {
+            console.warn('[ChatManager] agentManager 未初始化，无法切换会话');
+            return sessionId;
+        }
+        
+        const result = this.agentManager.switchSession(chatId, sessionId);
+        
+        // 更新上下文
+        const context = this.#getOrCreateContext(chatId);
+        context.sessionId = sessionId;
+        console.log(`[ChatManager] 已更新 chatId=${chatId} 的会话上下文：${sessionId}`);
+        
+        return result;
+    }
+
+    /**
+     * 获取会话消息列表
+     * @param {string} sessionId - 会话 ID
+     * @returns {Promise<Array>} 消息列表
+     */
+    async getSessionMessages(sessionId) {
+        if (!this.agentManager) {
+            console.warn('[ChatManager] agentManager 未初始化，无法获取会话消息');
+            return [];
+        }
+        return await this.agentManager.getSessionMessages(sessionId);
+    }
+    
+    /**
+     * 获取或创建 Agent 上下文
+     * @param {string} chatId - 聊天 ID
+     * @returns {Object} Agent 上下文对象
+     */
+    #getOrCreateContext(chatId) {
+        if (!this.#agentContextMap.has(chatId)) {
+            this.#agentContextMap.set(chatId, {
+                agentKey: null,
+                sessionId: null,
+                metadata: {},
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            });
+        }
+        const context = this.#agentContextMap.get(chatId);
+        context.updatedAt = Date.now();
+        return context;
+    }
+    
+    /**
+     * 获取 Agent 上下文
+     * @param {string} chatId - 聊天 ID
+     * @returns {Object|null} Agent 上下文对象，如果不存在返回 null
+     */
+    getAgentContext(chatId) {
+        return this.#agentContextMap.get(chatId) || null;
+    }
+    
+    /**
+     * 设置 Agent 元数据
+     * @param {string} chatId - 聊天 ID
+     * @param {string} key - 元数据键
+     * @param {any} value - 元数据值
+     */
+    setAgentMetadata(chatId, key, value) {
+        const context = this.#getOrCreateContext(chatId);
+        context.metadata[key] = value;
+        console.log(`[ChatManager] 已设置 chatId=${chatId} 的元数据 ${key}=${value}`);
+    }
+    
+    /**
+     * 获取 Agent 元数据
+     * @param {string} chatId - 聊天 ID
+     * @param {string} key - 元数据键
+     * @returns {any} 元数据值，如果不存在返回 undefined
+     */
+    getAgentMetadata(chatId, key) {
+        const context = this.#agentContextMap.get(chatId);
+        return context?.metadata?.[key];
+    }
+    
+    /**
+     * 删除 Agent 上下文
+     * @param {string} chatId - 聊天 ID
+     * @returns {boolean} 是否删除成功
+     */
+    removeAgentContext(chatId) {
+        const deleted = this.#agentContextMap.delete(chatId);
+        if (deleted) {
+            console.log(`[ChatManager] 已删除 chatId=${chatId} 的 Agent 上下文`);
+        }
+        return deleted;
+    }
+    
+    /**
+     * 获取所有 Agent 上下文
+     * @returns {Map<string, Object>} Agent 上下文映射表
+     */
+    getAllAgentContexts() {
+        return new Map(this.#agentContextMap);
+    }
+    
+    /**
+     * 清理过期的上下文（可选）
+     * @param {number} maxAge - 最大存活时间（毫秒），默认 1 小时
+     */
+    cleanupExpiredContexts(maxAge = 3600000) {
+        const now = Date.now();
+        let count = 0;
+        
+        for (const [chatId, context] of this.#agentContextMap.entries()) {
+            if (now - context.updatedAt > maxAge) {
+                this.#agentContextMap.delete(chatId);
+                count++;
+                console.log(`[ChatManager] 清理过期上下文：chatId=${chatId}`);
+            }
+        }
+        
+        if (count > 0) {
+            console.log(`[ChatManager] 共清理 ${count} 个过期上下文`);
+        }
     }
 
 }
@@ -438,8 +641,9 @@ export class ChatManager {
 /**
  * 创建群聊管理器实例
  * @param {Object} [client] - 飞书客户端实例
+ * @param {Object} [agentManager] - Agent 管理器实例（可选）
  * @returns {ChatManager} 群聊管理器实例
  */
-export function createChatManager(client) {
-    return new ChatManager(client);
+export function createChatManager(client, agentManager = null) {
+    return new ChatManager(client, agentManager);
 }

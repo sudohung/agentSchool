@@ -165,8 +165,8 @@ class InstantCommandHandler extends AbstractHandler {
         if (instantMatch) {
             const agentKey = instantMatch[1];
             console.log(`${FeishuConfig.getLogPrefix()} 执行 /instant 命令，切换 Agent: ${agentKey}`);
-            const success = context.agentManager.setCurrentAgent(agentKey);
-            const agentName = context.agentManager.getCurrentAgentName();
+            const success = context.chatManager.setCurrentAgent(chatId, agentKey);
+            const agentName = context.chatManager.getCurrentAgentName(chatId);
             return { 
                 type: 'command', 
                 action: 'switch_agent', 
@@ -190,8 +190,8 @@ class SessionsCommandHandler extends AbstractHandler {
         if (message.trim() === '/sessions') {
             console.log(`${FeishuConfig.getLogPrefix()} 执行 /sessions 命令，列出会话`);
             try {
-                const sessions = await context.agentManager.listSessions();
-                const agentName = context.agentManager.getCurrentAgentName();
+                const sessions = await context.chatManager.listSessions();
+                const agentName = context.chatManager.getCurrentAgentName(chatId);
                 
                 if (!sessions || sessions.length === 0) {
                     return { 
@@ -239,9 +239,9 @@ class SessionCommandHandler extends AbstractHandler {
             console.log(`${FeishuConfig.getLogPrefix()} 执行 /session 命令，切换会话: ${targetSessionId}`);
             
             try {
-                context.agentManager.switchSession(chatId, targetSessionId);
-                const messages = await context.agentManager.getSessionMessages(targetSessionId);
-                const agentName = context.agentManager.getCurrentAgentName();
+                context.chatManager.switchSession(chatId, targetSessionId);
+                const messages = await context.chatManager.getSessionMessages(targetSessionId);
+                const agentName = context.chatManager.getCurrentAgentName(chatId);
                 
                 if (!messages || messages.length === 0) {
                     return { 
@@ -301,12 +301,14 @@ class AIMessageHandler extends AbstractHandler {
         
         const sessionId = await agentManager.getSession(chatId);
         console.log(`${FeishuConfig.getLogPrefix()} 使用会话：${sessionId}`);
-        
+
         if (FeishuConfig.isDebugEnabled()) {
             console.log(`${FeishuConfig.getLogPrefix()} 使用会话：${sessionId}`);
         }
-        
-        const result = await agentManager.sendMessage(sessionId, message);
+
+        // chatManage
+        const agentKey = await chatManager.getCurrentAgentKey(chatId, "main")
+        const result = await agentManager.sendMessage(agentKey, sessionId, message);
         const { aiResponse, otherParts } = extractAIResponse(result, message);
         
         return { 
@@ -560,7 +562,7 @@ export async function handleFeishuMessage(chatId, userMessage, messageContext, {
         });
         
         if (commandResult) {
-            console.log(`${FeishuConfig.getLogPrefix()} ${agentManager.getCurrentAgentName()} messageId=${res.data.message_id} 结果：${JSON.stringify(commandResult)}`);
+            console.log(`${FeishuConfig.getLogPrefix()} ${chatManager.getCurrentAgentName(chatId)} messageId=${res.data.message_id} 结果：${JSON.stringify(commandResult)}`);
             await updateMessage(chatManager, res.data.message_id, "interactive", userMessage, commandResult.message);
             return;
         }

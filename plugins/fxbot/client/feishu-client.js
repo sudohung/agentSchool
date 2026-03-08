@@ -84,9 +84,6 @@ agentMap.set("auxAgent", auxAgent);
 agentMap.set("workerAgent", workerAgent);
 agentMap.set("subAgent", subAgent);
 
-// 创建交流管理器
-const chatManager = createChatManager(feishuClient);
-
 // 创建 Agent 管理器（封装 sessionMap 和 processingMessages）
 const agentManager = createAgentManager({
     agent,
@@ -124,6 +121,9 @@ const agentManager = createAgentManager({
         }
     }
 });
+
+// 创建交流管理器（传入 agentManager 以支持 Agent 切换功能）
+const chatManager = createChatManager(feishuClient, agentManager);
 
 // 创建 WebSocket feishu 客户端
 const feishuWSClient = createFeishuWSClient({

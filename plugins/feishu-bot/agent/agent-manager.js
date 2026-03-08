@@ -292,13 +292,28 @@ export class AgentManager {
         console.warn(`${this.#getLogPrefix()} 切换 Agent 失败，未找到: ${agentKey}`);
         return false;
     }
+     /**
+      * 获取当前 Agent
+      * @returns {boolean}
+       */
+    existsAgent(agentKey) {
+        let newAgent;
+
+        // 兼容 Map 和 Object 两种格式
+        if (typeof this.#agentMap.get === 'function') {
+            newAgent = this.#agentMap.has(agentKey) ? this.#agentMap.get(agentKey) : null;
+        } else {
+            newAgent = this.#agentMap[agentKey];
+        }
+        return !!newAgent;
+    }
 
     /**
      * 获取当前 Agent 名称
      * @returns {string}
      */
-    getCurrentAgentName() {
-        return this.#agent.getName();
+    getCurrentAgentName(agentKey) {
+        return  agentKey? this.#agentMap.get(agentKey)?.getName() : this.#agent.getName();
     }
 
     /**
@@ -337,24 +352,24 @@ export class AgentManager {
      * @param {string} message - 用户消息
      * @returns {Promise<Object>} AI 响应结果
      */
-    async sendMessage(sessionId, message) {
+    async sendMessage(agentKey, sessionId, message) {
         // 获取或创建当前会话的锁
-        let sessionLock = this.#sessionLocks.get(sessionId);
+//        let sessionLock = this.#sessionLocks.get(sessionId);
 
-        if (!sessionLock) {
-            // 没有锁，直接执行
-            sessionLock = Promise.resolve();
-        }
-        
+//        if (!sessionLock) {
+//            // 没有锁，直接执行
+//            sessionLock = Promise.resolve();
+//        }
+        console.log(`${this.#getLogPrefix()} ============== agentKey:${agentKey}, 获取锁：${sessionId}, message: ${message}`);
+
         // 创建新的 Promise 链，确保顺序执行
-        const currentTask = sessionLock.then(async () => {
-            const curAgent = this.#agentMap.get(message) || this.#agent;
-            this.#agent = curAgent; // 切换当前 Agent 实例
+//        const currentTask = sessionLock.then(async () => {
+            const curAgent = this.#agentMap.get(agentKey) || this.#agent;
             return await curAgent.sendMessage(sessionId, message);
-        });
+//        });
         
         // 更新锁，捕获错误防止未处理的 Promise 拒绝
-        this.#sessionLocks.set(sessionId, currentTask.catch(() => {}));
+//        this.#sessionLocks.set(sessionId, currentTask.catch(() => {}));
 
         // 等待当前任务完成
         return await currentTask;
