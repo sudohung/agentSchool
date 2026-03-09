@@ -339,12 +339,19 @@ class AbortCommandHandler extends AbstractHandler {
  */
 class PermitCommandHandler extends AbstractHandler {
     async handle(chatId, message, context) {
-        // 命令格式 /permit:once 允许所有权限请求（测试用） "once","always","reject"
-        const permitMatch = message.trim().match(/^\/permit:(\S+)(?::(always|reject|once))?$/);
+        // 命令格式 /permit:once 允许所有权限请求（测试用） "once","always","reject" 个之一
+        const permitMatch = message.trim().match(/^\/permit:(\S+)$/);
 
         if (permitMatch) {
             const action = permitMatch[1] || 'always';
-            
+            console .log(`${FeishuConfig.getLogPrefix()} 执行 /permit 命令，响应权限请求，操作：${action}`);
+            if (!['once', 'always', 'reject'].includes(action)) {
+                return {
+                    type: 'command',
+                    action: 'permit_permission',
+                    message: `无效的权限响应操作：${action}，请使用 once、always 或 reject`
+                };
+            }
 
             try {
                 const { agentManager, chatManager } = context;
@@ -477,6 +484,27 @@ class ReplyCommandHandler extends AbstractHandler {
         }
         
         return '';
+    }
+}
+
+
+/**
+ * /xxx:xxx 非法命令处理器 - 处理无法处理的/开头的命令
+ * 格式：/xxs:xxxs 或 /xxx
+ */
+class InvalidCommandHandler extends AbstractHandler {
+    async handle(chatId, message, context) {
+        const permitMatch = message.trim().match(/^\/.*?$/);
+
+        if (permitMatch) {
+            const action = permitMatch[1];
+            return {
+                type: 'command',
+                action: 'permit_permission',
+                message: `无效命令：${action}`
+            };
+        }
+        return await super.handle(chatId, message, context);
     }
 }
 
@@ -684,6 +712,7 @@ function buildMessageChain(preprocessStrategies = []) {
     builder.add(new AbortCommandHandler());
     builder.add(new PermitCommandHandler());
     builder.add(new ReplyCommandHandler());
+    builder.add(new InvalidCommandHandler());
     builder.add(new AIMessageHandler());
     
     return builder.build();

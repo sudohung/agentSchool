@@ -4,7 +4,7 @@
  */
 
 import { EventHandler } from './handler.js';
-import { sendCardMessage } from '../message/index.js';
+import { sendTextMessage } from '../message/index.js';
 
 /**
  * 权限请求事件处理器
@@ -33,7 +33,7 @@ export class PermissionAskedHandler extends EventHandler {
             }
 
             // 记录 chatId 和 permissionId 的关系
-            chatManager.setPermissionRequest(chatId, id, {
+            chatManager.setPermissionRequest(sessionID, id, {
                 sessionId: sessionID,
                 permission,
                 patterns,
@@ -50,14 +50,10 @@ export class PermissionAskedHandler extends EventHandler {
             
             // 发送权限请求通知
 //            await sendCardMessage(chatManager, chatId, cardContent);
-            const question = event.properties.questions.map(q => `${q.question} ${q.header} ${q.options.map(o => o.label).join(",\n")}`)
             await sendTextMessage(
                                 chatManager,
                                 chatId,
-                                `工具提问：${event.properties.questions[0].question}，
-问题详情：${event.properties.questions[0].header}，
-选项：\n${question}，
-请回复选项来回答问题。`,
+                                `工具调用权限请求：${event.properties.permission}，\n请求内容：${event.properties.patterns}，\n 是否允许？`,
                             )
 
             console.log(`[PermissionAskedHandler] 已发送权限请求通知到 chatId: ${chatId}`);

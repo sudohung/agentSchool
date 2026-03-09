@@ -192,7 +192,7 @@ feishuWSClient.start((chatId, userMessage, messageContext) => {
                 chatIdAskMidMap.set(chatId, askMid)
             }
         }
-        if (event.type === "permission.asked") {
+        if (event.type === "permission.asked1") {
             await new Promise(resolve => setTimeout(resolve, 1000));
             console.log(`[OpenCode] permission.asked event, chatId:${chatId}, permission:${JSON.stringify(event)}`)
             //  {"type":"permission.asked","properties":{"id":"per_cce42f5a0001qw4cim8rataS3b","sessionID":"ses_331be5570ffeNNCoK3qbxlpuI3","permission":"externa
@@ -212,6 +212,7 @@ feishuWSClient.start((chatId, userMessage, messageContext) => {
         }
 
         if (event.type === "message.part.updated") {
+            console.log(`[OpenCode] ======= message.part.updated event, chatId:${chatId}, mid:${mid}, askMid:${askMid}, event:${JSON.stringify(event)}`)
             if (chatId) {
                 if (!mid) {
                     mid = await sendTextMessage(
