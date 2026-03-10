@@ -11,6 +11,9 @@ from .mcp import MCPAPI
 from .agent import AgentAPI
 from .project import ProjectAPI
 from .path import PathAPI, VcsAPI
+from .instance import InstanceAPI
+from .config import ConfigAPI
+from .provider import ProviderAPI
 
 __all__ = [
     "SessionAPI",
@@ -27,4 +30,7 @@ __all__ = [
     "ProjectAPI",
     "PathAPI",
     "VcsAPI",
+    "InstanceAPI",
+    "ConfigAPI",
+    "ProviderAPI",
 ]

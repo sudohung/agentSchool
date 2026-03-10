@@ -80,6 +80,23 @@ from .project import (
     ProjectUpdateRequest,
 )
 from .path import AppPath, VcsInfo
+from .config import (
+    Config,
+    ServerConfig,
+    CommandConfig,
+    SkillsConfig,
+    WatcherConfig,
+    ConfigUpdateRequest,
+)
+from .provider import (
+    Provider,
+    Model,
+    ModelCost,
+    ModelLimit,
+    ProviderAuthMethod,
+    ProviderAuthAuthorization,
+    ProviderListResponse,
+)
 
 __all__ = [
     "TimeInfo",
@@ -140,4 +157,17 @@ __all__ = [
     "ProjectUpdateRequest",
     "AppPath",
     "VcsInfo",
+    "Config",
+    "ServerConfig",
+    "CommandConfig",
+    "SkillsConfig",
+    "WatcherConfig",
+    "ConfigUpdateRequest",
+    "Provider",
+    "Model",
+    "ModelCost",
+    "ModelLimit",
+    "ProviderAuthMethod",
+    "ProviderAuthAuthorization",
+    "ProviderListResponse",
 ]

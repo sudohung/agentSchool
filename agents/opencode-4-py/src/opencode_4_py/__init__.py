@@ -20,6 +20,8 @@ from opencode_4_py.models.mcp import MCPStatus, McpLocalConfig, McpRemoteConfig
 from opencode_4_py.models.agent import Agent
 from opencode_4_py.models.project import Project
 from opencode_4_py.models.path import AppPath, VcsInfo
+from opencode_4_py.models.config import Config
+from opencode_4_py.models.provider import Provider, Model
 
 __all__ = [
     "OpenCodeClient",
@@ -48,4 +50,7 @@ __all__ = [
     "Project",
     "AppPath",
     "VcsInfo",
+    "Config",
+    "Provider",
+    "Model",
 ]

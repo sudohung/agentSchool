@@ -458,6 +458,29 @@ print(result.info.structured)
 |------|------|
 | `get()` | 获取版本控制信息 |
 
+### Instance API
+
+| 方法 | 描述 |
+|------|------|
+| `dispose()` | 销毁当前实例 |
+
+### Config API
+
+| 方法 | 描述 |
+|------|------|
+| `get()` | 获取配置 |
+| `update(config)` | 更新配置 |
+| `providers()` | 获取配置的 Provider 列表 |
+
+### Provider API
+
+| 方法 | 描述 |
+|------|------|
+| `list()` | 列出所有 Provider |
+| `auth()` | 获取认证方法 |
+| `oauth_authorize(provider_id, method)` | OAuth 授权 |
+| `oauth_callback(provider_id, method, code)` | OAuth 回调 |
+
 ## 使用示例
 
 ### LSP 和 Formatter 状态
@@ -546,4 +569,41 @@ with OpenCodeClient() as client:
     # 获取 VCS 信息
     vcs_info = client.vcs.get()
     print(f"Branch: {vcs_info.branch}")
+```
+
+### 配置管理
+
+```python
+from opencode_4_py import OpenCodeClient
+
+with OpenCodeClient() as client:
+    # 获取配置
+    config = client.app_config.get()
+    print(f"Log Level: {config.log_level}")
+    print(f"Share: {config.share}")
+    
+    # 获取配置的 Provider
+    providers = client.app_config.providers()
+    for p in providers.providers:
+        print(f"{p.id}: {p.name}")
+        print(f"  Models: {len(p.models)}")
+```
+
+### Provider 管理
+
+```python
+from opencode_4_py import OpenCodeClient
+
+with OpenCodeClient() as client:
+    # 列出所有 Provider
+    providers = client.provider.list()
+    print(f"Total: {len(providers.all)}")
+    print(f"Connected: {providers.connected}")
+    
+    # 获取认证方法
+    auth_methods = client.provider.auth()
+    for provider_id, methods in auth_methods.items():
+        print(f"{provider_id}:")
+        for m in methods:
+            print(f"  - {m.type}: {m.label}")
 ```
