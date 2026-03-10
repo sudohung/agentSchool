@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  opencode:
+    image: opencode-ai/opencode:latest
+    ports:
+      - "54321:54321"
+    environment:
+      # Anthropic
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      # OpenAI  
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # 或其他provider
+    command: serve
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:54321/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
