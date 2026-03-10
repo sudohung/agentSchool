@@ -33,7 +33,7 @@ export class PermissionAskedHandler extends EventHandler {
             }
 
             // 记录 chatId 和 permissionId 的关系
-            chatManager.setPermissionRequest(sessionID, id, {
+            chatManager.setPermissionRequest(chatId, id, {
                 sessionId: sessionID,
                 permission,
                 patterns,
