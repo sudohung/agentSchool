@@ -20,6 +20,8 @@ from .api.path import PathAPI, VcsAPI
 from .api.instance import InstanceAPI
 from .api.config import ConfigAPI
 from .api.provider import ProviderAPI
+from .api.global_ import GlobalAPI, LoggingAPI
+from .models.global_ import Health
 from .errors import ConnectionError, APIError
 
 
@@ -60,6 +62,8 @@ class OpenCodeClient:
         self._instance_api: Optional[InstanceAPI] = None
         self._config_api: Optional[ConfigAPI] = None
         self._provider_api: Optional[ProviderAPI] = None
+        self._global_api: Optional[GlobalAPI] = None
+        self._logging_api: Optional[LoggingAPI] = None
     
     @property
     def session(self) -> SessionAPI:
@@ -173,14 +177,27 @@ class OpenCodeClient:
             self._provider_api = ProviderAPI(self.http, self._client_config.directory)
         return self._provider_api
     
-    def health_check(self) -> dict:
+    @property
+    def global_(self) -> GlobalAPI:
+        """Global API."""
+        if self._global_api is None:
+            self._global_api = GlobalAPI(self.http, self._client_config.directory)
+        return self._global_api
+    
+    @property
+    def logging(self) -> LoggingAPI:
+        """Logging API."""
+        if self._logging_api is None:
+            self._logging_api = LoggingAPI(self.http, self._client_config.directory)
+        return self._logging_api
+    
+    def health_check(self) -> Health:
         """Check server health.
         
         Returns:
-            Health status dict with 'healthy' and 'version' fields.
+            Health status with version information.
         """
-        response = self.http.get("/global/health")
-        return response.json()
+        return self.global_.health()
     
     def close(self) -> None:
         """Close the client connection."""

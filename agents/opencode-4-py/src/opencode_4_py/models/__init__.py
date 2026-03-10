@@ -97,6 +97,11 @@ from .provider import (
     ProviderAuthAuthorization,
     ProviderListResponse,
 )
+from .global_ import (
+    Health,
+    GlobalEvent,
+    LogEntry,
+)
 
 __all__ = [
     "TimeInfo",
@@ -170,4 +175,7 @@ __all__ = [
     "ProviderAuthMethod",
     "ProviderAuthAuthorization",
     "ProviderListResponse",
+    "Health",
+    "GlobalEvent",
+    "LogEntry",
 ]

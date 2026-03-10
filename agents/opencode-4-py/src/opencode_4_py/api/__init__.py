@@ -14,6 +14,7 @@ from .path import PathAPI, VcsAPI
 from .instance import InstanceAPI
 from .config import ConfigAPI
 from .provider import ProviderAPI
+from .global_ import GlobalAPI, LoggingAPI
 
 __all__ = [
     "SessionAPI",
@@ -33,4 +34,6 @@ __all__ = [
     "InstanceAPI",
     "ConfigAPI",
     "ProviderAPI",
+    "GlobalAPI",
+    "LoggingAPI",
 ]

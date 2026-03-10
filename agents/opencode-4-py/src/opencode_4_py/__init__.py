@@ -22,6 +22,7 @@ from opencode_4_py.models.project import Project
 from opencode_4_py.models.path import AppPath, VcsInfo
 from opencode_4_py.models.config import Config
 from opencode_4_py.models.provider import Provider, Model
+from opencode_4_py.models.global_ import Health, LogEntry
 
 __all__ = [
     "OpenCodeClient",
@@ -53,4 +54,6 @@ __all__ = [
     "Config",
     "Provider",
     "Model",
+    "Health",
+    "LogEntry",
 ]

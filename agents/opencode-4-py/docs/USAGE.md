@@ -481,6 +481,23 @@ print(result.info.structured)
 | `oauth_authorize(provider_id, method)` | OAuth 授权 |
 | `oauth_callback(provider_id, method, code)` | OAuth 回调 |
 
+### Global API
+
+| 方法 | 描述 |
+|------|------|
+| `health()` | 健康检查 |
+| `event()` | 订阅全局事件 (SSE) |
+| `config_get()` | 获取全局配置 |
+| `config_update(config)` | 更新全局配置 |
+| `dispose()` | 销毁所有实例 |
+
+### Logging API
+
+| 方法 | 描述 |
+|------|------|
+| `log(entry)` | 写入日志条目 |
+| `log_message(level, message, service, extra)` | 写入日志消息 |
+
 ## 使用示例
 
 ### LSP 和 Formatter 状态
@@ -604,6 +621,42 @@ with OpenCodeClient() as client:
     auth_methods = client.provider.auth()
     for provider_id, methods in auth_methods.items():
         print(f"{provider_id}:")
-        for m in methods:
-            print(f"  - {m.type}: {m.label}")
+for m in methods:
+        print(f"  - {m.type}: {m.label}")
+```
+
+### 全局操作
+
+```python
+from opencode_4_py import OpenCodeClient
+
+with OpenCodeClient() as client:
+    # 健康检查
+    health = client.global_.health()
+    print(f"Healthy: {health.healthy}")
+    print(f"Version: {health.version}")
+    
+    # 获取全局配置
+    config = client.global_.config_get()
+    print(f"Config: {config}")
+```
+
+### 日志记录
+
+```python
+from opencode_4_py import OpenCodeClient, LogEntry
+
+with OpenCodeClient() as client:
+    # 简单日志
+    client.logging.log_message('info', 'Application started')
+    client.logging.log_message('error', 'Something went wrong')
+    
+    # 详细日志
+    entry = LogEntry(
+        service='my-app',
+        level='debug',
+        message='Debug information',
+        extra={'user_id': 123, 'action': 'login'}
+    )
+    client.logging.log(entry)
 ```
