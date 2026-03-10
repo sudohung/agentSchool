@@ -60,6 +60,26 @@ from .tool import (
     ToolListItem,
     ToolList,
 )
+from .lsp import (
+    LSPStatus,
+    FormatterStatus,
+)
+from .mcp import (
+    MCPStatus,
+    MCPAddRequest,
+    McpConfig,
+    McpLocalConfig,
+    McpRemoteConfig,
+)
+from .agent import Agent
+from .project import (
+    Project,
+    ProjectTime,
+    ProjectIcon,
+    ProjectCommands,
+    ProjectUpdateRequest,
+)
+from .path import AppPath, VcsInfo
 
 __all__ = [
     "TimeInfo",
@@ -105,4 +125,19 @@ __all__ = [
     "ToolIDs",
     "ToolListItem",
     "ToolList",
+    "LSPStatus",
+    "FormatterStatus",
+    "MCPStatus",
+    "MCPAddRequest",
+    "McpConfig",
+    "McpLocalConfig",
+    "McpRemoteConfig",
+    "Agent",
+    "Project",
+    "ProjectTime",
+    "ProjectIcon",
+    "ProjectCommands",
+    "ProjectUpdateRequest",
+    "AppPath",
+    "VcsInfo",
 ]

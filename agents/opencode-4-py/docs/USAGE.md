@@ -387,3 +387,163 @@ print(result.info.structured)
 |------|------|
 | `subscribe_global()` | 订阅全局事件 |
 | `subscribe()` | 订阅项目事件 |
+
+### Command API
+
+| 方法 | 描述 |
+|------|------|
+| `list()` | 列出所有可用命令 |
+
+### File API
+
+| 方法 | 描述 |
+|------|------|
+| `list(path)` | 列出文件和目录 |
+| `read(path)` | 读取文件内容 |
+| `status()` | 获取 Git 文件状态 |
+| `search_text(pattern, path)` | 文本搜索 |
+| `find_files(query, type, limit)` | 文件搜索 |
+| `find_symbols(query)` | 符号搜索 |
+
+### Tool API (Experimental)
+
+| 方法 | 描述 |
+|------|------|
+| `list_ids()` | 列出工具 ID |
+| `list(provider, model)` | 列出工具详情 |
+
+### LSP API
+
+| 方法 | 描述 |
+|------|------|
+| `status()` | 获取 LSP 服务器状态 |
+
+### Formatter API
+
+| 方法 | 描述 |
+|------|------|
+| `status()` | 获取格式化器状态 |
+
+### MCP API
+
+| 方法 | 描述 |
+|------|------|
+| `status()` | 获取所有 MCP 服务器状态 |
+| `add(name, config)` | 添加 MCP 服务器 |
+
+### Agent API
+
+| 方法 | 描述 |
+|------|------|
+| `list()` | 列出所有可用 Agent |
+
+### Project API
+
+| 方法 | 描述 |
+|------|------|
+| `list()` | 列出所有项目 |
+| `current()` | 获取当前项目 |
+| `update(project_id, name, icon, commands)` | 更新项目 |
+| `init_git()` | 初始化 Git 仓库 |
+
+### Path API
+
+| 方法 | 描述 |
+|------|------|
+| `get()` | 获取路径信息 |
+
+### VCS API
+
+| 方法 | 描述 |
+|------|------|
+| `get()` | 获取版本控制信息 |
+
+## 使用示例
+
+### LSP 和 Formatter 状态
+
+```python
+from opencode_4_py import OpenCodeClient
+
+with OpenCodeClient() as client:
+    # LSP 状态
+    lsp_status = client.lsp.status()
+    for lsp in lsp_status:
+        print(f"{lsp.name}: {lsp.status}")
+    
+    # Formatter 状态
+    formatters = client.formatter.status()
+    enabled = [f for f in formatters if f.enabled]
+    print(f"已启用的格式化器：{len(enabled)}")
+```
+
+### MCP 服务器管理
+
+```python
+from opencode_4_py import OpenCodeClient, McpLocalConfig
+
+with OpenCodeClient() as client:
+    # 获取 MCP 状态
+    mcp_status = client.mcp.status()
+    for name, status in mcp_status.items():
+        print(f"{name}: {status.status}")
+        if status.error:
+            print(f"  Error: {status.error}")
+    
+    # 添加 MCP 服务器
+    config = McpLocalConfig(
+        command="npx",
+        args=["-y", "@modelcontextprotocol/server-memory"]
+    )
+    result = client.mcp.add(name="memory", config=config)
+```
+
+### 列出可用 Agent
+
+```python
+from opencode_4_py import OpenCodeClient
+
+with OpenCodeClient() as client:
+    agents = client.agent.list()
+    for agent in agents:
+        print(f"{agent.name}: {agent.description}")
+        print(f"  Mode: {agent.mode}")
+        print(f"  Native: {agent.native}")
+```
+
+### 项目管理
+
+```python
+from opencode_4_py import OpenCodeClient
+
+with OpenCodeClient() as client:
+    # 列出所有项目
+    projects = client.project.list()
+    for p in projects:
+        print(f"{p.id}: {p.name}")
+    
+    # 获取当前项目
+    current = client.project.current()
+    print(f"当前项目: {current.id}")
+    
+    # 初始化 Git 仓库
+    project = client.project.init_git()
+    print(f"Git 初始化完成: {project.vcs}")
+```
+
+### 路径和版本控制信息
+
+```python
+from opencode_4_py import OpenCodeClient
+
+with OpenCodeClient() as client:
+    # 获取路径信息
+    path_info = client.path.get()
+    print(f"Home: {path_info.home}")
+    print(f"Directory: {path_info.directory}")
+    print(f"Config: {path_info.config}")
+    
+    # 获取 VCS 信息
+    vcs_info = client.vcs.get()
+    print(f"Branch: {vcs_info.branch}")
+```

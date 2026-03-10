@@ -6,6 +6,11 @@ from .event import EventAPI, AsyncEventAPI
 from .command import CommandAPI
 from .file import FileAPI
 from .tool import ToolAPI
+from .lsp import LSPAPI, FormatterAPI
+from .mcp import MCPAPI
+from .agent import AgentAPI
+from .project import ProjectAPI
+from .path import PathAPI, VcsAPI
 
 __all__ = [
     "SessionAPI",
@@ -15,4 +20,11 @@ __all__ = [
     "CommandAPI",
     "FileAPI",
     "ToolAPI",
+    "LSPAPI",
+    "FormatterAPI",
+    "MCPAPI",
+    "AgentAPI",
+    "ProjectAPI",
+    "PathAPI",
+    "VcsAPI",
 ]
