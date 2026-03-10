@@ -14,7 +14,7 @@ class Health(BaseModel):
 
 class GlobalEvent(BaseModel):
     """Global event."""
-    directory: str
+    directory: Optional[str] = None
     payload: Dict[str, Any]
 
 
