@@ -1,17 +1,27 @@
-"""迭代控制器 (简化版)."""
+"""迭代控制器 - 完整版."""
 
 from __future__ import annotations
 
 import asyncio
-from typing import Optional, List
+from typing import Optional, List, Any
 from datetime import datetime
 
 from .config import RalphLoopConfig
 from .state import LoopStatus, IterationState
+from .setback import SetbackHandler, Setback
+from .visualizer import IterationVisualizer, RealTimeMonitor
 
 
 class IterationController:
-    """迭代控制器"""
+    """
+    迭代控制器 - 完整版
+    
+    功能:
+    - 迭代控制
+    - 挫折处理
+    - 可视化监控
+    - 性能分析
+    """
     
     def __init__(self, config: Optional[RalphLoopConfig] = None):
         self.config = config or RalphLoopConfig()
@@ -20,6 +30,13 @@ class IterationController:
         self.history: List[IterationState] = []
         self._lock = asyncio.Lock()
         self._running = False
+        
+        # 挫折处理
+        self.setback_handler = SetbackHandler()
+        
+        # 可视化
+        self.visualizer = IterationVisualizer()
+        self.monitor = RealTimeMonitor(self.visualizer)
     
     async def start(self, agents: List, team_session):
         """启动 Loop"""
@@ -36,6 +53,9 @@ class IterationController:
                 status=LoopStatus.RUNNING,
                 agents_participating=[a.role for a in agents],
             )
+            
+            # 启动可视化
+            self.visualizer.start_iteration(agents)
     
     async def stop(self):
         """停止 Loop"""
@@ -47,6 +67,9 @@ class IterationController:
                 self.current_iteration.end_time = int(datetime.now().timestamp())
                 self.current_iteration.status = LoopStatus.STOPPED
                 self.history.append(self.current_iteration)
+            
+            # 结束可视化
+            self.visualizer.end_iteration()
     
     def get_current_iteration(self) -> Optional[IterationState]:
         """获取当前迭代"""
