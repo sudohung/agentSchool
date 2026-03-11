@@ -24,22 +24,24 @@ const feishuClient = new lark.Client({
     appSecret: FeishuConfig.appSecret
 });
 
+const hostname = 'http://172.20.157.162'
+
 // 创建 OpenCode 客户端实例
 const opencodeClient = createOpencodeClient({
-  baseUrl: "http://127.0.0.1:4096",
+  baseUrl: hostname + ":4096",
 })
 
 const qwen35PlusClient = createOpencodeClient({
-  baseUrl: "http://127.0.0.1:4096",
+  baseUrl: hostname + ":4096",
 })
 const glm5Client = createOpencodeClient({
-  baseUrl: "http://127.0.0.1:4096",
+  baseUrl: hostname + ":4096",
 })
 const qwen3max202601Client = createOpencodeClient({
-  baseUrl: "http://127.0.0.1:4096",
+  baseUrl: hostname + ":4096",
 })
 const kimik25Client = createOpencodeClient({
-  baseUrl: "http://127.0.0.1:4096",
+  baseUrl: hostname + ":4096",
 })
 
 //

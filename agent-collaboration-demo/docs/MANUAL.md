@@ -102,7 +102,6 @@ python src/multi_agent_pipeline.py --state-dir ./my_states
 | `--no-save` | | 禁用状态保存 |
 | `--state-dir` | | 指定状态保存目录 |
 | `--list` | | 列出已保存的项目 |
-| `--no-opencode` | | 禁用 OpenCode 代码生成 |
 
 ## 开发流程
 
