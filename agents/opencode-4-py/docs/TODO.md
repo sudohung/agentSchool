@@ -85,11 +85,11 @@ class PermissionAPI:
 
 ### 🟢 低优先级
 
-#### 3. Question 模块 (3 个端点)
+#### 3. Question 模块 (3 个端点) ✅ 已完成
 
-- [ ] `GET /question` - 列出待处理问题
-- [ ] `POST /question/{requestID}/reply` - 回答问题
-- [ ] `POST /question/{requestID}/reject` - 拒绝问题
+- [x] `GET /question` - 列出待处理问题
+- [x] `POST /question/{requestID}/reply` - 回答问题
+- [x] `POST /question/{requestID}/reject` - 拒绝问题
 
 **影响**: 支持用户问答交互
 
@@ -161,14 +161,14 @@ class PermissionAPI:
 
 ---
 
-#### 8. MCP 扩展模块 (4 个端点)
+#### 8. MCP 扩展模块 (5 个端点) ✅ 已完成
 
-- [ ] `POST /mcp/{name}/auth` - 启动 MCP OAuth
-- [ ] `DELETE /mcp/{name}/auth` - 移除 MCP OAuth
-- [ ] `POST /mcp/{name}/auth/callback` - MCP OAuth 回调
+- [x] `POST /mcp/{name}/auth` - 启动 MCP OAuth
+- [x] `DELETE /mcp/{name}/auth` - 移除 MCP OAuth
+- [x] `POST /mcp/{name}/auth/callback` - MCP OAuth 回调
 - [ ] `POST /mcp/{name}/auth/authenticate` - MCP 认证
-- [ ] `POST /mcp/{name}/connect` - 连接 MCP 服务器
-- [ ] `POST /mcp/{name}/disconnect` - 断开 MCP 服务器
+- [x] `POST /mcp/{name}/connect` - 连接 MCP 服务器
+- [x] `POST /mcp/{name}/disconnect` - 断开 MCP 服务器
 
 **影响**: 增强 MCP 管理
 
