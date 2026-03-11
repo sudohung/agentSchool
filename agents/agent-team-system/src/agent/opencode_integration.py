@@ -112,14 +112,24 @@ class OpenCodeIntegration:
             return None
         
         try:
+            # 使用同步调用 (OpenCode SDK 是同步的)
             result = self.client.message.send_text(
                 session_id=sid,
                 text=text,
                 agent=agent_role,
             )
-            return result
+            
+            # 验证结果
+            if result and hasattr(result, 'parts'):
+                return result
+            else:
+                print(f"❌ 无效的响应格式：{type(result)}")
+                return None
+                
         except Exception as e:
             print(f"❌ 发送消息失败：{e}")
+            import traceback
+            traceback.print_exc()
             return None
     
     async def read_file(self, path: str) -> Optional[str]:
