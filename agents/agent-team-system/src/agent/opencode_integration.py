@@ -5,14 +5,21 @@ from __future__ import annotations
 import asyncio
 from typing import Optional, List, Dict, Any
 from pathlib import Path
-
-# 导入 OpenCode SDK
 import sys
-opencode_path = Path(__file__).parent.parent.parent / "opencode-4-py" / "src"
-sys.path.insert(0, str(opencode_path))
 
-from opencode_4_py import OpenCodeClient
-from opencode_4_py.models.session import Session
+# 动态添加 opencode-4-py 到路径
+opencode_path = Path(__file__).parent.parent.parent / "opencode-4-py" / "src"
+if str(opencode_path) not in sys.path:
+    sys.path.insert(0, str(opencode_path))
+
+try:
+    from opencode_4_py import OpenCodeClient
+    from opencode_4_py.models.session import Session
+    OPENCODE_AVAILABLE = True
+except ImportError:
+    OPENCODE_AVAILABLE = False
+    OpenCodeClient = None
+    Session = None
 
 
 class OpenCodeIntegration:
@@ -41,8 +48,13 @@ class OpenCodeIntegration:
             是否成功连接
         """
         try:
+            if not OPENCODE_AVAILABLE:
+                print("❌ OpenCode SDK 未安装")
+                return False
+            
+            from opencode_4_py import ClientConfig
             self.client = OpenCodeClient(
-                base_url=self.base_url,
+                ClientConfig(base_url=self.base_url),
             )
             
             # 健康检查
