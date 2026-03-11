@@ -3,15 +3,17 @@
 from .pm import ProductManagerAgent
 from .architect import SystemArchitectAgent
 from .tech_lead import TechLeadAgent
-from .frontend import FrontendDeveloperAgent
-from .backend import BackendDeveloperAgent
-from .fullstack import FullStackDeveloperAgent
-from .qa import QAAgent
-from .reviewer import CodeReviewerAgent
-from .doc import DocWriterAgent
-from .devops import DevOpsAgent
-from .security import SecurityAgent
-from .coordinator import CoordinatorAgent
+from .others import (
+    FrontendDeveloperAgent,
+    BackendDeveloperAgent,
+    FullStackDeveloperAgent,
+    QAAgent,
+    CodeReviewerAgent,
+    DocWriterAgent,
+    DevOpsAgent,
+    SecurityAgent,
+    CoordinatorAgent,
+)
 
 __all__ = [
     "ProductManagerAgent",
