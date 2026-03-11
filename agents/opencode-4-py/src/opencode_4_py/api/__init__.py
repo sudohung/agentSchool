@@ -15,6 +15,8 @@ from .instance import InstanceAPI
 from .config import ConfigAPI
 from .provider import ProviderAPI
 from .global_ import GlobalAPI, LoggingAPI
+from .question import QuestionAPI
+from .mcp_extended import MCPExtendedAPI
 
 __all__ = [
     "SessionAPI",
@@ -36,4 +38,18 @@ __all__ = [
     "ProviderAPI",
     "GlobalAPI",
     "LoggingAPI",
+    "QuestionAPI",
+    "MCPExtendedAPI",
 ]
+
+# Question API
+from .question import QuestionAPI
+
+# MCP Extended API
+from .mcp_extended import MCPExtendedAPI
+
+# Add to __all__
+__all__.extend([
+    "QuestionAPI",
+    "MCPExtendedAPI",
+])

@@ -660,3 +660,76 @@ with OpenCodeClient() as client:
     )
     client.logging.log(entry)
 ```
+
+### Question API
+
+| 方法 | 描述 |
+|------|------|
+| `list()` | 列出待处理问题 |
+| `reply(request_id, answer)` | 回答问题 |
+| `reject(request_id, reason)` | 拒绝问题 |
+
+### MCP Extended API
+
+| 方法 | 描述 |
+|------|------|
+| `auth_start(name, method)` | 启动 MCP OAuth |
+| `auth_remove(name)` | 移除 MCP OAuth |
+| `auth_callback(name, code, state)` | MCP OAuth 回调 |
+| `connect(name, timeout)` | 连接 MCP 服务器 |
+| `disconnect(name)` | 断开 MCP 服务器 |
+
+## 使用示例
+
+### 问题处理
+
+```python
+from opencode_4_py import OpenCodeClient
+
+with OpenCodeClient() as client:
+    # 列出待处理问题
+    questions = client.question.list()
+    for q in questions:
+        print(f"ID: {q.id}")
+        print(f"Session: {q.session_id}")
+        for qi in q.questions:
+            print(f"  Q: {qi.header}")
+            print(f"  {qi.question}")
+            for opt in qi.options:
+                print(f"    - {opt.label}: {opt.description}")
+    
+    # 回答问题
+    if questions:
+        client.question.reply(questions[0].id, ["option1"])
+    
+    # 拒绝问题
+    client.question.reject(questions[0].id, reason="Not applicable")
+```
+
+### MCP 服务器管理
+
+```python
+from opencode_4_py import OpenCodeClient
+
+with OpenCodeClient() as client:
+    # 启动 OAuth 认证
+    auth = client.mcp_extended.auth_start("my-mcp-server")
+    print(f"Visit: {auth.url}")
+    print(f"Method: {auth.method}")
+    print(f"Instructions: {auth.instructions}")
+    
+    # OAuth 回调
+    # client.mcp_extended.auth_callback("my-mcp-server", code="auth_code")
+    
+    # 连接 MCP 服务器
+    connected = client.mcp_extended.connect("my-mcp-server")
+    print(f"Connected: {connected}")
+    
+    # 断开连接
+    disconnected = client.mcp_extended.disconnect("my-mcp-server")
+    print(f"Disconnected: {disconnected}")
+    
+    # 移除认证
+    removed = client.mcp_extended.auth_remove("my-mcp-server")
+    print(f"Auth removed: {removed}")
+```

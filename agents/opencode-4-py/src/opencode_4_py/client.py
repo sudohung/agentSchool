@@ -21,6 +21,8 @@ from .api.instance import InstanceAPI
 from .api.config import ConfigAPI
 from .api.provider import ProviderAPI
 from .api.global_ import GlobalAPI, LoggingAPI
+from .api.question import QuestionAPI
+from .api.mcp_extended import MCPExtendedAPI
 from .models.global_ import Health
 from .errors import ConnectionError, APIError
 
@@ -64,6 +66,8 @@ class OpenCodeClient:
         self._provider_api: Optional[ProviderAPI] = None
         self._global_api: Optional[GlobalAPI] = None
         self._logging_api: Optional[LoggingAPI] = None
+        self._question_api: Optional[QuestionAPI] = None
+        self._mcp_extended_api: Optional[MCPExtendedAPI] = None
     
     @property
     def session(self) -> SessionAPI:
@@ -190,6 +194,20 @@ class OpenCodeClient:
         if self._logging_api is None:
             self._logging_api = LoggingAPI(self.http, self._client_config.directory)
         return self._logging_api
+    
+    @property
+    def question(self) -> QuestionAPI:
+        """Question API."""
+        if self._question_api is None:
+            self._question_api = QuestionAPI(self.http, self._client_config.directory)
+        return self._question_api
+    
+    @property
+    def mcp_extended(self) -> MCPExtendedAPI:
+        """MCP Extended API."""
+        if self._mcp_extended_api is None:
+            self._mcp_extended_api = MCPExtendedAPI(self.http, self._client_config.directory)
+        return self._mcp_extended_api
     
     def health_check(self) -> Health:
         """Check server health.

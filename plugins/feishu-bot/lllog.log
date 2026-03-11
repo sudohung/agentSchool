@@ -1,0 +1,36 @@
+[FeishuConfig] 加载 .env 文件: C:\Users\hung\Desktop\workspace\agentSchool\plugins\feishu-bot\.env
+[FeishuConfig] FEISHU_APP_ID: 已设置
+[FeishuConfig] FEISHU_APP_SECRET: 已设置
+[info]: [ 'client ready' ]
+opencode sessions  [object Object]
+[OpencodeAgent] 初始化，client 类型: object 有值
+[OpencodeAgent] 初始化，client 类型: object 有值
+[OpencodeAgent] 初始化，client 类型: object 有值
+[OpencodeAgent] 初始化，client 类型: object 有值
+[OpencodeAgent] 初始化，client 类型: object 有值
+[OpencodeAgent] 初始化，client 类型: object 有值
+[OpencodeAgent] 初始化，client 类型: object 有值
+[OpencodeAgent] 初始化，client 类型: object 有值
+[OpencodeAgent] 初始化，client 类型: object 有值
+[OpencodeAgent] 初始化，client 类型: object 有值
+[OpencodeAgent] 初始化，client 类型: object 有值
+[OpencodeAgent] 初始化，client 类型: object 有值
+[info]: [ 'event-dispatch is ready' ]
+[info]: [
+  '[ws]',
+  'receive events or callbacks through persistent connection only available in self-build & Feishu app, Configured in:\n' +
+    '        Developer Console(开发者后台) \n' +
+    '          ->\n' +
+    '        Events and Callbacks(事件与回调)\n' +
+    '          -> \n' +
+    '        Mode of event/callback subscription(订阅方式)\n' +
+    '          -> \n' +
+    '        Receive events/callbacks through persistent connection(使用 长连接 接收事件/回调)'
+]
+[FeishuWSClient] WebSocket 长连接已启动
+[AgentEventHandlerChain] 收到事件：server.connected, event: {"type":"server.connected","properties":{}}
+[info]: [ '[ws]', 'ws client ready' ]
+[AgentEventHandlerChain] 收到事件：server.heartbeat, event: {"type":"server.heartbeat","properties":{}}
+[AgentEventHandlerChain] 收到事件：server.heartbeat, event: {"type":"server.heartbeat","properties":{}}
+[AgentEventHandlerChain] 收到事件：session.status, event: {"type":"session.status","properties":{"sessionID":"ses_338b9b1e7ffeUpY2hI1osI8uZb","status":{"type":"busy"}}}
+[AgentEventHandlerChain] 收到事件：session.status, event: {"type":"session.status","properties":{"sessionID":"ses_338b9b1e7ffeUpY2hI1osI8uZb","status":{"type":"retry","attempt":8,"message":"week allocated quota exceeded.","next":1772870322705}}}

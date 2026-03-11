@@ -102,6 +102,19 @@ from .global_ import (
     GlobalEvent,
     LogEntry,
 )
+from .question import (
+    QuestionRequest,
+    QuestionInfo,
+    QuestionOption,
+    QuestionReplyRequest,
+    QuestionRejectRequest,
+)
+from .mcp_extended import (
+    MCPAuthResponse,
+    MCPAuthStartRequest,
+    MCPAuthCallbackRequest,
+    MCPConnectRequest,
+)
 
 __all__ = [
     "TimeInfo",
@@ -178,4 +191,43 @@ __all__ = [
     "Health",
     "GlobalEvent",
     "LogEntry",
+    "QuestionRequest",
+    "QuestionInfo",
+    "QuestionOption",
+    "QuestionReplyRequest",
+    "QuestionRejectRequest",
+    "MCPAuthResponse",
+    "MCPAuthStartRequest",
+    "MCPAuthCallbackRequest",
+    "MCPConnectRequest",
 ]
+
+# Question models
+from .question import (
+    QuestionRequest,
+    QuestionInfo,
+    QuestionOption,
+    QuestionReplyRequest,
+    QuestionRejectRequest,
+)
+
+# MCP Extended models
+from .mcp_extended import (
+    MCPAuthResponse,
+    MCPAuthStartRequest,
+    MCPAuthCallbackRequest,
+    MCPConnectRequest,
+)
+
+# Add to __all__
+__all__.extend([
+    "QuestionRequest",
+    "QuestionInfo",
+    "QuestionOption",
+    "QuestionReplyRequest",
+    "QuestionRejectRequest",
+    "MCPAuthResponse",
+    "MCPAuthStartRequest",
+    "MCPAuthCallbackRequest",
+    "MCPConnectRequest",
+])
