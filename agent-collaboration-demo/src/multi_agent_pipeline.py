@@ -42,6 +42,14 @@ class ApprovalStatus(Enum):
     SKIPPED = "skipped"
 
 
+class Stage(Enum):
+    REQUIREMENT = "requirement"
+    DESIGN = "design"
+    CODE = "test"
+    VALIDATION = "validation"
+    DEPLOY = "deploy"
+
+
 class ApprovalGate:
     """人工审批门 - 支持暂停等待人工审核"""
     
@@ -181,14 +189,6 @@ class StatePersistence:
             if f.endswith(".json"):
                 projects.append(f[:-5])
         return projects
-
-
-class Stage(Enum):
-    REQUIREMENT = "requirement"
-    DESIGN = "design"
-    CODE = "test"
-    VALIDATION = "validation"
-    DEPLOY = "deploy"
 
 
 @dataclass
