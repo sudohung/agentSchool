@@ -378,7 +378,7 @@
 
 ---
 
-### 1.6 OpenCode 集成 ✅ 95% 完成
+### 1.6 OpenCode 集成 ✅ 100% 完成
 
 **目标**: 集成 OpenCode SDK，提供 AI 能力
 
@@ -396,7 +396,8 @@
 - [x] **消息发送**
   - [x] 发送消息获取 AI 响应
   - [x] Agent 角色指定
-  - [ ] JSON 解析问题修复
+  - [x] 响应格式验证
+  - [x] JSON 解析问题修复 ✅
 
 - [x] **Team Runner**
   - [x] 多 Agent 协调
@@ -411,9 +412,18 @@
 - ✅ OpenCodeIntegration 导入和初始化
 - ✅ OpenCodeClient 连接 (v1.2.24)
 - ✅ 会话创建
+- ✅ 消息发送 (包含 reasoning 和 text parts)
 - ✅ TeamRunner 创建和初始化
 - ✅ 依赖注入
-- ⚠️ 消息发送 (JSON 解析问题待修复)
+- ✅ 断开连接
+
+**测试结果**:
+```
+✅ 已连接到 OpenCode Server v1.2.24
+✅ 已创建会话
+✅ 发送消息成功 (4 parts)
+✅ TeamRunner 初始化成功
+```
 
 ---
 
