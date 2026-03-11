@@ -8,6 +8,7 @@
 
 - 需求分析 → 架构设计 → 代码实现 → 测试验证 → 部署发布
 - 支持多Agent协作、人工审批门、状态持久化
+- 集成 OpenCode 用于代码生成和执行
 
 ## 技术栈
 
@@ -15,7 +16,7 @@
 |------|------|
 | Agent框架 | AutoGen 0.4+ |
 | LLM | DashScope (qwen3-coder-next) |
-| 代码执行 | OpenCode SDK |
+| 代码生成 | OpenCode SDK |
 | API端点 | https://coding.dashscope.aliyuncs.com/v1 |
 
 ## 迭代记录
@@ -45,13 +46,18 @@
   - JSON格式保存
   - 支持项目恢复
 
+### v1.3 - OpenCode集成 (已完成)
+- [x] OpenCode 客户端封装
+- [x] 代码生成集成到Pipeline
+- [x] 支持 --no-opencode 禁用选项
+- [x] 自动执行生成的代码
+
 ## 当前状态
 
 所有核心功能已完成，系统可正常运行。
 
 ## 待优化 (可选)
 
-- [ ] OpenCode集成用于实际代码生成
 - [ ] Web UI界面
 - [ ] 更细粒度的Agent任务分配
 - [ ] 监控和日志系统
