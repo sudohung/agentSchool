@@ -25,9 +25,9 @@ class PermissionQuestionHandler:
     def __init__(self, auto_allow_patterns: Optional[List[str]] = None):
         # 自动允许的模式
         self.auto_allow_patterns = auto_allow_patterns or [
-            r"^read:.*\.md$",
-            r"^read:.*\.txt$",
-            r"^read:.*\.json$",
+            r"^file_read:.*\.md$",
+            r"^file_read:.*\.txt$",
+            r"^file_read:.*\.json$",
         ]
         
         # 权限缓存
@@ -50,7 +50,8 @@ class PermissionQuestionHandler:
         3. 加入待处理队列
         """
         # 1. 检查缓存
-        cache_key = f"{request.type.value}:{request.resource}"
+        type_value = request.type if isinstance(request.type, str) else request.type.value
+        cache_key = f"{type_value}:{request.resource}"
         if cache_key in self.permission_cache:
             return PermissionResponse(
                 request_id=request.id,
@@ -101,7 +102,9 @@ class PermissionQuestionHandler:
     
     def _matches_auto_allow(self, request: PermissionRequest) -> bool:
         """检查是否匹配自动允许规则"""
-        resource_pattern = f"{request.type.value}:{request.resource}"
+        # 处理 type 可能是字符串或枚举
+        type_value = request.type if isinstance(request.type, str) else request.type.value
+        resource_pattern = f"{type_value}:{request.resource}"
         for pattern in self.auto_allow_patterns:
             if re.match(pattern, resource_pattern):
                 return True
