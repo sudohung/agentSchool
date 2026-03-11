@@ -16,6 +16,14 @@ from datetime import datetime
 from autogen_agentchat.agents import AssistantAgent
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 
+# OpenCode 集成
+try:
+    from opencode_integration import OpenCodeClient, get_opencode_client, close_opencode_client
+    OPENCODE_AVAILABLE = True
+except ImportError:
+    OPENCODE_AVAILABLE = False
+    print("[Warning] OpenCode SDK 未安装，将使用本地执行")
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -32,6 +40,14 @@ class ApprovalStatus(Enum):
     APPROVED = "approved"
     REJECTED = "rejected"
     SKIPPED = "skipped"
+
+
+class Stage(Enum):
+    REQUIREMENT = "requirement"
+    DESIGN = "design"
+    CODE = "test"
+    VALIDATION = "validation"
+    DEPLOY = "deploy"
 
 
 class ApprovalGate:
@@ -173,14 +189,6 @@ class StatePersistence:
             if f.endswith(".json"):
                 projects.append(f[:-5])
         return projects
-
-
-class Stage(Enum):
-    REQUIREMENT = "requirement"
-    DESIGN = "design"
-    CODE = "test"
-    VALIDATION = "validation"
-    DEPLOY = "deploy"
 
 
 @dataclass
@@ -433,12 +441,17 @@ class ProjectCoordinator:
     """项目协调者 - 管理整个开发流程"""
     
     def __init__(self, model_client, auto_approve: bool = False, 
-                 state_dir: str = "./state", save_state: bool = True):
+                 state_dir: str = "./state", save_state: bool = True,
+                 use_opencode: bool = True):
         self.model_client = model_client
         self.context = None
         self.approval_gate = ApprovalGate(auto_approve=auto_approve)
         self.state_persistence = StatePersistence(state_dir) if save_state else None
         self.save_state = save_state
+        
+        # OpenCode 客户端
+        self.use_opencode = use_opencode and OPENCODE_AVAILABLE
+        self.opencode_client: Optional[object] = None  # OpenCodeClient 实例
         
         # 创建8角色Agent
         self.coordinator = create_coordinator_agent(model_client)
@@ -483,6 +496,19 @@ class ProjectCoordinator:
         )
         return result
     
+    async def init_opencode(self):
+        """初始化 OpenCode 客户端"""
+        if self.use_opencode and OPENCODE_AVAILABLE:
+            try:
+                from opencode_integration import OpenCodeClient
+                self.opencode_client = OpenCodeClient()
+                await self.opencode_client.connect()
+                print("✅ OpenCode 客户端已初始化")
+            except Exception as e:
+                print(f"⚠️ OpenCode 初始化失败: {e}")
+                self.use_opencode = False
+                self.opencode_client = None
+    
     async def design_architecture(self, requirement: str) -> str:
         """架构设计阶段"""
         print("\n" + "="*50)
@@ -510,6 +536,26 @@ class ProjectCoordinator:
         print("阶段3: 代码实现")
         print("="*50)
         
+        opencode_result = ""
+        if self.use_opencode and self.opencode_client:
+            print("\n🤖 使用 OpenCode 生成代码...")
+            try:
+                oc_result = await self.opencode_client.generate_and_execute(
+                    requirement=self.context.requirement,
+                    language="python"
+                )
+                opencode_result = f"""
+=== OpenCode 生成代码 ===
+{oc_result.get('code', '')[:1000]}
+
+=== 执行结果 ===
+{oc_result.get('execution', {}).get('stdout', '')[:500]}
+"""
+                print(f"✅ OpenCode 代码生成完成")
+            except Exception as e:
+                print(f"⚠️ OpenCode 执行失败: {e}")
+                opencode_result = f"\n[OpenCode 失败: {e}]\n"
+        
         # 项目扫描
         scan_result = await self.scanner.run(
             task="创建项目结构，生成代码框架"
@@ -530,7 +576,7 @@ class ProjectCoordinator:
             task=f"重构代码，提升质量:\n{arch_check}"
         )
         
-        result = f"=== 项目结构 ===\n{scan_result}\n\n=== 代码 ===\n{arch_check}\n\n=== 问题识别 ===\n{issue_result}\n\n=== 重构 ===\n{refactor_result}"
+        result = f"=== 项目结构 ===\n{scan_result}\n\n=== OpenCode 生成 ===\n{opencode_result}\n\n=== 代码 ===\n{arch_check}\n\n=== 问题识别 ===\n{issue_result}\n\n=== 重构 ===\n{refactor_result}"
         self.context.code_output = result
         self.context.current_stage = Stage.CODE
         return result
@@ -579,7 +625,12 @@ class ProjectCoordinator:
         print(f"需求: {requirement[:100]}...")
         if use_approval_gates and not self.approval_gate.auto_approve:
             print("⚠️  审批门已启用 - 每个阶段需要人工审核")
+        if self.use_opencode:
+            print("🤖 OpenCode 已启用 - 将用于代码生成")
         print("="*60)
+        
+        # 初始化 OpenCode
+        await self.init_opencode()
         
         # 阶段1: 需求分析
         await self.analyze_requirement(requirement)
@@ -662,6 +713,8 @@ async def main():
                         help="状态保存目录 (默认: ./state)")
     parser.add_argument("--list", action="store_true",
                         help="列出所有保存的项目")
+    parser.add_argument("--no-opencode", action="store_true",
+                        help="禁用 OpenCode，使用本地执行")
     args = parser.parse_args()
     
     # 列出项目
@@ -686,12 +739,14 @@ async def main():
     auto_approve = args.auto_approve or args.no_gates
     use_gates = not args.no_gates
     save_state = not args.no_save
+    use_opencode = not args.no_opencode
     
     coordinator = ProjectCoordinator(
         model_client, 
         auto_approve=auto_approve,
         state_dir=args.state_dir,
-        save_state=save_state
+        save_state=save_state,
+        use_opencode=use_opencode
     )
     
     if args.load:
@@ -731,5 +786,6 @@ if __name__ == "__main__":
     print("  python multi_agent_pipeline.py -r '需求'    # 自定义需求")
     print("  python multi_agent_pipeline.py --list      # 列出已保存的项目")
     print("  python multi_agent_pipeline.py -l project-001  # 加载项目继续执行")
+    print("  python multi_agent_pipeline.py --no-opencode # 禁用 OpenCode")
     print()
     asyncio.run(main())
