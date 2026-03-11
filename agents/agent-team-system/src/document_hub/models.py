@@ -31,6 +31,7 @@ class DocumentMetadata(BaseModel):
     status: str = "draft"
     tags: List[str] = Field(default_factory=list)
     related_docs: List[str] = Field(default_factory=list)
+    checksum: Optional[str] = None
     
     class Config:
         use_enum_values = True
