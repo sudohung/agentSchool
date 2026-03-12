@@ -10,7 +10,7 @@ from typing import Optional
 
 # OpenCode SDK 配置
 OPENCODE_SERVER_URL = os.getenv("OPENCODE_SERVER_URL", "http://192.168.124.2:4096")
-OPENCODE_MODEL = os.getenv("OPENCODE_MODEL", "claude-sonnet-4-5")
+OPENCODE_MODEL = os.getenv("OPENCODE_MODEL", "CodingPlan/gml-5")
 
 
 class OpenCodeClient:
