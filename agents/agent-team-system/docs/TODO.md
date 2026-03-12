@@ -70,7 +70,7 @@
 
 **目标**: 实现 Agent 基础框架，支持 Ralph Loop 工作和权限/问题处理
 
-**设计文档**: [AGENT_FRAMEWORK_DESIGN.md](./AGENT_FRAMEWORK_DESIGN.md) ✅
+**设计文档**: [AGENT_FRAMEWORK_DESIGN.md](./phase1/AGENT_FRAMEWORK_DESIGN.md) ✅
 
 - [x] **Agent 基类实现** (`agent/base.py`)
   - [x] Agent 核心属性定义 (role, expertise, status, session, client)
@@ -127,7 +127,7 @@
 
 **目标**: 实现共享文档中心，所有 Agent 通过文档协作
 
-**设计文档**: [DOCUMENT_HUB_DESIGN.md](./DOCUMENT_HUB_DESIGN.md) ✅
+**设计文档**: [DOCUMENT_HUB_DESIGN.md](./phase1/DOCUMENT_HUB_DESIGN.md) ✅
 
 - [x] **文档模型设计**
   - [x] Document 基类定义
@@ -163,7 +163,7 @@
 
 **目标**: 实现协调员 Agent，负责权限/问题批量处理和团队协调
 
-**设计文档**: [AGENT_FRAMEWORK_DESIGN.md](./AGENT_FRAMEWORK_DESIGN.md) ✅
+**设计文档**: [AGENT_FRAMEWORK_DESIGN.md](./phase1/AGENT_FRAMEWORK_DESIGN.md) ✅
 
 - [x] **Coordinator 基类**
   - [x] 继承 Agent 基类
@@ -195,7 +195,7 @@
 
 **目标**: 实现诉求看板，Agent 间通过诉求协作
 
-**设计文档**: [REQUEST_BOARD_DESIGN.md](./REQUEST_BOARD_DESIGN.md) ✅
+**设计文档**: [REQUEST_BOARD_DESIGN.md](./phase1/REQUEST_BOARD_DESIGN.md) ✅
 
 - [x] **诉求模型设计**
   - [x] Request 基类定义
@@ -227,7 +227,7 @@
 
 **目标**: 实现 Ralph Loop 核心迭代机制
 
-**设计文档**: [RALPH_LOOP_DESIGN.md](./RALPH_LOOP_DESIGN.md) ✅
+**设计文档**: [RALPH_LOOP_DESIGN.md](./phase1/RALPH_LOOP_DESIGN.md) ✅
 
 - [x] **循环控制**
   - [x] 迭代计数器
@@ -268,7 +268,7 @@
 
 **目标**: 实现诉求看板，Agent 间通过诉求协作
 
-**设计文档**: [REQUEST_BOARD_DESIGN.md](./REQUEST_BOARD_DESIGN.md) ✅
+**设计文档**: [REQUEST_BOARD_DESIGN.md](./phase1/REQUEST_BOARD_DESIGN.md) ✅
 
 - [x] **诉求模型设计**
   - [x] Request 基类定义
@@ -303,7 +303,7 @@
 
 **目标**: 实现 Ralph Loop 核心迭代机制
 
-**设计文档**: [RALPH_LOOP_DESIGN.md](./RALPH_LOOP_DESIGN.md) ✅
+**设计文档**: [RALPH_LOOP_DESIGN.md](./phase1/RALPH_LOOP_DESIGN.md) ✅
 
 - [x] **循环控制**
   - [x] 迭代计数器
@@ -347,7 +347,7 @@
 
 **目标**: 实现 11 种核心 Agent 角色
 
-**设计文档**: [AGENT_ROLES_DESIGN.md](./AGENT_ROLES_DESIGN.md) ✅
+**设计文档**: [AGENT_ROLES_DESIGN.md](./phase1/AGENT_ROLES_DESIGN.md) ✅
 
 - [x] **核心角色**
   - [x] Product Manager (产品经理)
