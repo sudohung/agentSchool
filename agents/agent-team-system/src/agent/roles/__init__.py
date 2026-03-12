@@ -12,7 +12,12 @@ from .others import (
     DocWriterAgent,
     DevOpsAgent,
     SecurityAgent,
-    CoordinatorAgent,
+)
+from .loader import (
+    get_agent_definition,
+    list_all_agent_roles,
+    AgentDefinitionLoader,
+    initialize_agents,
 )
 
 __all__ = [
@@ -27,5 +32,8 @@ __all__ = [
     "DocWriterAgent",
     "DevOpsAgent",
     "SecurityAgent",
-    "CoordinatorAgent",
+    "get_agent_definition",
+    "list_all_agent_roles",
+    "AgentDefinitionLoader",
+    "initialize_agents",
 ]

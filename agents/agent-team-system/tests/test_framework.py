@@ -8,7 +8,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from agent.base import Agent
-from agent.config import AgentConfig, AgentStatus, Document, DocumentMetadata, DocumentContent, DocumentType, Request, RequestType, RequestPriority, RequestStatus
+from agent.config import AgentConfig, AgentStatus
+from document_hub.models import Document, DocumentMetadata, DocumentContent, DocumentType
+from request_board.models import Request, RequestType, RequestPriority, RequestStatus, RequestResponse
 from agent.state import AgentStateMachine, AgentState
 from agent.permissions import PermissionType, PermissionAction, PermissionRequest, QuestionOption, QuestionRequest
 from agent.handler import PermissionQuestionHandler
@@ -99,7 +101,7 @@ class TestPermissions:
             action=PermissionAction.ASK,
         )
         assert req.id == "perm_001"
-        assert req.type == PermissionType.FILE_READ
+        assert req.type == "file_read"
 
 
 class TestPermissionHandler:
@@ -109,7 +111,7 @@ class TestPermissionHandler:
     async def test_auto_allow(self):
         """测试自动允许规则"""
         handler = PermissionQuestionHandler(
-            auto_allow_patterns=[r"^read:.*\.txt$"]
+            auto_allow_patterns=[r"^file_read:.*\.txt$"]
         )
         
         req = PermissionRequest(
@@ -382,12 +384,13 @@ class TestRalphLoop:
         checker = CompletionChecker(criteria)
         
         result = asyncio.run(checker.check({
-            "requirement_coverage": 0.9,
-            "document_completeness": 0.8,
-            "quality_score": 0.7,
+            "requirement_coverage": 0.95,
+            "document_completeness": 0.9,
+            "quality_score": 0.85,
         }))
         
         assert result["ready"] is True
+        assert result["score"] >= 0.9
 
 
 if __name__ == "__main__":

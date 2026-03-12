@@ -137,7 +137,7 @@ class DocumentStore:
         """写入文件"""
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, 'w', encoding='utf-8') as f:
-            json.dump(document.dict(), f, ensure_ascii=False, indent=2)
+            json.dump(document.model_dump(), f, ensure_ascii=False, indent=2)
     
     def _read_file(self, path: Path) -> Document:
         """读取文件"""

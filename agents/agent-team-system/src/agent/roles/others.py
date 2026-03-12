@@ -1,367 +1,136 @@
-"""其他 Agent 角色 (简化版)."""
+"""Agent 角色实现 - 使用 MD 定义文件加载."""
 
 from __future__ import annotations
 
+import time
 from typing import List, Any
 from agent.base import Agent
-from agent.config import Document, DocumentType, DocumentMetadata, DocumentContent, Request
+from agent.config import Document, DocumentType, DocumentMetadata, DocumentContent, Request, RequestType, RequestPriority, RequestStatus
+from agent.roles.loader import get_agent_definition, AgentDefinition
 
 
-class FrontendDeveloperAgent(Agent):
+def _create_agent_from_definition(role_name: str, session=None, client=None) -> Agent:
+    """从定义创建 Agent"""
+    definition = get_agent_definition(role_name)
+    
+    class DynamicAgent(Agent):
+        def __init__(self, session=None, client=None):
+            super().__init__(
+                role=definition.role,
+                expertise=definition.expertise,
+                session=session,
+                client=client,
+            )
+            self._definition = definition
+        
+        async def read_documents(self) -> List[Document]:
+            return []
+        
+        async def act_on_requests(self) -> List[Request]:
+            return []
+        
+        async def leverage_expertise(self) -> Any:
+            prompt = self._definition.ralph_loop.leverage_prompt
+            if prompt and self.client and self.session:
+                return await self.send_message(prompt)
+            return f"{self.role} 执行任务"
+        
+        async def produce_document(self, work_result: Any) -> Document:
+            template = self._definition.ralph_loop.produce_template
+            content = template.replace("{work_result}", str(work_result))
+            
+            doc_type_map = {
+                "CODE": DocumentType.CODE,
+                "DESIGN": DocumentType.DESIGN,
+                "API_DOC": DocumentType.API_DOC,
+                "TEST_CASE": DocumentType.TEST_CASE,
+                "USER_MANUAL": DocumentType.USER_MANUAL,
+                "OTHER": DocumentType.OTHER,
+                "PRD": DocumentType.PRD,
+                "ARCHITECTURE": DocumentType.ARCHITECTURE,
+            }
+            doc_type = doc_type_map.get(
+                self._definition.ralph_loop.produce_doc_type.upper(),
+                DocumentType.OTHER
+            )
+            
+            return Document(
+                id=self._generate_id(self.role.lower().replace(" ", "_")[:2]),
+                path=self._definition.ralph_loop.produce_path,
+                metadata=DocumentMetadata(
+                    title=self._definition.role,
+                    doc_type=doc_type,
+                    author=self.role,
+                    created_at=int(time.time()),
+                    updated_at=int(time.time()),
+                    version=1,
+                    tags=self._definition.ralph_loop.produce_tags,
+                ),
+                content=DocumentContent(
+                    content=content,
+                    format="markdown",
+                ),
+            )
+        
+        async def help_requests(self) -> List[Request]:
+            requests_list = []
+            for req in self._definition.ralph_loop.help_requests:
+                priority_map = {
+                    "HIGH": RequestPriority.HIGH,
+                    "NORMAL": RequestPriority.NORMAL,
+                    "LOW": RequestPriority.LOW,
+                }
+                requests_list.append(Request(
+                    id=self._generate_id("req"),
+                    type=RequestType.COLLABORATION,
+                    priority=priority_map.get(req.get("priority", "NORMAL"), RequestPriority.NORMAL),
+                    from_agent=self.role,
+                    to_agent=req.get("to", ""),
+                    subject=req.get("subject", ""),
+                    content=req.get("content", ""),
+                    created_at=int(time.time()),
+                    updated_at=int(time.time()),
+                ))
+            return requests_list
+    
+    return DynamicAgent(session, client)
+
+
+def FrontendDeveloperAgent(session=None, client=None):
     """前端开发 Agent"""
-    
-    def __init__(self, session=None, client=None):
-        super().__init__(
-            role="Frontend Developer",
-            expertise=["HTML/CSS/JavaScript", "React/Vue", "TypeScript", "前端构建"],
-            session=session,
-            client=client,
-        )
-    
-    async def read_documents(self) -> List[Document]:
-        return []
-    
-    async def act_on_requests(self) -> List[Request]:
-        return []
-    
-    async def leverage_expertise(self) -> Any:
-        return await self.send_message("实现前端功能")
-    
-    async def produce_document(self, work_result: Any) -> Document:
-        import time
-        return Document(
-            id=self._generate_id("fe"),
-            path="frontend/code.js",
-            metadata=DocumentMetadata(
-                title="前端代码",
-                doc_type=DocumentType.CODE,
-                author=self.role,
-                created_at=int(time.time()),
-                updated_at=int(time.time()),
-                version=1,
-            ),
-            content=DocumentContent(content=str(work_result)),
-        )
-    
-    async def help_requests(self) -> List[Request]:
-        return []
+    return _create_agent_from_definition("Frontend Developer", session, client)
 
 
-class BackendDeveloperAgent(Agent):
+def BackendDeveloperAgent(session=None, client=None):
     """后端开发 Agent"""
-    
-    def __init__(self, session=None, client=None):
-        super().__init__(
-            role="Backend Developer",
-            expertise=["Python/Java", "RESTful API", "数据库", "缓存"],
-            session=session,
-            client=client,
-        )
-    
-    async def read_documents(self) -> List[Document]:
-        return []
-    
-    async def act_on_requests(self) -> List[Request]:
-        return []
-    
-    async def leverage_expertise(self) -> Any:
-        return await self.send_message("实现后端功能")
-    
-    async def produce_document(self, work_result: Any) -> Document:
-        import time
-        return Document(
-            id=self._generate_id("be"),
-            path="backend/code.py",
-            metadata=DocumentMetadata(
-                title="后端代码",
-                doc_type=DocumentType.CODE,
-                author=self.role,
-                created_at=int(time.time()),
-                updated_at=int(time.time()),
-                version=1,
-            ),
-            content=DocumentContent(content=str(work_result)),
-        )
-    
-    async def help_requests(self) -> List[Request]:
-        return []
+    return _create_agent_from_definition("Backend Developer", session, client)
 
 
-class FullStackDeveloperAgent(Agent):
+def FullStackDeveloperAgent(session=None, client=None):
     """全栈开发 Agent"""
-    
-    def __init__(self, session=None, client=None):
-        super().__init__(
-            role="Full Stack Developer",
-            expertise=["前端技术", "后端技术", "数据库", "部署"],
-            session=session,
-            client=client,
-        )
-    
-    async def read_documents(self) -> List[Document]:
-        return []
-    
-    async def act_on_requests(self) -> List[Request]:
-        return []
-    
-    async def leverage_expertise(self) -> Any:
-        return await self.send_message("实现全栈功能")
-    
-    async def produce_document(self, work_result: Any) -> Document:
-        import time
-        return Document(
-            id=self._generate_id("fs"),
-            path="fullstack/code",
-            metadata=DocumentMetadata(
-                title="全栈代码",
-                doc_type=DocumentType.CODE,
-                author=self.role,
-                created_at=int(time.time()),
-                updated_at=int(time.time()),
-                version=1,
-            ),
-            content=DocumentContent(content=str(work_result)),
-        )
-    
-    async def help_requests(self) -> List[Request]:
-        return []
+    return _create_agent_from_definition("Full Stack Developer", session, client)
 
 
-class QAAgent(Agent):
+def QAAgent(session=None, client=None):
     """测试工程师 Agent"""
-    
-    def __init__(self, session=None, client=None):
-        super().__init__(
-            role="QA Engineer",
-            expertise=["测试设计", "自动化测试", "性能测试", "安全测试"],
-            session=session,
-            client=client,
-        )
-    
-    async def read_documents(self) -> List[Document]:
-        return []
-    
-    async def act_on_requests(self) -> List[Request]:
-        return []
-    
-    async def leverage_expertise(self) -> Any:
-        return await self.send_message("编写测试用例")
-    
-    async def produce_document(self, work_result: Any) -> Document:
-        import time
-        return Document(
-            id=self._generate_id("qa"),
-            path="test/test_cases.md",
-            metadata=DocumentMetadata(
-                title="测试用例",
-                doc_type=DocumentType.TEST_CASE,
-                author=self.role,
-                created_at=int(time.time()),
-                updated_at=int(time.time()),
-                version=1,
-            ),
-            content=DocumentContent(content=str(work_result)),
-        )
-    
-    async def help_requests(self) -> List[Request]:
-        return []
+    return _create_agent_from_definition("QA Engineer", session, client)
 
 
-class CodeReviewerAgent(Agent):
+def CodeReviewerAgent(session=None, client=None):
     """代码审查员 Agent"""
-    
-    def __init__(self, session=None, client=None):
-        super().__init__(
-            role="Code Reviewer",
-            expertise=["代码审查", "设计模式", "代码规范", "重构"],
-            session=session,
-            client=client,
-        )
-    
-    async def read_documents(self) -> List[Document]:
-        return []
-    
-    async def act_on_requests(self) -> List[Request]:
-        return []
-    
-    async def leverage_expertise(self) -> Any:
-        return await self.send_message("审查代码")
-    
-    async def produce_document(self, work_result: Any) -> Document:
-        import time
-        return Document(
-            id=self._generate_id("rev"),
-            path="review/code_review.md",
-            metadata=DocumentMetadata(
-                title="代码审查报告",
-                doc_type=DocumentType.OTHER,
-                author=self.role,
-                created_at=int(time.time()),
-                updated_at=int(time.time()),
-                version=1,
-            ),
-            content=DocumentContent(content=str(work_result)),
-        )
-    
-    async def help_requests(self) -> List[Request]:
-        return []
+    return _create_agent_from_definition("Code Reviewer", session, client)
 
 
-class DocWriterAgent(Agent):
+def DocWriterAgent(session=None, client=None):
     """文档工程师 Agent"""
-    
-    def __init__(self, session=None, client=None):
-        super().__init__(
-            role="Doc Writer",
-            expertise=["技术写作", "文档组织", "Markdown"],
-            session=session,
-            client=client,
-        )
-    
-    async def read_documents(self) -> List[Document]:
-        return []
-    
-    async def act_on_requests(self) -> List[Request]:
-        return []
-    
-    async def leverage_expertise(self) -> Any:
-        return await self.send_message("编写文档")
-    
-    async def produce_document(self, work_result: Any) -> Document:
-        import time
-        return Document(
-            id=self._generate_id("doc"),
-            path="docs/manual.md",
-            metadata=DocumentMetadata(
-                title="用户手册",
-                doc_type=DocumentType.USER_MANUAL,
-                author=self.role,
-                created_at=int(time.time()),
-                updated_at=int(time.time()),
-                version=1,
-            ),
-            content=DocumentContent(content=str(work_result)),
-        )
-    
-    async def help_requests(self) -> List[Request]:
-        return []
+    return _create_agent_from_definition("Doc Writer", session, client)
 
 
-class DevOpsAgent(Agent):
+def DevOpsAgent(session=None, client=None):
     """运维工程师 Agent"""
-    
-    def __init__(self, session=None, client=None):
-        super().__init__(
-            role="DevOps Engineer",
-            expertise=["Docker/Kubernetes", "CI/CD", "云服务", "监控工具"],
-            session=session,
-            client=client,
-        )
-    
-    async def read_documents(self) -> List[Document]:
-        return []
-    
-    async def act_on_requests(self) -> List[Request]:
-        return []
-    
-    async def leverage_expertise(self) -> Any:
-        return await self.send_message("配置部署")
-    
-    async def produce_document(self, work_result: Any) -> Document:
-        import time
-        return Document(
-            id=self._generate_id("ops"),
-            path="deploy/config.yaml",
-            metadata=DocumentMetadata(
-                title="部署配置",
-                doc_type=DocumentType.OTHER,
-                author=self.role,
-                created_at=int(time.time()),
-                updated_at=int(time.time()),
-                version=1,
-            ),
-            content=DocumentContent(content=str(work_result)),
-        )
-    
-    async def help_requests(self) -> List[Request]:
-        return []
+    return _create_agent_from_definition("DevOps Engineer", session, client)
 
 
-class SecurityAgent(Agent):
+def SecurityAgent(session=None, client=None):
     """安全工程师 Agent"""
-    
-    def __init__(self, session=None, client=None):
-        super().__init__(
-            role="Security Engineer",
-            expertise=["安全审计", "渗透测试", "安全编码", "合规"],
-            session=session,
-            client=client,
-        )
-    
-    async def read_documents(self) -> List[Document]:
-        return []
-    
-    async def act_on_requests(self) -> List[Request]:
-        return []
-    
-    async def leverage_expertise(self) -> Any:
-        return await self.send_message("安全审计")
-    
-    async def produce_document(self, work_result: Any) -> Document:
-        import time
-        return Document(
-            id=self._generate_id("sec"),
-            path="security/report.md",
-            metadata=DocumentMetadata(
-                title="安全报告",
-                doc_type=DocumentType.OTHER,
-                author=self.role,
-                created_at=int(time.time()),
-                updated_at=int(time.time()),
-                version=1,
-            ),
-            content=DocumentContent(content=str(work_result)),
-        )
-    
-    async def help_requests(self) -> List[Request]:
-        return []
-
-
-class CoordinatorAgent(Agent):
-    """协调员 Agent"""
-    
-    def __init__(self, session=None, client=None):
-        super().__init__(
-            role="Coordinator",
-            expertise=["团队协调", "冲突解决", "进度跟踪", "用户沟通"],
-            session=session,
-            client=client,
-        )
-    
-    async def read_documents(self) -> List[Document]:
-        return []
-    
-    async def act_on_requests(self) -> List[Request]:
-        return []
-    
-    async def leverage_expertise(self) -> Any:
-        return await self.send_message("协调整体进度")
-    
-    async def produce_document(self, work_result: Any) -> Document:
-        import time
-        return Document(
-            id=self._generate_id("coord"),
-            path="coordination/report.md",
-            metadata=DocumentMetadata(
-                title="协调报告",
-                doc_type=DocumentType.OTHER,
-                author=self.role,
-                created_at=int(time.time()),
-                updated_at=int(time.time()),
-                version=1,
-            ),
-            content=DocumentContent(content=str(work_result)),
-        )
-    
-    async def help_requests(self) -> List[Request]:
-        return []
+    return _create_agent_from_definition("Security Engineer", session, client)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class RequestType(Enum):
@@ -46,9 +46,10 @@ class Request(BaseModel):
     created_at: int
     updated_at: int
     response: Optional[str] = None
+    responded_at: Optional[int] = None
+    responded_by: Optional[str] = None
     
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class RequestResponse(BaseModel):

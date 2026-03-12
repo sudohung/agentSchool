@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class AgentStatus(Enum):
@@ -24,8 +24,7 @@ class AgentConfig(BaseModel):
     temperature: float = 0.7
     max_iterations: int = 50
     
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
 
 class DocumentType(Enum):
@@ -52,8 +51,7 @@ class DocumentMetadata(BaseModel):
     status: str = "draft"
     tags: List[str] = Field(default_factory=list)
     
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class DocumentContent(BaseModel):
@@ -112,5 +110,4 @@ class Request(BaseModel):
     updated_at: int
     response: Optional[str] = None
     
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class DocumentType(Enum):
@@ -33,8 +33,7 @@ class DocumentMetadata(BaseModel):
     related_docs: List[str] = Field(default_factory=list)
     checksum: Optional[str] = None
     
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class DocumentContent(BaseModel):

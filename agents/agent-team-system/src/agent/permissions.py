@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class PermissionType(Enum):
@@ -34,8 +34,7 @@ class PermissionRequest(BaseModel):
     action: PermissionAction
     remember: bool = False
     
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class PermissionResponse(BaseModel):
@@ -63,8 +62,7 @@ class QuestionRequest(BaseModel):
     custom: bool = True
     requested_by: str
     
-    class Config:
-        use_enum_values = True
+    model_config = ConfigDict(use_enum_values=True)
 
 
 class QuestionResponse(BaseModel):
