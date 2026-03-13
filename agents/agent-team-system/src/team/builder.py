@@ -61,7 +61,7 @@ class TeamBuilder:
         
         # 初始化组件
         self.analyzer = TaskAnalyzer(client, self.config)
-        self.mapper = RoleMapper()
+        self.mapper = RoleMapper(self.config)
         
         # 共享组件 (延迟初始化)
         self._document_store = None

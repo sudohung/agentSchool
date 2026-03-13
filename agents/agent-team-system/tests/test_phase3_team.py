@@ -130,7 +130,8 @@ class TestRoleMapper:
         
         roles = mapper.map(analysis)
         
-        assert len(roles) <= RoleMapper.MAX_TEAM_SIZE
+        # 使用配置的 max_team_size (默认 10)
+        assert len(roles) <= mapper.max_team_size
     
     def test_mobile_development(self):
         """测试移动开发映射"""

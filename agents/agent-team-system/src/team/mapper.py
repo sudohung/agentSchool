@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from typing import List, Dict, Set
-from .config import TaskAnalysis, TaskType, ComplexityLevel
+from typing import List, Dict, Set, Optional
+from .config import TaskAnalysis, TaskType, ComplexityLevel, TeamConfig
 from agent.registry import AgentRegistry
 
 
@@ -21,8 +21,8 @@ class RoleMapper:
     5. 复杂项目自动添加架构师
     """
     
-    # 最大团队规模
-    MAX_TEAM_SIZE = 12
+    # 默认最大团队规模
+    DEFAULT_MAX_TEAM_SIZE = 12
     
     # 核心角色 (必选)
     CORE_ROLES = ["Product Manager", "Tech Lead"]
@@ -68,9 +68,16 @@ class RoleMapper:
         "Doc Writer",
     ]
     
-    def __init__(self):
-        """初始化映射器"""
+    def __init__(self, config: Optional[TeamConfig] = None):
+        """
+        初始化映射器
+        
+        Args:
+            config: 团队配置
+        """
         self.registry = AgentRegistry()
+        self.config = config or TeamConfig()
+        self.max_team_size = self.config.max_team_size
     
     def map(self, analysis: TaskAnalysis) -> List[str]:
         """
@@ -111,7 +118,7 @@ class RoleMapper:
         roles = self._apply_special_rules(roles, analysis)
         
         # 6. 限制团队规模
-        if len(roles) > self.MAX_TEAM_SIZE:
+        if len(roles) > self.max_team_size:
             roles = self._prioritize_roles(roles)
         
         return list(roles)
@@ -144,4 +151,4 @@ class RoleMapper:
             roles, 
             key=lambda r: self.ROLE_PRIORITY.index(r) if r in self.ROLE_PRIORITY else 999
         )
-        return set(sorted_roles[:self.MAX_TEAM_SIZE])
+        return set(sorted_roles[:self.max_team_size])

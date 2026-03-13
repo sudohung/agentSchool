@@ -7,6 +7,9 @@ from pathlib import Path
 # 添加 src 到路径
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+# 先导入 agent.roles 以注册所有角色
+import agent.roles
+
 from team.builder import TeamBuilder
 from team.config import TeamConfig
 
