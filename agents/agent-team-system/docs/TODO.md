@@ -460,52 +460,64 @@
 
 ---
 
-### 1.8 团队组建机制 ❌ 0% 完成
+### 1.8 团队组建机制 ✅ 设计完成
 
 **目标**: 实现团队动态组建机制
 
-**设计文档**: 待创建
+**设计文档**: [PHASE3_DESIGN.md](./phase3/PHASE3_DESIGN.md) ✅  
+**审查报告**: [PHASE3_REVIEW.md](./phase3/PHASE3_REVIEW.md) ✅  
+**审查评分**: 4.0/5.0
 
-- [ ] **需求分析**
-  - [ ] 用户输入解析
-  - [ ] 关键词提取
-  - [ ] 任务类型识别
-  - [ ] 复杂度评估
+- [x] **需求分析设计**
+  - [x] 用户输入解析
+  - [x] 关键词提取
+  - [x] 任务类型识别
+  - [x] 复杂度评估
 
-- [ ] **角色映射**
-  - [ ] 根据任务类型选择角色
-  - [ ] 根据复杂度确定人数
-  - [ ] 角色技能匹配
-  - [ ] 团队规模优化
+- [x] **角色映射设计**
+  - [x] 根据任务类型选择角色
+  - [x] 根据复杂度确定人数
+  - [x] 角色技能匹配
+  - [x] 团队规模优化
 
-- [ ] **动态创建**
-  - [ ] Agent 实例化
-  - [ ] 配置 Agent 参数
-  - [ ] 初始化 Agent 状态
-  - [ ] 注册到团队
+- [x] **动态创建设计**
+  - [x] Agent 实例化
+  - [x] 配置 Agent 参数
+  - [x] 初始化 Agent 状态
+  - [x] 注册到团队
+
+**状态**: 设计完成，待实施 (预计 16h)
 
 ---
 
-### 1.9 工作流引擎 ❌ 0% 完成
+### 1.9 工作流引擎 ✅ 设计完成
 
 **目标**: 实现完整的工作流引擎
 
-**设计文档**: 待创建
+**设计文档**: [PHASE4_DESIGN.md](./phase4/PHASE4_DESIGN.md) ✅  
+**审查报告**: [PHASE4_REVIEW.md](./phase4/PHASE4_REVIEW.md), [PHASE4_REVIEW_2.md](./phase4/PHASE4_REVIEW_2.md) ✅  
+**审查评分**: 4.5/5.0
 
-- [ ] **Ralph Loop 实现**
-  - [ ] 迭代执行逻辑
-  - [ ] 挫折处理逻辑
-  - [ ] 完成度评估
+- [x] **Ralph Loop 实现设计**
+  - [x] 迭代执行逻辑
+  - [x] 挫折处理逻辑
+  - [x] 完成度评估
 
-- [ ] **协作流程**
-  - [ ] 文档协作流程
-  - [ ] 诉求协作流程
-  - [ ] 冲突解决流程
+- [x] **协作流程设计**
+  - [x] 文档协作流程
+  - [x] 诉求协作流程
+  - [x] 冲突解决流程
 
-- [ ] **质量保证**
-  - [ ] 自动审查
-  - [ ] 人工介入点
-  - [ ] 质量把关点
+- [x] **质量保证设计**
+  - [x] 自动审查
+  - [x] 人工介入点
+  - [x] 质量把关点
+
+**状态**: 设计完成，待实施 (预计 23.5h)  
+**优化内容**:
+- ✅ 已修复所有 P0 问题 (IterationController 方法缺失)
+- ✅ 已修复 P1 问题 (WorkflowConfig 组合模式)
+- ✅ 已明确职责边界 (TeamCoordinator vs TaskScheduler)
 
 ---
 
@@ -575,40 +587,74 @@
 
 ---
 
-## Phase 3: 团队组建 🏗️ 0% 完成 ❌
+## Phase 3: 团队组建 🏗️ 设计完成 ✅
 
-### 3.1 需求分析 ❌
-- [ ] 需求解析
-- [ ] 角色映射
+**设计文档**: [PHASE3_DESIGN.md](./phase3/PHASE3_DESIGN.md) ✅  
+**审查报告**: [PHASE3_REVIEW.md](./phase3/PHASE3_REVIEW.md) ✅  
+**审查评分**: 4.0/5.0  
+**状态**: 设计完成，待实施
 
-### 3.2 动态创建 ❌
-- [ ] Agent 实例化
-- [ ] 团队初始化
+### 3.1 需求分析 ✅ 设计完成
+- [x] 需求解析 (TaskAnalyzer)
+- [x] 角色映射 (RoleMapper)
+- [x] 规则 + AI 混合分析策略
 
-### 3.3 团队优化 ❌
-- [ ] 动态调整
-- [ ] 性能优化
+### 3.2 动态创建 ✅ 设计完成
+- [x] Agent 工厂 (AgentFactory)
+- [x] 团队构建器 (TeamBuilder)
+- [x] 依赖注入 (DocumentStore, RequestBoard)
 
-**Phase 3 完成度：0% (0/6)** ❌
+### 3.3 团队优化 ✅ 设计完成
+- [x] 团队规模限制 (MAX_TEAM_SIZE=12)
+- [x] 角色优先级裁剪
+- [x] 特殊规则处理
+
+**核心模块**:
+- `team/config.py` - TaskAnalysis, TeamConfig, TeamContext
+- `team/analyzer.py` - TaskAnalyzer
+- `team/mapper.py` - RoleMapper
+- `team/factory.py` - AgentFactory
+- `team/builder.py` - TeamBuilder
+
+**Phase 3 完成度：设计 100%, 实施 0%** 🟡  
+**预计工时**: 16 小时
 
 ---
 
-## Phase 4: 工作流引擎 ⚙️ 0% 完成 ❌
+## Phase 4: 工作流引擎 ⚙️ 设计完成 ✅
 
-### 4.1 Ralph Loop 实现 ❌
-- [ ] 迭代执行
-- [ ] 挫折处理
-- [ ] 完成度评估
+**设计文档**: [PHASE4_DESIGN.md](./phase4/PHASE4_DESIGN.md) ✅  
+**审查报告**: [PHASE4_REVIEW.md](./phase4/PHASE4_REVIEW.md), [PHASE4_REVIEW_2.md](./phase4/PHASE4_REVIEW_2.md) ✅  
+**审查评分**: 4.5/5.0  
+**状态**: 设计完成，待实施
 
-### 4.2 协作流程 ❌
-- [ ] 文档协作
-- [ ] 诉求协作
+### 4.1 Ralph Loop 实现 ✅ 设计完成
+- [x] 迭代执行 (IterationController.execute_iteration)
+- [x] 挫折处理 (SetbackHandler.attempt_recovery)
+- [x] 完成度评估 (CompletionChecker)
+- [x] 暂停/恢复 (pause/resume)
 
-### 4.3 质量保证 ❌
-- [ ] 自动审查
-- [ ] 人工介入点
+### 4.2 协作流程 ✅ 设计完成
+- [x] 文档协作 (DocumentStore)
+- [x] 诉求协作 (RequestBoard)
+- [x] 团队协调 (TeamCoordinator)
 
-**Phase 4 完成度：0% (0/7)** ❌
+### 4.3 质量保证 ✅ 设计完成
+- [x] 自动审查 (QualityGate)
+- [x] 人工介入点 (Manual Review)
+- [x] 质量门控 (4 个检查维度)
+
+**核心模块**:
+- `workflow/config.py` - WorkflowConfig (组合模式)
+- `workflow/context.py` - WorkflowContext (增强版)
+- `workflow/engine.py` - WorkflowEngine
+- `workflow/coordinator.py` - TeamCoordinator
+- `workflow/quality.py` - QualityGate
+- `ralph_loop/controller.py` - IterationController (完善)
+- `ralph_loop/setback.py` - SetbackHandler (完善)
+
+**Phase 4 完成度：设计 100%, 实施 0%** 🟡  
+**预计工时**: 23.5 小时
 
 ---
 
@@ -706,32 +752,49 @@
 | **Phase 0** | 14 | 14 | 0 | 100% | ✅ 完成 |
 | **Phase 1** | 49 | 48 | 1 | 98% | ✅ 接近完成 |
 | **Phase 2** | 12 | 12 | 0 | 100% | ✅ 完成 |
-| **Phase 3** | 6 | 0 | 6 | 0% | ❌ 未开始 |
-| **Phase 4** | 7 | 0 | 7 | 0% | ❌ 未开始 |
+| **Phase 3** | 6 | 6 | 0 | 100%* | ✅ 设计完成 |
+| **Phase 4** | 7 | 7 | 0 | 100%* | ✅ 设计完成 |
 | **Phase 5** | 6 | 0 | 6 | 0% | ❌ 未开始 |
 | **Phase 6** | 6 | 0 | 6 | 0% | ❌ 未开始 |
 | **Phase 7** | 6 | 4 | 2 | 67% | 🟡 进行中 |
 | **Phase 8** | 15 | 9 | 6 | 60% | 🟡 进行中 |
-| **总计** | **121** | **83** | **38** | **69%** |
+| **总计** | **121** | **95** | **26** | **78%** |
+
+> *注：Phase 3 & 4 设计完成 100%，实施 0%
 
 ---
 
 ## 🎯 下一步优先级
 
-### 🔴 高优先级 (Phase 3 开发)
-1. 需求分析模块 (3 小时)
-2. 角色映射机制 (3 小时)
-3. 动态创建团队 (4 小时)
+### 🔴 高优先级 (Phase 3 实施)
+1. 创建 team 模块结构 (0.5h)
+2. 实现 TaskAnalyzer (2h)
+3. 实现 RoleMapper (2h)
+4. 实现 AgentFactory (2h)
+5. 实现 TeamBuilder (2h)
+6. 编写单元测试 (3h)
 
-### 🟡 中优先级 (Phase 4-5)
-4. 工作流引擎完善 (6 小时)
-5. 交付系统 (4 小时)
+**小计**: 11.5h
 
-### 🟢 低优先级 (Phase 6-8)
-6. 监控和日志 (4 小时)
-7. 场景测试 (6 小时)
+### 🟡 中优先级 (Phase 4 实施)
+7. 创建 workflow 模块结构 (0.5h)
+8. 完善 IterationController (2h)
+9. 完善 SetbackHandler (2h)
+10. 实现 WorkflowEngine (3h)
+11. 实现 TeamCoordinator (3h)
+12. 实现 QualityGate (2h)
+13. 编写单元测试 (4h)
 
-**预计剩余工时：约 30 小时**
+**小计**: 16.5h
+
+### 🟢 低优先级 (Phase 5-8)
+14. 交付系统 (4h)
+15. 监控和日志 (4h)
+16. 场景测试 (6h)
+
+**小计**: 14h
+
+**预计剩余总工时：约 42 小时**
 
 ---
 
@@ -739,6 +802,12 @@
 
 | 日期 | 更新内容 | 完成度 |
 |------|---------|--------|
+| 2026-03-13 | Phase 4 设计文档优化 (v0.4.2)，修复所有 P0/P1 问题 | 78% |
+| 2026-03-13 | Phase 4 设计文档二次审查 (4.5/5.0) | 78% |
+| 2026-03-13 | Phase 4 设计文档审查 (4.4/5.0) | 78% |
+| 2026-03-13 | 创建 Phase 4 设计文档 (PHASE4_DESIGN.md) | 78% |
+| 2026-03-13 | Phase 3 设计文档审查 (4.0/5.0) | 78% |
+| 2026-03-13 | 创建 Phase 3 设计文档 (PHASE3_DESIGN.md) | 78% |
 | 2026-03-13 | Phase 2 完善完成：新增 8 个角色实现，27 个测试全部通过 | 69% |
 | 2026-03-13 | 创建 Phase 2 设计文档和完成报告 | 69% |
 | 2026-03-13 | Phase 1 测试全部通过 (36/36)，完成度更新为 98% | 68% |
@@ -755,5 +824,5 @@
 ---
 
 > 最后更新：2026-03-13
-> 版本：0.2.0
-> 总体状态：Phase 1 & 2 完成 (100%)，可投入使用 🎉
+> 版本：0.3.0
+> 总体状态：Phase 1-4 设计完成 (78%)，Phase 3-4 待实施 🚀
