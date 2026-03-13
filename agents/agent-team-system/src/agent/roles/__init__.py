@@ -3,6 +3,7 @@
 from .pm import ProductManagerAgent
 from .architect import SystemArchitectAgent
 from .tech_lead import TechLeadAgent
+from .coordinator import CoordinatorAgent
 from .others import (
     FrontendDeveloperAgent,
     BackendDeveloperAgent,
@@ -24,6 +25,7 @@ __all__ = [
     "ProductManagerAgent",
     "SystemArchitectAgent",
     "TechLeadAgent",
+    "CoordinatorAgent",
     "FrontendDeveloperAgent",
     "BackendDeveloperAgent",
     "FullStackDeveloperAgent",

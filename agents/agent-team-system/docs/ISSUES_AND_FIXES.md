@@ -379,8 +379,55 @@ Ralph Loop 引擎：启动/停止 ✅
 |------|-----------|-----------|-----------|
 | 2026-03-12 | 7 | 5 | 100% (27/27) |
 | 2026-03-12 | Phase 1 完整测试 | - | 100% |
+| 2026-03-13 | Agent 角色加载和 CoordinatorAgent | 3 | 100% (12/12) |
 
 ---
 
-> 最后更新：2026-03-12  
+## 2026-03-13: Agent 角色加载和 CoordinatorAgent 实现
+
+### 问题描述
+
+1. 测试导入 `CoordinatorAgent` 失败 - 类不存在
+2. 3 个 Agent (Full Stack Developer, DevOps Engineer, Security Engineer) MD 定义加载失败
+
+### 根本原因
+
+1. **CoordinatorAgent 缺失**: 虽然 `coordinator.md` 定义文件存在，但没有对应的 Python 类实现
+2. **角色名映射错误**: `loader.py` 的 `_to_filename` 方法将 "Full Stack Developer" 转换为 "full_stack_developer"，但实际 MD 文件名是 "fullstack_developer"
+
+### 修复方案
+
+1. **创建 CoordinatorAgent 类**: `src/agent/roles/coordinator.py`
+   - 继承 Agent 基类
+   - 实现 Ralph Loop 核心方法 (read_documents, act_on_requests, leverage_expertise, produce_document, help_requests)
+   - 添加权限/问题收集方法 (collect_permission_request, collect_question_request)
+
+2. **更新 __init__.py**: 导出 CoordinatorAgent
+
+3. **修复 loader.py 角色名映射**:
+```python
+# 添加特殊角色名映射
+special_mappings = {
+    "full stack developer": "fullstack_developer",
+    "devops engineer": "devops",
+    "security engineer": "security",
+    "product manager": "pm",
+    ...
+}
+```
+
+### 验证结果
+
+```
+Agent 角色导入：12/12 ✅
+Agent 创建：12/12 ✅
+Agent 基础功能：状态机 ✅、记忆系统 ✅、权限请求 ✅
+Ralph Loop 引擎：启动/停止 ✅
+
+单元测试: 27 passed ✅
+```
+
+---
+
+> 最后更新：2026-03-13  
 > 版本：0.1.0 (Phase 1 ✅)

@@ -92,7 +92,24 @@ class AgentDefinitionLoader:
     @classmethod
     def _to_filename(cls, role: str) -> str:
         """将角色名转换为文件名"""
-        return role.lower().replace(" ", "_").replace("/", "_")
+        name = role.lower()
+        # 处理特殊角色名映射
+        special_mappings = {
+            "full stack developer": "fullstack_developer",
+            "devops engineer": "devops",
+            "security engineer": "security",
+            "product manager": "pm",
+            "system architect": "architect",
+            "tech lead": "tech_lead",
+            "qa engineer": "qa_engineer",
+            "code reviewer": "code_reviewer",
+            "doc writer": "doc_writer",
+            "frontend developer": "frontend_developer",
+            "backend developer": "backend_developer",
+        }
+        if name in special_mappings:
+            return special_mappings[name]
+        return name.replace(" ", "_").replace("/", "_")
     
     @classmethod
     def _parse_md(cls, content: str) -> AgentDefinition:
