@@ -103,6 +103,7 @@ class TechLeadAgent(Agent):
             id=self._generate_id("req"),
             type=RequestType.COLLABORATION,
             priority=RequestPriority.NORMAL,
+            status=RequestStatus.PENDING,
             from_agent=self.role,
             to_agent="Backend Developer",
             subject="请评估开发工作量",

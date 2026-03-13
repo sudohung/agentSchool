@@ -106,6 +106,7 @@ class ProductManagerAgent(Agent):
             id=self._generate_id("req"),
             type=RequestType.REVIEW,
             priority=RequestPriority.HIGH,
+            status=RequestStatus.PENDING,
             from_agent=self.role,
             to_agent="System Architect",
             subject="请评估技术可行性",

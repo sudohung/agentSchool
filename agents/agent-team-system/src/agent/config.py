@@ -33,6 +33,8 @@ class DocumentType(Enum):
     ARCHITECTURE = "architecture"
     TECH_DESIGN = "tech_design"
     API_DESIGN = "api_design"
+    API_DOC = "api_doc"
+    DESIGN = "design"
     CODE = "code"
     TEST_CASE = "test_case"
     TEST_REPORT = "test_report"
