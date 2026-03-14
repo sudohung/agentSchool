@@ -4,13 +4,6 @@ from __future__ import annotations
 
 import asyncio
 from typing import Optional, List, Dict, Any
-from pathlib import Path
-import sys
-
-# 动态添加 opencode-4-py 到路径
-opencode_path = Path(__file__).parent.parent.parent / "opencode-4-py" / "src"
-if str(opencode_path) not in sys.path:
-    sys.path.insert(0, str(opencode_path))
 
 try:
     from opencode_4_py import OpenCodeClient

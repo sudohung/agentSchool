@@ -236,13 +236,33 @@ class TeamCoordinator:
                 "doc_types_covered": 0,
             }
         
-        total_length = sum(len(getattr(doc, 'content', {}).get('content', '')) for doc in documents)
+        total_length = 0
+        for doc in documents:
+            content = getattr(doc, 'content', None)
+            if content is None:
+                continue
+            if hasattr(content, 'content'):
+                total_length += len(content.content or '')
+            elif isinstance(content, str):
+                total_length += len(content)
+            elif isinstance(content, dict):
+                total_length += len(content.get('content', ''))
+        
         avg_length = total_length / len(documents) if len(documents) > 0 else 0
-        doc_types_count = len(set(getattr(doc, 'metadata', {}).get('doc_type', '') for doc in documents))
+        
+        doc_types = set()
+        for doc in documents:
+            metadata = getattr(doc, 'metadata', None)
+            if metadata is None:
+                continue
+            if hasattr(metadata, 'doc_type'):
+                doc_types.add(metadata.doc_type)
+            elif isinstance(metadata, dict):
+                doc_types.add(metadata.get('doc_type', ''))
         
         return {
             "avg_length": avg_length,
-            "doc_types_covered": doc_types_count,
+            "doc_types_covered": len(doc_types),
         }
     
     async def check_completion(self) -> float:
