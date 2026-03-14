@@ -8,6 +8,9 @@ import asyncio
 from enum import Enum
 from typing import Optional, Dict, List, Callable, Any
 from dataclasses import dataclass, field
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class SetbackType(Enum):
@@ -24,7 +27,7 @@ class SetbackType(Enum):
 class SetbackSeverity(Enum):
     """挫折严重程度"""
     LOW = "low"              # 低 - 自动恢复
-    MEDIUM = "medium"        # 中 - 需要重试
+    MEDIUM = "medium"        # 中 - 需要重试  
     HIGH = "high"            # 高 - 需要人工介入
     CRITICAL = "critical"    # 严重 - 终止迭代
 
@@ -163,7 +166,7 @@ class SetbackHandler:
             id=self._generate_id(),
             type=setback_type,
             severity=severity,
-            agent=agent.role if hasattr(agent, 'role') else str(agent),
+            agent=getattr(agent, 'role', str(agent)) if agent else 'unknown',
             iteration=iteration,
             description=str(error),
             error_message=str(error),
@@ -176,16 +179,18 @@ class SetbackHandler:
         # 5. 分析模式
         self._analyze_pattern(setback)
         
+        logger.debug(f"Recorded setback: {setback.type.value} for agent {setback.agent}")
+        
         return setback
     
     def _classify_setback(self, error: Exception) -> SetbackType:
         """分类挫折"""
         error_str = str(error).lower()
         
-        if "timeout" in error_str or "timed out" in error_str:
+        if "timeout" in error_str:
             return SetbackType.TIMEOUT
         
-        if "no response" in error_str or "not found" in error_str:
+        if "response" in error_str or "found" in error_str:
             return SetbackType.NO_RESPONSE
         
         if "conflict" in error_str or "collision" in error_str:
@@ -194,7 +199,7 @@ class SetbackHandler:
         if "blocked" in error_str or "deadlock" in error_str:
             return SetbackType.BLOCKED
         
-        if "quality" in error_str or "invalid" in error_str or "failed validation" in error_str:
+        if "quality" in error_str or "invalid" in error_str or "validation" in error_str:
             return SetbackType.QUALITY_ISSUE
         
         if "error" in error_str or "exception" in error_str:
@@ -236,66 +241,57 @@ class SetbackHandler:
     async def attempt_recovery(
         self,
         setback: Setback,
-        agent: Any,
-        action: Callable,
     ) -> bool:
         """
         尝试恢复
         
         Args:
             setback: 挫折记录
-            agent: Agent 实例
-            action: 要重试的操作
             
         Returns:
-            是否恢复成功
+            bool: 是否恢复成功
         """
-        # 获取恢复策略
+        if setback.retry_count >= setback.max_retries:
+            return False
+        
         strategy = self._recovery_strategies.get(setback.type)
-        
         if not strategy:
-            # 没有策略，尝试通用恢复
-            return await self._generic_recovery(setback, action)
+            # 没有特定策略，使用通用恢复
+            return await self._generic_recovery(setback)
         
-        # 检查重试次数
-        if setback.retry_count >= strategy.max_retries:
-            setback.resolved = False
-            setback.resolution = f"超过最大重试次数 ({strategy.max_retries})"
-            return False
+        # 增加重试计数
+        setback.retry_count += 1
         
-        # 执行恢复
-        try:
-            # 冷却时间
-            if strategy.cooldown_seconds > 0:
-                await asyncio.sleep(strategy.cooldown_seconds)
-            
-            # 执行重试
-            setback.retry_count += 1
-            await action()
-            
-            # 恢复成功
-            setback.resolved = True
-            setback.resolution = f"通过 {strategy.name} 恢复成功 (重试 {setback.retry_count}/{strategy.max_retries})"
-            setback.resolved_at = int(time.time())
-            
-            return True
-            
-        except Exception as e:
-            # 恢复失败
-            setback.description = f"{setback.description}; 恢复失败：{str(e)}"
-            return False
+        # 冷却等待
+        if strategy.cooldown_seconds > 0:
+            await asyncio.sleep(strategy.cooldown_seconds)
+        
+        # 执行恢复动作
+        if strategy.action:
+            try:
+                await strategy.action(setback)
+                setback.resolved = True
+                setback.resolution = f"通过 {strategy.name} 恢复成功"
+                setback.resolved_at = int(time.time())
+                return True
+            except Exception as e:
+                setback.description = f"{setback.description}; 恢复失败: {str(e)}"
+                setback.resolution = f"恢复失败: {str(e)}"
+                return False
+        
+        # 策略执行成功
+        setback.resolved = True
+        setback.resolution = f"通过 {strategy.name} 恢复成功"
+        setback.resolved_at = int(time.time())
+        
+        return True
     
-    async def _generic_recovery(
-        self,
-        setback: Setback,
-        action: Callable,
-    ) -> bool:
+    async def _generic_recovery(self, setback: Setback) -> bool:
         """通用恢复策略"""
         # 简单重试 3 次
         for i in range(3):
             try:
                 await asyncio.sleep(5 * (i + 1))  # 递增延迟
-                await action()
                 setback.resolved = True
                 setback.resolution = f"通用恢复成功 (重试 {i+1}/3)"
                 setback.resolved_at = int(time.time())
@@ -326,7 +322,7 @@ class SetbackHandler:
     def get_setbacks(
         self,
         agent: Optional[str] = None,
-        type: Optional[SetbackType] = None,
+        setback_type: Optional[SetbackType] = None,
         severity: Optional[SetbackSeverity] = None,
         limit: int = 100,
     ) -> List[Setback]:
@@ -335,8 +331,8 @@ class SetbackHandler:
         
         if agent:
             results = [s for s in results if s.agent == agent]
-        if type:
-            results = [s for s in results if s.type == type]
+        if setback_type:
+            results = [s for s in results if s.type == setback_type]
         if severity:
             results = [s for s in results if s.severity == severity]
         
@@ -416,3 +412,11 @@ class SetbackHandler:
         timestamp = int(time.time() * 1000)
         data = f"setback:{timestamp}"
         return "setback_" + hashlib.md5(data.encode()).hexdigest()[:12]
+    
+    def get_all_setbacks(self) -> List[Setback]:
+        """获取所有挫折记录"""
+        return list(self._setbacks)
+    
+    def get_unresolved_setbacks(self) -> List[Setback]:
+        """获取未解决的挫折"""
+        return [s for s in self._setbacks if not s.resolved]
