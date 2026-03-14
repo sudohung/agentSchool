@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 from ralph_loop.config import RalphLoopConfig
 
@@ -16,7 +16,7 @@ class WorkflowConfig:
     """
     
     # Ralph Loop 配置 (组合)
-    ralph_config: RalphLoopConfig = None
+    ralph_config: RalphLoopConfig = field(default_factory=RalphLoopConfig)
     
     # 工作流特有配置
     quality_passing_score: float = 0.7
@@ -25,11 +25,6 @@ class WorkflowConfig:
     min_team_size: int = 2
     workflow_timeout: int = 86400  # 24 小时
     delivery_path_base: str = "./deliveries"
-    
-    def __post_init__(self):
-        """初始化后处理"""
-        if self.ralph_config is None:
-            self.ralph_config = RalphLoopConfig()
     
     # 代理属性 - 便于访问 RalphLoop 配置
     @property

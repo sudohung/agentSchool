@@ -41,7 +41,7 @@ class IterationController:
     async def start(self, agents: List, team_session):
         """启动 Loop"""
         async with self._lock:
-            if self.status != LoopStatus.IDLE:
+            if self.status == LoopStatus.RUNNING:
                 raise RuntimeError("Loop is already running")
             
             self.status = LoopStatus.RUNNING
@@ -54,7 +54,6 @@ class IterationController:
                 agents_participating=[a.role for a in agents],
             )
             
-            # 启动可视化
             self.visualizer.start_iteration(agents)
     
     async def stop(self):

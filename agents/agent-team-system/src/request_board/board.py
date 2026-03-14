@@ -94,6 +94,10 @@ class RequestBoard:
             
             return True
     
+    async def get_all_requests(self) -> List[Request]:
+        """获取所有诉求"""
+        return list(self._requests.values())
+    
     def _update_indices(self, request: Request):
         """更新索引"""
         for agent in [request.from_agent, request.to_agent]:
