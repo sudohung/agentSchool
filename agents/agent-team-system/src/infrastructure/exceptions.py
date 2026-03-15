@@ -38,6 +38,10 @@ class MetricsExportError(MetricsError):
 class MetricValidationError(MetricsError):
     """指标验证失败"""
     code = "METRIC_VALIDATION_ERROR"
+    
+    def __init__(self, message: str, errors: Optional[List[str]] = None):
+        super().__init__(message)
+        self.errors = errors or []
 
 
 # ============ 日志系统异常 ============

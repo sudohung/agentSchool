@@ -219,6 +219,7 @@ class LoggerManager:
     
     _instance: Optional['LoggerManager'] = None
     _loggers: Dict[str, StructuredLogger] = {}
+    _global_config: Optional[LogConfig] = None
     
     def __new__(cls) -> 'LoggerManager':
         """单例模式"""
@@ -237,12 +238,21 @@ class LoggerManager:
         Returns:
             StructuredLogger 实例
         """
+        # 使用全局配置（如果已设置）
+        effective_config = config or self._global_config
+        
         if name not in self._loggers:
-            self._loggers[name] = StructuredLogger(name, config)
+            self._loggers[name] = StructuredLogger(name, effective_config)
+        elif effective_config:
+            # 更新现有 logger 的配置
+            self._loggers[name].config = effective_config
+            self._loggers[name]._logger = self._loggers[name]._setup_logger()
+        
         return self._loggers[name]
     
     def configure(self, config: LogConfig):
         """配置所有日志记录器"""
+        self._global_config = config
         for logger in self._loggers.values():
             logger.config = config
             logger._logger = logger._setup_logger()
@@ -262,4 +272,5 @@ def get_logger(name: str, config: Optional[LogConfig] = None) -> StructuredLogge
 
 def configure_logging(config: LogConfig):
     """配置日志系统"""
-    LoggerManager().configure(config)
+    manager = LoggerManager()
+    manager.configure(config)
