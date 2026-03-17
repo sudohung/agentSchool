@@ -20,4 +20,21 @@ public class ConfigAPI {
     public Map<String, Object> get() {
         return http.get("/config", Map.class);
     }
+
+    /**
+     * Update configuration.
+     * @param config configuration updates
+     * @return updated configuration
+     */
+    public Map<String, Object> update(Map<String, Object> config) {
+        return http.patch("/config", config, Map.class);
+    }
+
+    /**
+     * Get configured providers.
+     * @return providers and default models
+     */
+    public Map<String, Object> providers() {
+        return http.get("/config/providers", Map.class);
+    }
 }
