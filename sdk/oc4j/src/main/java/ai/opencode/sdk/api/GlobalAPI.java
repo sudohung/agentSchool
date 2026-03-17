@@ -44,4 +44,42 @@ public class GlobalAPI {
     public Boolean dispose() {
         return http.post("/global/dispose", null, Boolean.class);
     }
+
+    /**
+     * Write a log entry.
+     * @param entry log entry with service, level, message, and optional extra data
+     * @return true if log was written successfully
+     */
+    public Boolean log(Map<String, Object> entry) {
+        return http.post("/log", entry, Boolean.class);
+    }
+
+    /**
+     * Write a simple log message.
+     * @param level log level (debug, info, warn, error)
+     * @param message log message
+     * @param service service name (default: "opencode-sdk")
+     * @param extra optional additional data
+     * @return true if log was written successfully
+     */
+    public Boolean logMessage(String level, String message, String service, Map<String, Object> extra) {
+        Map<String, Object> entry = new HashMap<>();
+        entry.put("service", service != null ? service : "opencode-sdk");
+        entry.put("level", level);
+        entry.put("message", message);
+        if (extra != null) {
+            entry.put("extra", extra);
+        }
+        return log(entry);
+    }
+
+    /**
+     * Write a simple log message with default service name.
+     * @param level log level (debug, info, warn, error)
+     * @param message log message
+     * @return true if log was written successfully
+     */
+    public Boolean logMessage(String level, String message) {
+        return logMessage(level, message, "opencode-sdk", null);
+    }
 }

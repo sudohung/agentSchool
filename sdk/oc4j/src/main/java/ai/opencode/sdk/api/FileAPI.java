@@ -21,7 +21,10 @@ public class FileAPI {
      * @return list of file nodes
      */
     public List<Map<String, Object>> list(String path) {
-        return http.get("/file", List.class);
+        Map<String, String> params = new HashMap<>();
+        params.put("path", path);
+        if (directory != null) params.put("directory", directory);
+        return http.get("/file", params, List.class);
     }
 
     /**
@@ -38,7 +41,10 @@ public class FileAPI {
      * @return file content
      */
     public Map<String, Object> read(String path) {
-        return http.get("/file/content", Map.class);
+        Map<String, String> params = new HashMap<>();
+        params.put("path", path);
+        if (directory != null) params.put("directory", directory);
+        return http.get("/file/content", params, Map.class);
     }
 
     /**
@@ -56,7 +62,11 @@ public class FileAPI {
      * @return list of search matches
      */
     public List<Map<String, Object>> searchText(String pattern, String path) {
-        return http.get("/find", List.class);
+        Map<String, String> params = new HashMap<>();
+        params.put("pattern", pattern);
+        if (path != null) params.put("path", path);
+        if (directory != null) params.put("directory", directory);
+        return http.get("/find", params, List.class);
     }
 
     /**
@@ -76,7 +86,12 @@ public class FileAPI {
      * @return list of file paths
      */
     public List<String> findFiles(String query, String type, Integer limit) {
-        return http.get("/find/file", List.class);
+        Map<String, Object> params = new HashMap<>();
+        params.put("query", query);
+        if (type != null) params.put("type", type);
+        if (limit != null) params.put("limit", limit);
+        if (directory != null) params.put("directory", directory);
+        return http.get("/find/file", params, List.class);
     }
 
     /**
@@ -94,6 +109,9 @@ public class FileAPI {
      * @return list of symbols
      */
     public List<Map<String, Object>> findSymbols(String query) {
-        return http.get("/find/symbol", List.class);
+        Map<String, String> params = new HashMap<>();
+        params.put("query", query);
+        if (directory != null) params.put("directory", directory);
+        return http.get("/find/symbol", params, List.class);
     }
 }

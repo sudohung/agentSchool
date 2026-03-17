@@ -42,7 +42,7 @@ public class SessionAPI {
         if (start != null) params.put("start", start);
         if (search != null) params.put("search", search);
         if (limit != null) params.put("limit", limit);
-        return http.get("/session", List.class);
+        return http.get("/session", params, List.class);
     }
 
     /**
