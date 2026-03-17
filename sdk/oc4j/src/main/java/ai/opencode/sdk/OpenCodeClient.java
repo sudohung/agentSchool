@@ -28,6 +28,9 @@ public class OpenCodeClient implements AutoCloseable {
     private final PathAPI path;
     private final VcsAPI vcs;
     private final LSPAPI lsp;
+    private final InstanceAPI instance;
+    private final ToolAPI tool;
+    private final FormatterAPI formatter;
 
     /**
      * Create a new OpenCode client with default configuration.
@@ -60,6 +63,9 @@ public class OpenCodeClient implements AutoCloseable {
         this.path = new PathAPI(http, dir);
         this.vcs = new VcsAPI(http, dir);
         this.lsp = new LSPAPI(http, dir);
+        this.instance = new InstanceAPI(http, dir);
+        this.tool = new ToolAPI(http, dir);
+        this.formatter = new FormatterAPI(http, dir);
     }
 
     @Override
