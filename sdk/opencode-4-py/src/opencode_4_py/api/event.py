@@ -47,6 +47,8 @@ class EventAPI:
             EventFileEdited,
             EventTodoUpdated,
             EventServerConnected,
+            EventPermissionAsked,
+            EventPermissionReplied,
         )
         
         event_classes = {
@@ -59,6 +61,8 @@ class EventAPI:
             "file.edited": EventFileEdited,
             "todo.updated": EventTodoUpdated,
             "server.connected": EventServerConnected,
+            "permission.asked": EventPermissionAsked,
+            "permission.replied": EventPermissionReplied,
         }
         
         event_class = event_classes.get(event_type)
@@ -106,6 +110,8 @@ class AsyncEventAPI:
             EventFileEdited,
             EventTodoUpdated,
             EventServerConnected,
+            EventPermissionAsked,
+            EventPermissionReplied,
         )
         
         event_classes = {
@@ -118,6 +124,8 @@ class AsyncEventAPI:
             "file.edited": EventFileEdited,
             "todo.updated": EventTodoUpdated,
             "server.connected": EventServerConnected,
+            "permission.asked": EventPermissionAsked,
+            "permission.replied": EventPermissionReplied,
         }
         
         event_class = event_classes.get(event_type)

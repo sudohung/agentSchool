@@ -17,6 +17,7 @@ from .provider import ProviderAPI
 from .global_ import GlobalAPI, LoggingAPI
 from .question import QuestionAPI
 from .mcp_extended import MCPExtendedAPI
+from .permission import PermissionAPI
 
 __all__ = [
     "SessionAPI",
@@ -38,8 +39,9 @@ __all__ = [
     "ProviderAPI",
     "GlobalAPI",
     "LoggingAPI",
-    "QuestionAPI",
+"QuestionAPI",
     "MCPExtendedAPI",
+    "PermissionAPI",
 ]
 
 # Question API

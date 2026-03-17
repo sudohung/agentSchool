@@ -7,6 +7,7 @@ from typing import Optional, List, Literal, Union, Dict, Any
 
 from .session import Session, SessionStatus, Todo
 from .message import Message, Part
+from .permission import PermissionRequest
 
 
 class EventSessionCreated(BaseModel):
@@ -78,13 +79,23 @@ class EventMessagePartDelta(BaseModel):
 class EventPermissionAsked(BaseModel):
     """Permission asked event."""
     type: Literal["permission.asked"] = "permission.asked"
-    properties: Dict[str, Any]
+    properties: PermissionRequest
 
 
-class EventPermissionUpdated(BaseModel):
-    """Permission updated event."""
-    type: Literal["permission.updated"] = "permission.updated"
-    properties: Dict[str, Any]
+class EventPermissionReplied(BaseModel):
+    """Permission replied event."""
+    type: Literal["permission.replied"] = "permission.replied"
+    properties: "PermissionRepliedProperties"
+
+
+class PermissionRepliedProperties(BaseModel):
+    """Properties for permission replied event."""
+    session_id: str = Field(..., alias="sessionID")
+    request_id: str = Field(..., alias="requestID")
+    reply: Literal["once", "always", "reject"]
+    
+    class Config:
+        populate_by_name = True
 
 
 class EventQuestionAsked(BaseModel):
@@ -136,7 +147,7 @@ Event = Union[
     EventMessagePartUpdated,
     EventMessagePartDelta,
     EventPermissionAsked,
-    EventPermissionUpdated,
+    EventPermissionReplied,
     EventQuestionAsked,
     EventTodoUpdated,
     EventFileEdited,

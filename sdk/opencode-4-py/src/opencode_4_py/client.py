@@ -23,6 +23,7 @@ from .api.provider import ProviderAPI
 from .api.global_ import GlobalAPI, LoggingAPI
 from .api.question import QuestionAPI
 from .api.mcp_extended import MCPExtendedAPI
+from .api.permission import PermissionAPI
 from .models.global_ import Health
 from .errors import ConnectionError, APIError
 
@@ -68,6 +69,7 @@ class OpenCodeClient:
         self._logging_api: Optional[LoggingAPI] = None
         self._question_api: Optional[QuestionAPI] = None
         self._mcp_extended_api: Optional[MCPExtendedAPI] = None
+        self._permission_api: Optional[PermissionAPI] = None
     
     @property
     def session(self) -> SessionAPI:
@@ -208,6 +210,13 @@ class OpenCodeClient:
         if self._mcp_extended_api is None:
             self._mcp_extended_api = MCPExtendedAPI(self.http, self._client_config.directory)
         return self._mcp_extended_api
+    
+    @property
+    def permission(self) -> PermissionAPI:
+        """Permission API."""
+        if self._permission_api is None:
+            self._permission_api = PermissionAPI(self.http, self._client_config.directory)
+        return self._permission_api
     
     def health_check(self) -> Health:
         """Check server health.

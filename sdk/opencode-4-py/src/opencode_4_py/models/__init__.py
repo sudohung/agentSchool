@@ -46,6 +46,9 @@ from .event import (
     EventSessionUpdated,
     EventMessageUpdated,
     EventMessagePartUpdated,
+    EventPermissionAsked,
+    EventPermissionReplied,
+    PermissionRepliedProperties,
 )
 from .command import Command
 from .file import (
@@ -115,6 +118,12 @@ from .mcp_extended import (
     MCPAuthCallbackRequest,
     MCPConnectRequest,
 )
+from .permission import (
+    PermissionRequest,
+    PermissionReplyRequest,
+    PermissionRespondRequest,
+    PermissionToolRef,
+)
 
 __all__ = [
     "TimeInfo",
@@ -151,6 +160,9 @@ __all__ = [
     "EventSessionUpdated",
     "EventMessageUpdated",
     "EventMessagePartUpdated",
+    "EventPermissionAsked",
+    "EventPermissionReplied",
+    "PermissionRepliedProperties",
     "Command",
     "FileNode",
     "FileContent",
@@ -197,9 +209,13 @@ __all__ = [
     "QuestionReplyRequest",
     "QuestionRejectRequest",
     "MCPAuthResponse",
-    "MCPAuthStartRequest",
+"MCPAuthStartRequest",
     "MCPAuthCallbackRequest",
     "MCPConnectRequest",
+    "PermissionRequest",
+    "PermissionReplyRequest",
+    "PermissionRespondRequest",
+    "PermissionToolRef",
 ]
 
 # Question models

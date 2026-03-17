@@ -54,30 +54,34 @@ class AuthAPI:
 
 ---
 
-#### 2. Permission 模块 (3 个端点)
+#### 2. Permission 模块 (3 个端点) ✅ 已完成
 
-- [ ] `GET /permission` - 列出权限请求
-- [ ] `POST /permission/{requestID}/reply` - 回复权限请求
-- [ ] `POST /session/{sessionID}/permissions/{permissionID}` - 响应权限请求
+- [x] `GET /permission` - 列出权限请求
+- [x] `POST /permission/{requestID}/reply` - 回复权限请求
+- [x] `POST /session/{sessionID}/permissions/{permissionID}` - 响应权限请求
 
 **影响**: 完善权限管理流程
 
-**预计工作量**: 4-6 小时
-
-**实现建议**:
+**已完成实现**:
 ```python
-# 新增 models/permission.py
+# models/permission.py
 class PermissionRequest(BaseModel):
     id: str
     session_id: str
     permission: str
     patterns: List[str]
-    # ... 其他字段
+    metadata: Dict[str, Any]
+    always: List[str]
+    tool: Optional[PermissionToolRef]
 
-# 新增 api/permission.py
+class PermissionReplyRequest(BaseModel):
+    reply: Literal["once", "always", "reject"]
+    message: Optional[str]
+
+# api/permission.py
 class PermissionAPI:
     def list(self) -> List[PermissionRequest]
-    def reply(self, request_id: str, response: str) -> bool
+    def reply(self, request_id: str, reply: str, message: Optional[str]) -> bool
     def respond(self, session_id: str, permission_id: str, response: str) -> bool
 ```
 
@@ -247,7 +251,7 @@ class PermissionAPI:
 ### Phase 1: 核心增强 (1-2 周)
 
 - [ ] 实现 Auth 模块
-- [ ] 实现 Permission 模块
+- [x] 实现 Permission 模块
 - [ ] 补充 Config 模型字段
 
 ### Phase 2: 交互增强 (2-3 周)
@@ -276,8 +280,8 @@ class PermissionAPI:
 |------|------|------|------|
 | 核心模块 | 100% | 100% | ✅ |
 | Auth | 0% | 90% | ⏳ |
-| Permission | 0% | 90% | ⏳ |
-| Question | 0% | 80% | ⏳ |
+| Permission | 100% | 90% | ✅ |
+| Question | 100% | 80% | ✅ |
 | PTY | 0% | 80% | ⏳ |
 | TUI | 0% | 70% | ⏳ |
 
@@ -318,14 +322,14 @@ class PermissionAPI:
 ### v0.2.0 (计划)
 
 - Auth 模块
-- Permission 模块
+- [x] Permission 模块
 - Config 字段补充
 
 ### v0.3.0 (计划)
 
-- Question 模块
+- [x] Question 模块
 - Part 模块
-- MCP 扩展
+- [x] MCP 扩展
 
 ### v1.0.0 (计划)
 
