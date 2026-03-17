@@ -679,6 +679,14 @@ with OpenCodeClient() as client:
 | `connect(name, timeout)` | 连接 MCP 服务器 |
 | `disconnect(name)` | 断开 MCP 服务器 |
 
+### Permission API
+
+| 方法 | 描述 |
+|------|------|
+| `list()` | 列出待处理的权限请求 |
+| `reply(request_id, reply, message)` | 回复权限请求 |
+| `respond(session_id, permission_id, response)` | 响应权限请求 (已弃用) |
+
 ## 使用示例
 
 ### 问题处理
@@ -729,7 +737,38 @@ with OpenCodeClient() as client:
     disconnected = client.mcp_extended.disconnect("my-mcp-server")
     print(f"Disconnected: {disconnected}")
     
-    # 移除认证
+# 移除认证
     removed = client.mcp_extended.auth_remove("my-mcp-server")
     print(f"Auth removed: {removed}")
-```
+    ```
+
+### 权限处理
+
+```python
+from opencode_4_py import OpenCodeClient
+
+with OpenCodeClient() as client:
+    # 列出待处理的权限请求
+    permissions = client.permission.list()
+    for p in permissions:
+        print(f"ID: {p.id}")
+        print(f"Session: {p.session_id}")
+        print(f"Permission: {p.permission}")
+        print(f"Patterns: {p.patterns}")
+        if p.tool:
+            print(f"Tool Call: {p.tool.call_id}")
+    
+    # 回复权限请求
+    if permissions:
+        # 允许一次
+        client.permission.reply(permissions[0].id, reply="once")
+        
+        # 始终允许
+        # client.permission.reply(permissions[0].id, reply="always")
+        
+        # 拒绝
+        # client.permission.reply(permissions[0].id, reply="reject", message="Not allowed")
+    
+    # 使用已弃用的端点 (不推荐)
+    # client.permission.respond(session_id="ses_xxx", permission_id="per_xxx", response="once")
+    ```

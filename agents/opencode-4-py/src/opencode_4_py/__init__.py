@@ -23,6 +23,7 @@ from opencode_4_py.models.path import AppPath, VcsInfo
 from opencode_4_py.models.config import Config
 from opencode_4_py.models.provider import Provider, Model
 from opencode_4_py.models.global_ import Health, LogEntry
+from opencode_4_py.models.permission import PermissionRequest
 
 __all__ = [
     "OpenCodeClient",
@@ -56,4 +57,5 @@ __all__ = [
     "Model",
     "Health",
     "LogEntry",
+    "PermissionRequest",
 ]
