@@ -18,11 +18,16 @@ public class OpenCodeClient implements AutoCloseable {
     private final FileAPI file;
     private final ProviderAPI provider;
     private final ProjectAPI project;
-    private final ConfigAPI config_api;
+    private final ConfigAPI configApi;
     private final AgentAPI agent;
     private final CommandAPI command;
     private final GlobalAPI global;
     private final PermissionAPI permission;
+    private final QuestionAPI question;
+    private final MCPAPI mcp;
+    private final PathAPI path;
+    private final VcsAPI vcs;
+    private final LSPAPI lsp;
 
     /**
      * Create a new OpenCode client with default configuration.
@@ -45,11 +50,16 @@ public class OpenCodeClient implements AutoCloseable {
         this.file = new FileAPI(http, dir);
         this.provider = new ProviderAPI(http, dir);
         this.project = new ProjectAPI(http, dir);
-        this.config_api = new ConfigAPI(http, dir);
+        this.configApi = new ConfigAPI(http, dir);
         this.agent = new AgentAPI(http, dir);
         this.command = new CommandAPI(http, dir);
         this.global = new GlobalAPI(http);
         this.permission = new PermissionAPI(http, dir);
+        this.question = new QuestionAPI(http, dir);
+        this.mcp = new MCPAPI(http, dir);
+        this.path = new PathAPI(http, dir);
+        this.vcs = new VcsAPI(http, dir);
+        this.lsp = new LSPAPI(http, dir);
     }
 
     @Override
