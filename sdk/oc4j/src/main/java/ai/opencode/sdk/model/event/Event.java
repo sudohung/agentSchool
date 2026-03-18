@@ -28,6 +28,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
     @JsonSubTypes.Type(value = EventFileEdited.class, name = "file.edited"),
     @JsonSubTypes.Type(value = EventFileWatcherUpdated.class, name = "file.watcher.updated"),
     @JsonSubTypes.Type(value = EventServerConnected.class, name = "server.connected"),
+    @JsonSubTypes.Type(value = EventServerHeartbeat.class, name = "server.heartbeat"),
     @JsonSubTypes.Type(value = EventGlobalDisposed.class, name = "global.disposed")
 })
 @JsonIgnoreProperties(ignoreUnknown = true)

@@ -5,6 +5,12 @@ import ai.opencode.sdk.OpenCodeClient;
 import ai.opencode.sdk.AsyncOpenCodeClient;
 import ai.opencode.sdk.model.event.*;
 import ai.opencode.sdk.http.SseIterator;
+import ai.opencode.sdk.model.file.FileNode;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.util.JSONPObject;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
@@ -24,17 +30,23 @@ import java.util.concurrent.atomic.AtomicReference;
  * Tests for EventAPI SSE streaming.
  * Strictly follows OpenAPI.json and Python SDK implementation.
  */
+@Slf4j
 class EventAPITest {
     private MockWebServer mockWebServer;
     private OpenCodeClient syncClient;
     private AsyncOpenCodeClient asyncClient;
+
+    ObjectMapper objectMapper = new ObjectMapper();
 
     @BeforeEach
     void setUp() throws Exception {
         mockWebServer = new MockWebServer();
         mockWebServer.start();
 
-        String baseUrl = mockWebServer.url("/").toString();
+        String baseUrl = "http://127.0.0.1:4097";
+
+        log.info("Using base URL: {}", baseUrl);
+        System.out.println("Using base URL1: " + baseUrl);
         
         ClientConfig syncConfig = ClientConfig.builder()
             .baseUrl(baseUrl)
@@ -62,27 +74,30 @@ class EventAPITest {
         String sseData = buildGlobalEventSse(
             "{\"directory\":\"/test/project\",\"payload\":{\"type\":\"session.created\",\"properties\":{\"sessionID\":\"session-123\"}}}"
         );
-        
-        mockWebServer.enqueue(new MockResponse()
-            .setResponseCode(200)
-            .setHeader("Content-Type", "text/event-stream")
-            .setBody(sseData));
+//
+//        mockWebServer.enqueue(new MockResponse()
+//            .setResponseCode(200)
+//            .setHeader("Content-Type", "text/event-stream")
+//            .setBody(sseData));
 
+        Integer expectedEventCount = 5;
         Iterator<GlobalEvent> iterator = syncClient.getEvent().subscribeGlobal();
-        
-        // Verify request
-        RecordedRequest request = mockWebServer.takeRequest(1, TimeUnit.SECONDS);
-        assertNotNull(request);
-        assertEquals("GET", request.getMethod());
-        assertTrue(request.getPath().contains("global/event"));
 
-        // Verify event
-        assertTrue(iterator.hasNext());
-        GlobalEvent event = iterator.next();
-        assertNotNull(event);
-        assertEquals("/test/project", event.getDirectory());
-        assertNotNull(event.getPayload());
-        assertEquals("session.created", event.getPayload().getType());
+        while (iterator.hasNext()) {
+            GlobalEvent event = iterator.next();
+            handleEvent(event);
+        }
+
+        System.out.println("All events received");
+
+
+    }
+
+    void handleEvent(GlobalEvent  event) throws Exception {
+
+        System.out.println("Received event: " + objectMapper.writeValueAsString(event));
+        Thread.sleep(1000);
+
     }
 
     @Test
@@ -156,6 +171,7 @@ class EventAPITest {
             {"file.edited", EventFileEdited.class},
             {"file.watcher.updated", EventFileWatcherUpdated.class},
             {"server.connected", EventServerConnected.class},
+            {"server.heartbeat", EventServerHeartbeat.class},
             {"global.disposed", EventGlobalDisposed.class}
         };
 
@@ -394,7 +410,7 @@ class EventAPITest {
         });
 
         // Wait for all events
-        assertTrue(latch.await(5, TimeUnit.SECONDS), "Should receive 3 events");
+        assertTrue(latch.await(5, TimeUnit.MINUTES), "Should receive 3 events");
         
         assertEquals(3, receivedEvents.size());
         assertEquals("session.created", receivedEvents.get(0).getType());

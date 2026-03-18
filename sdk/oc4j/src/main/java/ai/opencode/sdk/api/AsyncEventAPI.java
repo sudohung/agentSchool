@@ -83,6 +83,7 @@ public class AsyncEventAPI {
         try {
             return mapper.readValue(data, Event.class);
         } catch (Exception e) {
+            e.printStackTrace();
             return null;
         }
     }
