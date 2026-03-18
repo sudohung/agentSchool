@@ -15,7 +15,7 @@ public class QuickIntegrationTest {
         System.out.println("Java OpenCode SDK Quick Integration Test");
         System.out.println("==========================================\n");
         
-        String baseUrl = "http://127.0.0.1:4097";
+        String baseUrl = "http://127.0.0.1:4096";
         System.out.println("Connecting to: " + baseUrl);
         
         try {

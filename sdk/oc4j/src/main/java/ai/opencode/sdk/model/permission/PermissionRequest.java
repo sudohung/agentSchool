@@ -15,6 +15,9 @@ public class PermissionRequest {
     @JsonProperty("sessionID")
     private String sessionId;
 
+    @JsonProperty("requestID")
+    private String requestId;
+
     private String permission;
     private List<String> patterns;
     private Map<String, Object> metadata;

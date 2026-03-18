@@ -4,6 +4,8 @@ import ai.opencode.sdk.model.session.Session;
 import ai.opencode.sdk.model.session.Todo;
 import ai.opencode.sdk.model.file.FileNode;
 import ai.opencode.sdk.model.file.FileContent;
+import ai.opencode.sdk.model.file.FileStatus;
+import ai.opencode.sdk.model.file.Symbol;
 import ai.opencode.sdk.model.project.Project;
 import ai.opencode.sdk.model.agent.Agent;
 import ai.opencode.sdk.model.provider.Provider;
@@ -21,10 +23,10 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Integration tests for Java OpenCode SDK.
- * Connects to real server at http://127.0.0.1:4097/
+ * Connects to real server at http://127.0.0.1:4096/
  * 
  * Prerequisites:
- * - OpenCode server must be running at http://127.0.0.1:4097/
+ * - OpenCode server must be running at http://127.0.0.1:4096/
  * - Run with: mvn test -Dtest=IntegrationTest
  */
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
@@ -37,12 +39,12 @@ public class IntegrationTest {
     @BeforeAll
     static void setUpAll() {
         ClientConfig config = ClientConfig.builder()
-            .baseUrl("http://127.0.0.1:4097")
+            .baseUrl("http://127.0.0.1:4096")
             .timeout(java.time.Duration.ofSeconds(30))
             .build();
         
         client = new OpenCodeClient(config);
-        System.out.println("Connected to OpenCode server at http://127.0.0.1:4097");
+        System.out.println("Connected to OpenCode server at http://127.0.0.1:4096");
     }
     
     @AfterAll
@@ -228,7 +230,7 @@ public class IntegrationTest {
     @Order(23)
     @DisplayName("Test File Status")
     void testFileStatus() {
-        List<FileNode> status = client.getFile().status();
+        List<FileStatus> status = client.getFile().status();
         assertNotNull(status);
         System.out.println("File status entries: " + status.size());
     }
@@ -246,7 +248,7 @@ public class IntegrationTest {
     @Order(25)
     @DisplayName("Test Find Symbols")
     void testFindSymbols() {
-        List<Map<String, Object>> symbols = client.getFile().findSymbols("test");
+        List<Symbol> symbols = client.getFile().findSymbols("test");
         assertNotNull(symbols);
         System.out.println("Found " + symbols.size() + " symbols matching 'test'");
     }
@@ -416,7 +418,7 @@ public class IntegrationTest {
     @Order(130)
     @DisplayName("Test Formatter Status")
     void testFormatterStatus() {
-        Map<String, Object> status = client.getFormatter().status();
+        List<Object> status = client.getFormatter().status();
         assertNotNull(status);
         System.out.println("Formatter status: " + status);
     }
@@ -441,7 +443,7 @@ public class IntegrationTest {
         System.out.println("Integration Test Summary");
         System.out.println("========================================");
         System.out.println("✅ All API modules tested successfully");
-        System.out.println("✅ Connection to http://127.0.0.1:4097 verified");
+        System.out.println("✅ Connection to http://127.0.0.1:4096 verified");
         System.out.println("✅ Strong type models validated");
         System.out.println("========================================\n");
     }

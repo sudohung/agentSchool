@@ -23,7 +23,7 @@ public class SessionAPI {
      * @return list of sessions
      */
     public List<Session> list() {
-        return http.get("/session", List.class);
+        return http.getList("/session", null, Session.class);
     }
 
     /**
@@ -42,7 +42,7 @@ public class SessionAPI {
         if (start != null) params.put("start", start);
         if (search != null) params.put("search", search);
         if (limit != null) params.put("limit", limit);
-        return http.get("/session", params, List.class);
+        return http.getList("/session", params, Session.class);
     }
 
     /**

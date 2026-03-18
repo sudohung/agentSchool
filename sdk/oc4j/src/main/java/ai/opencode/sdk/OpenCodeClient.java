@@ -10,7 +10,7 @@ import lombok.Getter;
  */
 @Getter
 public class OpenCodeClient implements AutoCloseable {
-    private final ClientConfig config;
+    private final ClientConfig clientConfig;
     private final HttpClient http;
 
     private final SessionAPI session;
@@ -18,7 +18,7 @@ public class OpenCodeClient implements AutoCloseable {
     private final FileAPI file;
     private final ProviderAPI provider;
     private final ProjectAPI project;
-    private final ConfigAPI configApi;
+    private final ConfigAPI configAPI;
     private final AgentAPI agent;
     private final CommandAPI command;
     private final GlobalAPI global;
@@ -45,7 +45,7 @@ public class OpenCodeClient implements AutoCloseable {
      * @param config client configuration
      */
     public OpenCodeClient(ClientConfig config) {
-        this.config = config;
+        this.clientConfig = config;
         this.http = new HttpClient(config);
 
         String dir = config.getDirectory();
@@ -54,7 +54,7 @@ public class OpenCodeClient implements AutoCloseable {
         this.file = new FileAPI(http, dir);
         this.provider = new ProviderAPI(http, dir);
         this.project = new ProjectAPI(http, dir);
-        this.configApi = new ConfigAPI(http, dir);
+        this.configAPI = new ConfigAPI(http, dir);
         this.agent = new AgentAPI(http, dir);
         this.command = new CommandAPI(http, dir);
         this.global = new GlobalAPI(http);
@@ -73,5 +73,9 @@ public class OpenCodeClient implements AutoCloseable {
     @Override
     public void close() {
         // OkHttp client will be closed automatically
+    }
+
+    public ConfigAPI getConfig() {
+        return configAPI;
     }
 }

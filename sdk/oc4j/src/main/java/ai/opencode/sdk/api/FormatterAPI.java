@@ -3,6 +3,7 @@ package ai.opencode.sdk.api;
 import ai.opencode.sdk.http.HttpClient;
 import lombok.RequiredArgsConstructor;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -17,7 +18,7 @@ public class FormatterAPI {
      * Get formatter status.
      * @return list of formatter statuses
      */
-    public Map<String, Object> status() {
-        return http.get("/formatter", Map.class);
+    public List<Object> status() {
+        return http.getList("/formatter", null, Object.class);
     }
 }
