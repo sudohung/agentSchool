@@ -3,6 +3,7 @@ package ai.opencode.sdk.api;
 import ai.opencode.sdk.http.HttpClient;
 import lombok.RequiredArgsConstructor;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**

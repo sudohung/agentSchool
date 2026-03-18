@@ -82,7 +82,11 @@ public class AsyncHttpClient {
                     if (!response.isSuccessful()) {
                         String body = response.body() != null ? response.body().string() : "";
                         Map<String, String> headers = new HashMap<>();
-                        response.headers().forEach(h -> headers.put(h.getName(), h.getValue()));
+                        response.headers().toMultimap().forEach((k, v) -> {
+                            if (v != null && !v.isEmpty()) {
+                                headers.put(k, v.get(0));
+                            }
+                        });
                         boolean retryable = response.code() >= 500 || response.code() == 429;
                         future.completeExceptionally(new APIException(
                             response.code(),
@@ -128,7 +132,7 @@ public class AsyncHttpClient {
             urlBuilder.addQueryParameter("workspace", workspace);
         }
 
-        Request.Builder builder = requestBuilder.newBuilder()
+        Request.Builder builder = new Request.Builder()
             .url(urlBuilder.build());
 
         if (body != null) {
@@ -141,6 +145,10 @@ public class AsyncHttpClient {
         }
 
         return builder.build();
+    }
+
+    Request.Builder getRequestBuilder() {
+        return requestBuilder;
     }
 
     private String toJson(Object obj) {
@@ -168,7 +176,11 @@ public class AsyncHttpClient {
                         String body = response.body() != null ? response.body().string() : "";
                         response.close();
                         Map<String, String> headers = new HashMap<>();
-                        response.headers().forEach(h -> headers.put(h.getName(), h.getValue()));
+                        response.headers().toMultimap().forEach((k, v) -> {
+                            if (v != null && !v.isEmpty()) {
+                                headers.put(k, v.get(0));
+                            }
+                        });
                         boolean retryable = response.code() >= 500 || response.code() == 429;
                         publisher.closeExceptionally(new APIException(
                             response.code(),
@@ -233,7 +245,11 @@ public class AsyncHttpClient {
                         String body = response.body() != null ? response.body().string() : "";
                         response.close();
                         Map<String, String> headers = new HashMap<>();
-                        response.headers().forEach(h -> headers.put(h.getName(), h.getValue()));
+                        response.headers().toMultimap().forEach((k, v) -> {
+                            if (v != null && !v.isEmpty()) {
+                                headers.put(k, v.get(0));
+                            }
+                        });
                         boolean retryable = response.code() >= 500 || response.code() == 429;
                         publisher.closeExceptionally(new APIException(
                             response.code(),
@@ -298,7 +314,7 @@ public class AsyncHttpClient {
             });
         }
 
-        Request.Builder builder = requestBuilder.newBuilder()
+        Request.Builder builder = new Request.Builder()
             .url(urlBuilder.build());
 
         if (body != null) {

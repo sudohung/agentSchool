@@ -85,7 +85,11 @@ public class HttpClient {
             if (!response.isSuccessful()) {
                 String body = response.body() != null ? response.body().string() : "";
                 Map<String, String> headers = new HashMap<>();
-                response.headers().forEach(h -> headers.put(h.getName(), h.getValue()));
+                response.headers().toMultimap().forEach((k, v) -> {
+                    if (v != null && !v.isEmpty()) {
+                        headers.put(k, v.get(0));
+                    }
+                });
                 boolean retryable = response.code() >= 500 || response.code() == 429;
                 throw new APIException(response.code(),
                     "HTTP " + response.code() + ": " + response.message(),
@@ -118,7 +122,11 @@ public class HttpClient {
             if (!response.isSuccessful()) {
                 String body = response.body() != null ? response.body().string() : "";
                 Map<String, String> headers = new HashMap<>();
-                response.headers().forEach(h -> headers.put(h.getName(), h.getValue()));
+                response.headers().toMultimap().forEach((k, v) -> {
+                    if (v != null && !v.isEmpty()) {
+                        headers.put(k, v.get(0));
+                    }
+                });
                 boolean retryable = response.code() >= 500 || response.code() == 429;
                 throw new APIException(response.code(),
                     "HTTP " + response.code() + ": " + response.message(),
@@ -158,7 +166,7 @@ public class HttpClient {
             });
         }
 
-        Request.Builder builder = requestBuilder.newBuilder()
+        Request.Builder builder = new Request.Builder()
             .url(urlBuilder.build());
 
         if (body != null) {
@@ -189,7 +197,11 @@ public class HttpClient {
                 String body = response.body() != null ? response.body().string() : "";
                 response.close();
                 Map<String, String> headers = new HashMap<>();
-                response.headers().forEach(h -> headers.put(h.getName(), h.getValue()));
+                response.headers().toMultimap().forEach((k, v) -> {
+                    if (v != null && !v.isEmpty()) {
+                        headers.put(k, v.get(0));
+                    }
+                });
                 boolean retryable = response.code() >= 500 || response.code() == 429;
                 throw new APIException(response.code(),
                     "HTTP " + response.code() + ": " + response.message(),
@@ -215,7 +227,11 @@ public class HttpClient {
                 String body = response.body() != null ? response.body().string() : "";
                 response.close();
                 Map<String, String> headers = new HashMap<>();
-                response.headers().forEach(h -> headers.put(h.getName(), h.getValue()));
+                response.headers().toMultimap().forEach((k, v) -> {
+                    if (v != null && !v.isEmpty()) {
+                        headers.put(k, v.get(0));
+                    }
+                });
                 boolean retryable = response.code() >= 500 || response.code() == 429;
                 throw new APIException(response.code(),
                     "HTTP " + response.code() + ": " + response.message(),
@@ -250,7 +266,7 @@ public class HttpClient {
             });
         }
 
-        Request.Builder builder = requestBuilder.newBuilder()
+        Request.Builder builder = new Request.Builder()
             .url(urlBuilder.build());
 
         if (body != null) {
@@ -263,5 +279,9 @@ public class HttpClient {
         }
 
         return builder.build();
+    }
+
+    Request.Builder getRequestBuilder() {
+        return requestBuilder;
     }
 }
