@@ -23,6 +23,7 @@ public class AsyncOpenCodeClient implements AutoCloseable {
     private final CommandAPI command;
     private final GlobalAPI global;
     private final PermissionAPI permission;
+    private final AsyncEventAPI event;
 
     /**
      * Create a new async OpenCode client with default configuration.
@@ -50,6 +51,7 @@ public class AsyncOpenCodeClient implements AutoCloseable {
         this.command = new CommandAPI(http, dir);
         this.global = new GlobalAPI(http);
         this.permission = new PermissionAPI(http, dir);
+        this.event = new AsyncEventAPI(http, dir, config.getWorkspace());
     }
 
     @Override

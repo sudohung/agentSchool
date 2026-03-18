@@ -31,6 +31,7 @@ public class OpenCodeClient implements AutoCloseable {
     private final InstanceAPI instance;
     private final ToolAPI tool;
     private final FormatterAPI formatter;
+    private final EventAPI event;
 
     /**
      * Create a new OpenCode client with default configuration.
@@ -66,6 +67,7 @@ public class OpenCodeClient implements AutoCloseable {
         this.instance = new InstanceAPI(http, dir);
         this.tool = new ToolAPI(http, dir);
         this.formatter = new FormatterAPI(http, dir);
+        this.event = new EventAPI(http, dir, config.getWorkspace());
     }
 
     @Override
