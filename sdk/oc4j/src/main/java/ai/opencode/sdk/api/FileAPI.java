@@ -90,15 +90,28 @@ public class FileAPI {
      * @param query search query (fuzzy match)
      * @param type filter by "file" or "directory"
      * @param limit max results (1-200)
+     * @param dirs comma-separated list of directories to search
      * @return list of file paths
      */
-    public List<String> findFiles(String query, String type, Integer limit) {
+    public List<String> findFiles(String query, String type, Integer limit, String dirs) {
         Map<String, Object> params = new HashMap<>();
         params.put("query", query);
         if (type != null) params.put("type", type);
         if (limit != null) params.put("limit", limit);
+        if (dirs != null) params.put("dirs", dirs);
         if (directory != null) params.put("directory", directory);
         return http.get("/find/file", params, List.class);
+    }
+
+    /**
+     * Find files by name.
+     * @param query search query (fuzzy match)
+     * @param type filter by "file" or "directory"
+     * @param limit max results (1-200)
+     * @return list of file paths
+     */
+    public List<String> findFiles(String query, String type, Integer limit) {
+        return findFiles(query, type, limit, null);
     }
 
     /**
@@ -107,7 +120,7 @@ public class FileAPI {
      * @return list of file paths
      */
     public List<String> findFiles(String query) {
-        return findFiles(query, null, null);
+        return findFiles(query, null, null, null);
     }
 
     /**

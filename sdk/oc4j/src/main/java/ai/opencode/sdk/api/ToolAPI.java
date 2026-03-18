@@ -25,11 +25,15 @@ public class ToolAPI {
 
     /**
      * List tools with JSON schemas for a model.
-     * @param provider provider ID (e.g., "anthropic")
-     * @param model model ID (e.g., "claude-3-5-sonnet")
+     * @param provider provider ID (e.g., "anthropic") - REQUIRED
+     * @param model model ID (e.g., "claude-3-5-sonnet") - REQUIRED
      * @return list of tools with schemas
      */
     public List<Map<String, Object>> list(String provider, String model) {
-        return http.get("/experimental/tool", List.class);
+        Map<String, String> params = new HashMap<>();
+        params.put("provider", provider);
+        params.put("model", model);
+        if (directory != null) params.put("directory", directory);
+        return http.get("/experimental/tool", params, List.class);
     }
 }

@@ -109,4 +109,14 @@ public class MCPAPI {
     public Boolean disconnect(String name) {
         return http.post("/mcp/" + name + "/disconnect", null, Boolean.class);
     }
+
+    /**
+     * Authenticate MCP OAuth - start OAuth flow and wait for callback.
+     * Opens browser for user authentication.
+     * @param name server name
+     * @return MCP status after authentication
+     */
+    public Map<String, Object> authAuthenticate(String name) {
+        return http.post("/mcp/" + name + "/auth/authenticate", null, Map.class);
+    }
 }
