@@ -1,6 +1,8 @@
 package ai.opencode.sdk.api;
 
 import ai.opencode.sdk.http.HttpClient;
+import ai.opencode.sdk.model.provider.ProviderListResponse;
+import ai.opencode.sdk.model.provider.ProviderAuthAuthorization;
 import lombok.RequiredArgsConstructor;
 
 import java.util.HashMap;
@@ -18,8 +20,10 @@ public class ProviderAPI {
      * List all providers.
      * @return list of providers with default models and connected providers
      */
-    public Map<String, Object> list() {
-        return http.get("/provider", Map.class);
+    public ProviderListResponse list() {
+        Map<String, String> params = new HashMap<>();
+        if (directory != null) params.put("directory", directory);
+        return http.get("/provider", params, ProviderListResponse.class);
     }
 
     /**
@@ -27,7 +31,9 @@ public class ProviderAPI {
      * @return map of provider ID to auth methods
      */
     public Map<String, Object> auth() {
-        return http.get("/provider/auth", Map.class);
+        Map<String, String> params = new HashMap<>();
+        if (directory != null) params.put("directory", directory);
+        return http.get("/provider/auth", params, Map.class);
     }
 
     /**
@@ -36,10 +42,10 @@ public class ProviderAPI {
      * @param method auth method index
      * @return authorization URL and instructions
      */
-    public Map<String, Object> oauthAuthorize(String providerId, Integer method) {
+    public ProviderAuthAuthorization oauthAuthorize(String providerId, Integer method) {
         Map<String, Object> body = new HashMap<>();
         if (method != null) body.put("method", method);
-        return http.post("/provider/" + providerId + "/oauth/authorize", body, Map.class);
+        return http.post("/provider/" + providerId + "/oauth/authorize", body, ProviderAuthAuthorization.class);
     }
 
     /**
@@ -47,7 +53,7 @@ public class ProviderAPI {
      * @param providerId provider ID
      * @return authorization URL and instructions
      */
-    public Map<String, Object> oauthAuthorize(String providerId) {
+    public ProviderAuthAuthorization oauthAuthorize(String providerId) {
         return oauthAuthorize(providerId, null);
     }
 

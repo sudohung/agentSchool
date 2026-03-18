@@ -1,8 +1,10 @@
 package ai.opencode.sdk.api;
 
 import ai.opencode.sdk.http.HttpClient;
+import ai.opencode.sdk.model.agent.Agent;
 import lombok.RequiredArgsConstructor;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -16,9 +18,11 @@ public class AgentAPI {
 
     /**
      * List agents.
-     * @return agents
+     * @return list of agents
      */
-    public List<Map<String, Object>> list() {
-        return http.get("/agent", List.class);
+    public List<Agent> list() {
+        Map<String, String> params = new HashMap<>();
+        if (directory != null) params.put("directory", directory);
+        return http.getList("/agent", params, Agent.class);
     }
 }

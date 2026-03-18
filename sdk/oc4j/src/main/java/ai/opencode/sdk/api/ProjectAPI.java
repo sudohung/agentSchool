@@ -1,6 +1,7 @@
 package ai.opencode.sdk.api;
 
 import ai.opencode.sdk.http.HttpClient;
+import ai.opencode.sdk.model.project.Project;
 import lombok.RequiredArgsConstructor;
 
 import java.util.HashMap;
@@ -19,16 +20,20 @@ public class ProjectAPI {
      * List all projects.
      * @return list of projects
      */
-    public List<Map<String, Object>> list() {
-        return http.get("/project", List.class);
+    public List<Project> list() {
+        Map<String, String> params = new HashMap<>();
+        if (directory != null) params.put("directory", directory);
+        return http.getList("/project", params, Project.class);
     }
 
     /**
      * Get current project.
      * @return current project
      */
-    public Map<String, Object> current() {
-        return http.get("/project/current", Map.class);
+    public Project current() {
+        Map<String, String> params = new HashMap<>();
+        if (directory != null) params.put("directory", directory);
+        return http.get("/project/current", params, Project.class);
     }
 
     /**
@@ -39,13 +44,13 @@ public class ProjectAPI {
      * @param commands commands configuration
      * @return updated project
      */
-    public Map<String, Object> update(String projectId, String name, 
-                                      Map<String, Object> icon, Map<String, Object> commands) {
+    public Project update(String projectId, String name, 
+                          Map<String, Object> icon, Map<String, Object> commands) {
         Map<String, Object> body = new HashMap<>();
         if (name != null) body.put("name", name);
         if (icon != null) body.put("icon", icon);
         if (commands != null) body.put("commands", commands);
-        return http.patch("/project/" + projectId, body, Map.class);
+        return http.patch("/project/" + projectId, body, Project.class);
     }
 
     /**
@@ -54,7 +59,7 @@ public class ProjectAPI {
      * @param name new project name
      * @return updated project
      */
-    public Map<String, Object> update(String projectId, String name) {
+    public Project update(String projectId, String name) {
         return update(projectId, name, null, null);
     }
 
@@ -62,7 +67,9 @@ public class ProjectAPI {
      * Initialize git repository for the current project.
      * @return project after git initialization
      */
-    public Map<String, Object> initGit() {
-        return http.post("/project/git/init", null, Map.class);
+    public Project initGit() {
+        Map<String, String> params = new HashMap<>();
+        if (directory != null) params.put("directory", directory);
+        return http.post("/project/git/init", null, Project.class);
     }
 }

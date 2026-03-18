@@ -1,6 +1,11 @@
 package ai.opencode.sdk.api;
 
 import ai.opencode.sdk.http.HttpClient;
+import ai.opencode.sdk.model.file.FileNode;
+import ai.opencode.sdk.model.file.FileContent;
+import ai.opencode.sdk.model.file.FileStatus;
+import ai.opencode.sdk.model.file.TextSearchMatch;
+import ai.opencode.sdk.model.file.Symbol;
 import lombok.RequiredArgsConstructor;
 
 import java.util.HashMap;
@@ -20,18 +25,18 @@ public class FileAPI {
      * @param path directory path (default: ".")
      * @return list of file nodes
      */
-    public List<Map<String, Object>> list(String path) {
+    public List<FileNode> list(String path) {
         Map<String, String> params = new HashMap<>();
         params.put("path", path);
         if (directory != null) params.put("directory", directory);
-        return http.get("/file", params, List.class);
+        return http.getList("/file", params, FileNode.class);
     }
 
     /**
      * List files in current directory.
      * @return list of file nodes
      */
-    public List<Map<String, Object>> list() {
+    public List<FileNode> list() {
         return list(".");
     }
 
@@ -40,19 +45,21 @@ public class FileAPI {
      * @param path file path
      * @return file content
      */
-    public Map<String, Object> read(String path) {
+    public FileContent read(String path) {
         Map<String, String> params = new HashMap<>();
         params.put("path", path);
         if (directory != null) params.put("directory", directory);
-        return http.get("/file/content", params, Map.class);
+        return http.get("/file/content", params, FileContent.class);
     }
 
     /**
      * Get Git file status.
      * @return list of file statuses
      */
-    public List<Map<String, Object>> status() {
-        return http.get("/file/status", List.class);
+    public List<FileStatus> status() {
+        Map<String, String> params = new HashMap<>();
+        if (directory != null) params.put("directory", directory);
+        return http.getList("/file/status", params, FileStatus.class);
     }
 
     /**
@@ -61,12 +68,12 @@ public class FileAPI {
      * @param path optional path scope
      * @return list of search matches
      */
-    public List<Map<String, Object>> searchText(String pattern, String path) {
+    public List<TextSearchMatch> searchText(String pattern, String path) {
         Map<String, String> params = new HashMap<>();
         params.put("pattern", pattern);
         if (path != null) params.put("path", path);
         if (directory != null) params.put("directory", directory);
-        return http.get("/find", params, List.class);
+        return http.getList("/find", params, TextSearchMatch.class);
     }
 
     /**
@@ -74,7 +81,7 @@ public class FileAPI {
      * @param pattern regex pattern
      * @return list of search matches
      */
-    public List<Map<String, Object>> searchText(String pattern) {
+    public List<TextSearchMatch> searchText(String pattern) {
         return searchText(pattern, null);
     }
 
@@ -108,10 +115,10 @@ public class FileAPI {
      * @param query symbol name query
      * @return list of symbols
      */
-    public List<Map<String, Object>> findSymbols(String query) {
+    public List<Symbol> findSymbols(String query) {
         Map<String, String> params = new HashMap<>();
         params.put("query", query);
         if (directory != null) params.put("directory", directory);
-        return http.get("/find/symbol", params, List.class);
+        return http.getList("/find/symbol", params, Symbol.class);
     }
 }

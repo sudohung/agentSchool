@@ -10,9 +10,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+
+import com.fasterxml.jackson.core.type.TypeReference;
 
 /**
  * Synchronous HTTP client for OpenCode API.
@@ -51,6 +54,10 @@ public class HttpClient {
 
     public <T> T get(String path, Map<String, ?> params, Class<T> responseType) {
         return execute(buildRequestWithParams("GET", path, null, params), responseType);
+    }
+
+    public <T> List<T> getList(String path, Map<String, ?> params, Class<T> elementType) {
+        return executeList(buildRequestWithParams("GET", path, null, params), elementType);
     }
 
     public <T> T post(String path, Object body, Class<T> responseType) {
@@ -101,6 +108,30 @@ public class HttpClient {
                 return null;
             }
             return mapper.readValue(json, responseType);
+        } catch (IOException e) {
+            throw new ConnectionException("Request failed: " + e.getMessage());
+        }
+    }
+
+    private <T> List<T> executeList(Request request, Class<T> elementType) {
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                String body = response.body() != null ? response.body().string() : "";
+                Map<String, String> headers = new HashMap<>();
+                response.headers().forEach(h -> headers.put(h.getName(), h.getValue()));
+                boolean retryable = response.code() >= 500 || response.code() == 429;
+                throw new APIException(response.code(),
+                    "HTTP " + response.code() + ": " + response.message(),
+                    body, headers, retryable);
+            }
+
+            ResponseBody responseBody = response.body();
+            if (responseBody == null) {
+                return null;
+            }
+
+            String json = responseBody.string();
+            return mapper.readValue(json, mapper.getTypeFactory().constructCollectionType(List.class, elementType));
         } catch (IOException e) {
             throw new ConnectionException("Request failed: " + e.getMessage());
         }
