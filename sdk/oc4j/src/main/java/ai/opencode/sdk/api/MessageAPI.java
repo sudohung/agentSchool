@@ -30,7 +30,10 @@ public class MessageAPI {
      * @return list of messages with parts
      */
     public List<MessageWithParts> list(String sessionId, Integer limit) {
-        return http.get("/session/" + sessionId + "/message", List.class);
+        Map<String, Object> params = new HashMap<>();
+        if (limit != null) params.put("limit", limit);
+        if (directory != null) params.put("directory", directory);
+        return http.get("/session/" + sessionId + "/message", params, List.class);
     }
 
     /**
@@ -210,5 +213,28 @@ public class MessageAPI {
      */
     public Boolean delete(String sessionId, String messageId) {
         return http.deleteWithResponse("/session/" + sessionId + "/message/" + messageId);
+    }
+
+    /**
+     * Update a message part.
+     * @param sessionId session ID
+     * @param messageId message ID
+     * @param partId part ID
+     * @param updates part updates
+     * @return true if successful
+     */
+    public Boolean updatePart(String sessionId, String messageId, String partId, Map<String, Object> updates) {
+        return http.patch("/session/" + sessionId + "/message/" + messageId + "/part/" + partId, updates, Boolean.class);
+    }
+
+    /**
+     * Delete a message part.
+     * @param sessionId session ID
+     * @param messageId message ID
+     * @param partId part ID
+     * @return true if deleted
+     */
+    public Boolean deletePart(String sessionId, String messageId, String partId) {
+        return http.deleteWithResponse("/session/" + sessionId + "/message/" + messageId + "/part/" + partId);
     }
 }

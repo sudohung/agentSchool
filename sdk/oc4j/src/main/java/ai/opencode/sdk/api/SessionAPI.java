@@ -181,7 +181,10 @@ public class SessionAPI {
      * @return list of file diffs
      */
     public List<FileDiff> diff(String sessionId, String messageId) {
-        return http.get("/session/" + sessionId + "/diff", List.class);
+        Map<String, String> params = new HashMap<>();
+        if (messageId != null) params.put("messageID", messageId);
+        if (directory != null) params.put("directory", directory);
+        return http.get("/session/" + sessionId + "/diff", params, List.class);
     }
 
     /**
