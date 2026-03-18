@@ -32,8 +32,8 @@ public class Agent {
     
     private Double temperature;
     private String color;
-    private Map<String, Object> permission;
-    private Map<String, Object> model;
+    private List<AgentPermission> permission;
+    private AgentModel model;
     private String variant;
     private String prompt;
     private Map<String, Object> options;

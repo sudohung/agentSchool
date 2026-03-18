@@ -2,15 +2,11 @@ package ai.opencode.sdk.model.session;
 
 import ai.opencode.sdk.model.common.TimeInfo;
 import ai.opencode.sdk.model.common.SessionSummary;
-import ai.opencode.sdk.model.common.ModelRef;
+import ai.opencode.sdk.model.agent.AgentPermission;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import java.util.List;
-import java.util.Map;
 
-/**
- * Session information.
- */
 @Data
 public class Session {
     private String id;
@@ -28,10 +24,10 @@ public class Session {
     private String parentId;
     
     private SessionSummary summary;
-    private Map<String, String> share;
+    private ShareInfo share;
     private String title;
     private String version;
     private TimeInfo time;
-    private Map<String, Object> permission;
-    private Map<String, Object> revert;
+    private List<AgentPermission> permission;
+    private RevertInfo revert;
 }

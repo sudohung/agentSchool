@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.util.List;
-import java.util.Map;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -15,12 +14,19 @@ public class Project {
     @JsonProperty("worktree")
     private String worktree;
     
-    private String vcs;
+    @JsonProperty("vcs")
+    private VcsType vcs;
+    
     private String name;
-    private Map<String, Object> icon;
-    private Map<String, Object> commands;
-    private Map<String, Object> time;
+    private ProjectIcon icon;
+    private ProjectCommands commands;
+    private ProjectTime time;
     
     @JsonProperty("sandboxes")
     private List<String> sandboxes;
+
+    public enum VcsType {
+        @JsonProperty("git")
+        GIT
+    }
 }
