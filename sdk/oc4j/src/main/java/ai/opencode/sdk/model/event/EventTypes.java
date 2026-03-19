@@ -26,6 +26,8 @@ public interface EventTypes {
     
     // Question events
     String QUESTION_ASKED = "question.asked";
+    String QUESTION_REPLIED = "question.replied";
+    String QUESTION_REJECTED = "question.rejected";
     
     // Todo events
     String TODO_UPDATED = "todo.updated";

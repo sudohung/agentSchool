@@ -10,5 +10,11 @@ import java.util.Map;
 @EqualsAndHashCode(callSuper = true)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class EventMessagePartUpdated extends Event {
-    private Map<String, Object> properties;
+    private Properties properties;
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Properties {
+        private Map<String, Object> part;
+    }
 }

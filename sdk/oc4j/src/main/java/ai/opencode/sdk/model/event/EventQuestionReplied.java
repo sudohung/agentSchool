@@ -5,10 +5,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+import java.util.List;
+
 @Data
 @EqualsAndHashCode(callSuper = true)
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class EventMessageRemoved extends Event {
+public class EventQuestionReplied extends Event {
     private Properties properties;
 
     @Data
@@ -17,7 +19,9 @@ public class EventMessageRemoved extends Event {
         @JsonProperty("sessionID")
         private String sessionId;
         
-        @JsonProperty("messageID")
-        private String messageId;
+        @JsonProperty("requestID")
+        private String requestId;
+        
+        private List<String> answers;
     }
 }

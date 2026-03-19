@@ -10,7 +10,7 @@ import java.util.Map;
  * User message.
  */
 @Data
-public class UserMessage {
+public class UserMessage implements Message{
     private String id;
     
     @JsonProperty("sessionID")

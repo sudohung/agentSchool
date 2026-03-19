@@ -2,6 +2,7 @@ package ai.opencode.sdk.model.event;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonValue;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -20,6 +21,23 @@ public class EventPermissionReplied extends Event {
         @JsonProperty("requestID")
         private String requestId;
         
-        private String reply;
+        private PermissionReply reply;
+    }
+
+    public enum PermissionReply {
+        ONCE("once"),
+        ALWAYS("always"),
+        REJECT("reject");
+
+        private final String value;
+
+        PermissionReply(String value) {
+            this.value = value;
+        }
+
+        @JsonValue
+        public String getValue() {
+            return value;
+        }
     }
 }

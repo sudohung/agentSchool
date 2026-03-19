@@ -4,11 +4,15 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-import java.util.Map;
-
 @Data
 @EqualsAndHashCode(callSuper = true)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class EventFileEdited extends Event {
-    private Map<String, Object> properties;
+    private Properties properties;
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class Properties {
+        private String file;
+    }
 }

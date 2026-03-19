@@ -11,7 +11,7 @@ import java.util.Map;
  * Assistant message.
  */
 @Data
-public class AssistantMessage {
+public class AssistantMessage implements Message{
     private String id;
     
     @JsonProperty("sessionID")

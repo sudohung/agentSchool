@@ -35,6 +35,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
     @JsonSubTypes.Type(value = EventPermissionReplied.class, name = EventTypes.PERMISSION_REPLIED),
     // Question events
     @JsonSubTypes.Type(value = EventQuestionAsked.class, name = EventTypes.QUESTION_ASKED),
+    @JsonSubTypes.Type(value = EventQuestionReplied.class, name = EventTypes.QUESTION_REPLIED),
+    @JsonSubTypes.Type(value = EventQuestionRejected.class, name = EventTypes.QUESTION_REJECTED),
     // Todo events
     @JsonSubTypes.Type(value = EventTodoUpdated.class, name = EventTypes.TODO_UPDATED),
     // File events
