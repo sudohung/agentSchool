@@ -4,32 +4,47 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
+/**
+ * Base class for all SSE events.
+ * Uses Jackson polymorphic deserialization based on "type" field.
+ * 
+ * @see EventTypes for all supported event type IDs
+ * @see EventType for enum representation
+ */
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.PROPERTY,
     property = "type"
 )
 @JsonSubTypes({
-    @JsonSubTypes.Type(value = EventSessionCreated.class, name = "session.created"),
-    @JsonSubTypes.Type(value = EventSessionUpdated.class, name = "session.updated"),
-    @JsonSubTypes.Type(value = EventSessionDeleted.class, name = "session.deleted"),
-    @JsonSubTypes.Type(value = EventSessionStatus.class, name = "session.status"),
-    @JsonSubTypes.Type(value = EventSessionIdle.class, name = "session.idle"),
-    @JsonSubTypes.Type(value = EventSessionDiff.class, name = "session.diff"),
-    @JsonSubTypes.Type(value = EventSessionError.class, name = "session.error"),
-    @JsonSubTypes.Type(value = EventMessageUpdated.class, name = "message.updated"),
-    @JsonSubTypes.Type(value = EventMessageRemoved.class, name = "message.removed"),
-    @JsonSubTypes.Type(value = EventMessagePartUpdated.class, name = "message.part.updated"),
-    @JsonSubTypes.Type(value = EventMessagePartDelta.class, name = "message.part.delta"),
-    @JsonSubTypes.Type(value = EventPermissionAsked.class, name = "permission.asked"),
-    @JsonSubTypes.Type(value = EventPermissionReplied.class, name = "permission.replied"),
-    @JsonSubTypes.Type(value = EventQuestionAsked.class, name = "question.asked"),
-    @JsonSubTypes.Type(value = EventTodoUpdated.class, name = "todo.updated"),
-    @JsonSubTypes.Type(value = EventFileEdited.class, name = "file.edited"),
-    @JsonSubTypes.Type(value = EventFileWatcherUpdated.class, name = "file.watcher.updated"),
-    @JsonSubTypes.Type(value = EventServerConnected.class, name = "server.connected"),
-    @JsonSubTypes.Type(value = EventServerHeartbeat.class, name = "server.heartbeat"),
-    @JsonSubTypes.Type(value = EventGlobalDisposed.class, name = "global.disposed")
+    // Session events
+    @JsonSubTypes.Type(value = EventSessionCreated.class, name = EventTypes.SESSION_CREATED),
+    @JsonSubTypes.Type(value = EventSessionUpdated.class, name = EventTypes.SESSION_UPDATED),
+    @JsonSubTypes.Type(value = EventSessionDeleted.class, name = EventTypes.SESSION_DELETED),
+    @JsonSubTypes.Type(value = EventSessionStatus.class, name = EventTypes.SESSION_STATUS),
+    @JsonSubTypes.Type(value = EventSessionIdle.class, name = EventTypes.SESSION_IDLE),
+    @JsonSubTypes.Type(value = EventSessionDiff.class, name = EventTypes.SESSION_DIFF),
+    @JsonSubTypes.Type(value = EventSessionError.class, name = EventTypes.SESSION_ERROR),
+    // Message events
+    @JsonSubTypes.Type(value = EventMessageUpdated.class, name = EventTypes.MESSAGE_UPDATED),
+    @JsonSubTypes.Type(value = EventMessageRemoved.class, name = EventTypes.MESSAGE_REMOVED),
+    @JsonSubTypes.Type(value = EventMessagePartUpdated.class, name = EventTypes.MESSAGE_PART_UPDATED),
+    @JsonSubTypes.Type(value = EventMessagePartDelta.class, name = EventTypes.MESSAGE_PART_DELTA),
+    // Permission events
+    @JsonSubTypes.Type(value = EventPermissionAsked.class, name = EventTypes.PERMISSION_ASKED),
+    @JsonSubTypes.Type(value = EventPermissionReplied.class, name = EventTypes.PERMISSION_REPLIED),
+    // Question events
+    @JsonSubTypes.Type(value = EventQuestionAsked.class, name = EventTypes.QUESTION_ASKED),
+    // Todo events
+    @JsonSubTypes.Type(value = EventTodoUpdated.class, name = EventTypes.TODO_UPDATED),
+    // File events
+    @JsonSubTypes.Type(value = EventFileEdited.class, name = EventTypes.FILE_EDITED),
+    @JsonSubTypes.Type(value = EventFileWatcherUpdated.class, name = EventTypes.FILE_WATCHER_UPDATED),
+    // Server events
+    @JsonSubTypes.Type(value = EventServerConnected.class, name = EventTypes.SERVER_CONNECTED),
+    @JsonSubTypes.Type(value = EventServerHeartbeat.class, name = EventTypes.SERVER_HEARTBEAT),
+    // Global events
+    @JsonSubTypes.Type(value = EventGlobalDisposed.class, name = EventTypes.GLOBAL_DISPOSED)
 })
 @JsonIgnoreProperties(ignoreUnknown = true)
 public abstract class Event {

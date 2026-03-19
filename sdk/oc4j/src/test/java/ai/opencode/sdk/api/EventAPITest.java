@@ -151,28 +151,28 @@ class EventAPITest {
 
     @Test
     void testParseAllEventTypes() throws Exception {
-        // Test all event types from Python SDK
+        // Test all event types using EventTypes constants
         Object[][] eventTestCases = {
-            {"session.created", EventSessionCreated.class},
-            {"session.updated", EventSessionUpdated.class},
-            {"session.deleted", EventSessionDeleted.class},
-            {"session.status", EventSessionStatus.class},
-            {"session.idle", EventSessionIdle.class},
-            {"session.diff", EventSessionDiff.class},
-            {"session.error", EventSessionError.class},
-            {"message.updated", EventMessageUpdated.class},
-            {"message.removed", EventMessageRemoved.class},
-            {"message.part.updated", EventMessagePartUpdated.class},
-            {"message.part.delta", EventMessagePartDelta.class},
-            {"permission.asked", EventPermissionAsked.class},
-            {"permission.replied", EventPermissionReplied.class},
-            {"question.asked", EventQuestionAsked.class},
-            {"todo.updated", EventTodoUpdated.class},
-            {"file.edited", EventFileEdited.class},
-            {"file.watcher.updated", EventFileWatcherUpdated.class},
-            {"server.connected", EventServerConnected.class},
-            {"server.heartbeat", EventServerHeartbeat.class},
-            {"global.disposed", EventGlobalDisposed.class}
+            {EventTypes.SESSION_CREATED, EventSessionCreated.class},
+            {EventTypes.SESSION_UPDATED, EventSessionUpdated.class},
+            {EventTypes.SESSION_DELETED, EventSessionDeleted.class},
+            {EventTypes.SESSION_STATUS, EventSessionStatus.class},
+            {EventTypes.SESSION_IDLE, EventSessionIdle.class},
+            {EventTypes.SESSION_DIFF, EventSessionDiff.class},
+            {EventTypes.SESSION_ERROR, EventSessionError.class},
+            {EventTypes.MESSAGE_UPDATED, EventMessageUpdated.class},
+            {EventTypes.MESSAGE_REMOVED, EventMessageRemoved.class},
+            {EventTypes.MESSAGE_PART_UPDATED, EventMessagePartUpdated.class},
+            {EventTypes.MESSAGE_PART_DELTA, EventMessagePartDelta.class},
+            {EventTypes.PERMISSION_ASKED, EventPermissionAsked.class},
+            {EventTypes.PERMISSION_REPLIED, EventPermissionReplied.class},
+            {EventTypes.QUESTION_ASKED, EventQuestionAsked.class},
+            {EventTypes.TODO_UPDATED, EventTodoUpdated.class},
+            {EventTypes.FILE_EDITED, EventFileEdited.class},
+            {EventTypes.FILE_WATCHER_UPDATED, EventFileWatcherUpdated.class},
+            {EventTypes.SERVER_CONNECTED, EventServerConnected.class},
+            {EventTypes.SERVER_HEARTBEAT, EventServerHeartbeat.class},
+            {EventTypes.GLOBAL_DISPOSED, EventGlobalDisposed.class}
         };
 
         for (Object[] testCase : eventTestCases) {
