@@ -32,6 +32,7 @@ ocjbot:
     storage-path: ".ocjbot/memory"
     
   runtime:
+    # opencode
     type: "mock"
     open-code-base-url: "http://127.0.0.1:4096"
     
