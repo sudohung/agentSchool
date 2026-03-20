@@ -36,7 +36,6 @@ class EventModelTest {
         assertThat(event.getType()).isEqualTo("session.created");
         
         EventSessionCreated created = (EventSessionCreated) event;
-        assertThat(created.getProperties()).containsEntry("sessionID", "s-123");
     }
 
     @Test

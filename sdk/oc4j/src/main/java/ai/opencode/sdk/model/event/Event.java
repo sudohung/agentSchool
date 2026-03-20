@@ -9,7 +9,6 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
  * Uses Jackson polymorphic deserialization based on "type" field.
  * 
  * @see EventTypes for all supported event type IDs
- * @see EventType for enum representation
  */
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
