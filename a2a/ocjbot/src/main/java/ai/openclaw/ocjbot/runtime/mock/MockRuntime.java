@@ -10,11 +10,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
-/**
- * Mock Runtime 实现
- * 
- * 用于测试，不需要连接实际的 LLM 服务
- */
 public class MockRuntime implements AgentRuntime {
     
     private final Map<String, RuntimeSession> sessions = new ConcurrentHashMap<>();
@@ -156,12 +151,12 @@ public class MockRuntime implements AgentRuntime {
     
     @Override
     public EventSubscription subscribeEvents(Consumer<RuntimeEvent> eventHandler) {
-        return () -> "mock-subscription";
+        return new MockEventSubscription(UUID.randomUUID().toString());
     }
     
     @Override
     public EventSubscription subscribeGlobalEvents(Consumer<RuntimeGlobalEvent> eventHandler) {
-        return () -> "mock-global-subscription";
+        return new MockEventSubscription(UUID.randomUUID().toString());
     }
     
     @Override
@@ -202,5 +197,29 @@ public class MockRuntime implements AgentRuntime {
         sessions.clear();
         messages.clear();
         initialized = false;
+    }
+    
+    private static class MockEventSubscription implements EventSubscription {
+        private final String id;
+        private volatile boolean active = true;
+        
+        MockEventSubscription(String id) {
+            this.id = id;
+        }
+        
+        @Override
+        public String getSubscriptionId() {
+            return id;
+        }
+        
+        @Override
+        public boolean isActive() {
+            return active;
+        }
+        
+        @Override
+        public void unsubscribe() {
+            active = false;
+        }
     }
 }

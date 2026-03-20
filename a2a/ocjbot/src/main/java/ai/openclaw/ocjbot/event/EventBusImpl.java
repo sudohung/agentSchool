@@ -16,13 +16,13 @@ public class EventBusImpl implements EventBus {
     @Override
     @SuppressWarnings("unchecked")
     public <T> void publish(Event<T> event) {
-        List<EventHandler<?>> eventHandlers = handlers.get(event.getType());
+        List<EventHandler<?>> eventHandlers = handlers.get(event.type());
         if (eventHandlers != null) {
             for (EventHandler<?> handler : eventHandlers) {
                 try {
                     ((EventHandler<T>) handler).handle(event);
                 } catch (Exception e) {
-                    log.error("Error handling event: {}", event.getType().getSimpleName(), e);
+                    log.error("Error handling event: {}", event.type().getSimpleName(), e);
                 }
             }
         }

@@ -50,7 +50,7 @@ public class ReActLoop implements AgentLoop {
                 return LoopResult.success(planResult.getOutput());
             }
             
-            if (planResult.hasAction()) {
+            if (planResult.isHasAction()) {
                 ActionResult actionResult = act(planResult, context);
                 observe(actionResult, context);
             }
