@@ -7,7 +7,6 @@ import lombok.Data;
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Todo {
-    private String id;
     private String content;
     private TodoStatus status;
     private TodoPriority priority;

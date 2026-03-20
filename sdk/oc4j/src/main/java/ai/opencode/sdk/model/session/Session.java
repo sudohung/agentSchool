@@ -2,7 +2,7 @@ package ai.opencode.sdk.model.session;
 
 import ai.opencode.sdk.model.common.TimeInfo;
 import ai.opencode.sdk.model.common.SessionSummary;
-import ai.opencode.sdk.model.agent.AgentPermission;
+import ai.opencode.sdk.model.permission.PermissionRule;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 import java.util.List;
@@ -28,6 +28,6 @@ public class Session {
     private String title;
     private String version;
     private TimeInfo time;
-    private List<AgentPermission> permission;
+    private List<PermissionRule> permission;
     private RevertInfo revert;
 }

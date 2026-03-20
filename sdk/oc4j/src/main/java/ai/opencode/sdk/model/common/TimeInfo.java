@@ -14,9 +14,6 @@ public class TimeInfo {
     @JsonProperty("updated")
     private Long updated;
 
-    @JsonProperty("completed")
-    private Long completed;
-
     @JsonProperty("compacting")
     private Long compacting;
 

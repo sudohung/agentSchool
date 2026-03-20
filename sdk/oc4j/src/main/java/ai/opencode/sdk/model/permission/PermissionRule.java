@@ -1,4 +1,4 @@
-package ai.opencode.sdk.model.agent;
+package ai.opencode.sdk.model.permission;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -6,10 +6,10 @@ import lombok.Data;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class AgentPermission {
+public class PermissionRule {
     private String permission;
-    private PermissionAction action;
     private String pattern;
+    private PermissionAction action;
 
     public enum PermissionAction {
         @JsonProperty("allow")

@@ -1,5 +1,6 @@
 package ai.opencode.sdk.model.agent;
 
+import ai.opencode.sdk.model.permission.PermissionRule;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
@@ -32,7 +33,7 @@ public class Agent {
     
     private Double temperature;
     private String color;
-    private List<AgentPermission> permission;
+    private List<PermissionRule> permission;
     private AgentModel model;
     private String variant;
     private String prompt;
