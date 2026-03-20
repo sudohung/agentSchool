@@ -1,6 +1,9 @@
 package ai.openclaw.ocjbot.plugin;
 
-import ai.openclaw.ocjbot.harness.Harness;
+import ai.openclaw.ocjbot.config.OcjbotProperties;
+import ai.openclaw.ocjbot.event.EventBus;
+import ai.openclaw.ocjbot.tool.ToolRegistry;
+import ai.openclaw.ocjbot.skill.SkillRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -10,13 +13,25 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class PluginManagerImpl implements PluginManager {
+    
     private static final Logger log = LoggerFactory.getLogger(PluginManagerImpl.class);
     
-    private final Harness harness;
+    private final OcjbotProperties properties;
+    private final EventBus eventBus;
+    private final ToolRegistry toolRegistry;
+    private final SkillRegistry skillRegistry;
+    
     private final Map<String, Plugin> plugins = new ConcurrentHashMap<>();
     
-    public PluginManagerImpl(Harness harness) {
-        this.harness = harness;
+    public PluginManagerImpl(
+            OcjbotProperties properties,
+            EventBus eventBus,
+            ToolRegistry toolRegistry,
+            SkillRegistry skillRegistry) {
+        this.properties = properties;
+        this.eventBus = eventBus;
+        this.toolRegistry = toolRegistry;
+        this.skillRegistry = skillRegistry;
     }
     
     @Override

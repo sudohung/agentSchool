@@ -21,10 +21,13 @@ public class HarnessImpl implements Harness {
     private OcjbotProperties properties;
     private AgentRuntime runtime;
     private AgentLoop agentLoop;
-    private PluginManager pluginManager;
     private EventBus eventBus;
     private ToolRegistry toolRegistry;
     private SkillRegistry skillRegistry;
+    private PluginManager pluginManager;
+    
+    public HarnessImpl() {
+    }
     
     public void initialize() {
         log.info("╔════════════════════════════════════════════════════════════╗");
@@ -39,20 +42,33 @@ public class HarnessImpl implements Harness {
         services.put(AgentLoop.class, agentLoop);
         services.put(PluginManager.class, pluginManager);
         
-        runtime.initialize();
+        if (runtime != null) {
+            runtime.initialize();
+        }
+        
+        if (pluginManager != null) {
+            pluginManager.loadPlugins();
+        }
         
         log.info("┌─────────────────────────────────────────────────────────────┐");
         log.info("│  Harness Initialized Successfully                           │");
-        log.info("├─────────────────────────────────────────────────────────────┤");
-        log.info("│  Runtime:     {}", String.format("%-40s", runtime.getName()) + "│");
-        log.info("│  Type:        {}", String.format("%-40s", runtime.getType()) + "│");
-        log.info("│  Agent Loop:  {}", String.format("%-40s", agentLoop.getName()) + "│");
-        log.info("│  Max Iter:    {}", String.format("%-40s", agentLoop.getMaxIterations()) + "│");
+        if (runtime != null) {
+            log.info("│  Runtime:     {}", String.format("%-40s", runtime.getName()) + "│");
+            log.info("│  Type:        {}", String.format("%-40s", runtime.getType()) + "│");
+        }
+        if (agentLoop != null) {
+            log.info("│  Agent Loop:  {}", String.format("%-40s", agentLoop.getName()) + "│");
+            log.info("│  Max Iter:    {}", String.format("%-40s", agentLoop.getMaxIterations()) + "│");
+        }
         log.info("└─────────────────────────────────────────────────────────────┘");
     }
     
     public void shutdown() {
         log.info("Shutting down Harness...");
+        
+        if (pluginManager != null) {
+            pluginManager.unloadPlugins();
+        }
         
         if (runtime != null) {
             try {

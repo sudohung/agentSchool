@@ -19,7 +19,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Lazy;
 
 import java.time.Duration;
 
@@ -81,8 +80,12 @@ public class HarnessAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public PluginManager pluginManager(Harness harness) {
-        return new PluginManagerImpl(harness);
+    public PluginManager pluginManager(
+            OcjbotProperties properties,
+            EventBus eventBus,
+            ToolRegistry toolRegistry,
+            SkillRegistry skillRegistry) {
+        return new PluginManagerImpl(properties, eventBus, toolRegistry, skillRegistry);
     }
 
     @Bean
@@ -93,8 +96,8 @@ public class HarnessAutoConfiguration {
             EventBus eventBus,
             ToolRegistry toolRegistry,
             SkillRegistry skillRegistry,
-            @Lazy PluginManager pluginManager
-    ) {
+            PluginManager pluginManager) {
+        
         HarnessImpl harness = new HarnessImpl();
         harness.setProperties(properties);
         harness.setRuntime(runtime);
