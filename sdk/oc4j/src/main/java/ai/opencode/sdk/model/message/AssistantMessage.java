@@ -1,17 +1,16 @@
 package ai.opencode.sdk.model.message;
 
-import ai.opencode.sdk.model.common.TimeInfo;
 import ai.opencode.sdk.model.common.TokenInfo;
 import ai.opencode.sdk.model.common.PathInfo;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
+
 import java.util.Map;
 
-/**
- * Assistant message.
- */
 @Data
-public class AssistantMessage implements Message{
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class AssistantMessage implements Message {
     private String id;
     
     @JsonProperty("sessionID")
@@ -39,4 +38,11 @@ public class AssistantMessage implements Message{
     private Map<String, Object> structured;
     private String variant;
     private String finish;
+
+    @Data
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class TimeInfo {
+        private Long created;
+        private Long completed;
+    }
 }
