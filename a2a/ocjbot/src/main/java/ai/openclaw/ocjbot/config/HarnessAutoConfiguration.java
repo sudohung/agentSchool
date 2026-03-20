@@ -93,7 +93,7 @@ public class HarnessAutoConfiguration {
             EventBus eventBus,
             ToolRegistry toolRegistry,
             SkillRegistry skillRegistry,
-            PluginManager pluginManager
+            @Lazy PluginManager pluginManager
     ) {
         HarnessImpl harness = new HarnessImpl();
         harness.setProperties(properties);
