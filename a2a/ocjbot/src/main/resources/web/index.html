@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCJBot Gateway</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-tertiary: #1a1a25;
+            --bg-card: #15151f;
+            --border-color: #2a2a3a;
+            --border-glow: #00ff8855;
+            --text-primary: #e0e0e8;
+            --text-secondary: #8888aa;
+            --text-muted: #555566;
+            --accent-primary: #00ff88;
+            --accent-secondary: #00ccff;
+            --accent-warning: #ffaa00;
+            --accent-error: #ff4444;
+            --accent-success: #00ff88;
+            --gradient-primary: linear-gradient(135deg, #00ff88 0%, #00ccff 100%);
+            --shadow-glow: 0 0 20px rgba(0, 255, 136, 0.15);
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Background Grid Effect */
+        .bg-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-glow {
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            filter: blur(150px);
+            opacity: 0.15;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .bg-glow-1 {
+            top: -200px;
+            right: -200px;
+            background: var(--accent-primary);
+        }
+
+        .bg-glow-2 {
+            bottom: -200px;
+            left: -200px;
+            background: var(--accent-secondary);
+        }
+
+        /* Layout */
+        .app-container {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: 280px 1fr 320px;
+            grid-template-rows: auto 1fr;
+            min-height: 100vh;
+            gap: 0;
+        }
+
+        /* Header */
+        .header {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--gradient-primary);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+            color: var(--bg-primary);
+        }
+
+        .logo-text {
+            font-size: 20px;
+            font-weight: 600;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logo-subtitle {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-error);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: var(--accent-success);
+        }
+
+        .status-dot.connecting {
+            background: var(--accent-warning);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Sidebar - Sessions */
+        .sidebar {
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-title {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: var(--gradient-primary);
+            color: var(--bg-primary);
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-card);
+            border-color: var(--accent-primary);
+        }
+
+        .btn-icon {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-icon:hover {
+            color: var(--accent-primary);
+            border-color: var(--accent-primary);
+        }
+
+        .session-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .session-item {
+            padding: 12px;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 4px;
+            border: 1px solid transparent;
+        }
+
+        .session-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .session-item.active {
+            background: var(--bg-card);
+            border-color: var(--accent-primary);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .session-title {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .session-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .session-status {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+
+        .session-status.idle {
+            background: rgba(0, 255, 136, 0.15);
+            color: var(--accent-success);
+        }
+
+        .session-status.busy {
+            background: rgba(255, 170, 0, 0.15);
+            color: var(--accent-warning);
+        }
+
+        /* Main Chat Area */
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-primary);
+            overflow: hidden;
+        }
+
+        .chat-header {
+            padding: 16px 24px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .chat-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .chat-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: var(--radius-lg);
+            animation: messageIn 0.3s ease;
+        }
+
+        @keyframes messageIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+        }
+
+        .message.assistant {
+            align-self: flex-start;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--accent-primary);
+            border-left: 3px solid var(--accent-primary);
+        }
+
+        .message.system {
+            align-self: center;
+            background: rgba(0, 204, 255, 0.1);
+            border: 1px solid var(--accent-secondary);
+            font-size: 13px;
+            color: var(--accent-secondary);
+        }
+
+        .message-role {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            color: var(--text-muted);
+        }
+
+        .message.assistant .message-role {
+            color: var(--accent-primary);
+        }
+
+        .message-content {
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .message-meta {
+            margin-top: 8px;
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .tool-call {
+            margin-top: 12px;
+            padding: 12px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+        }
+
+        .tool-name {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--accent-warning);
+            margin-bottom: 8px;
+        }
+
+        .tool-args {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-secondary);
+            background: var(--bg-primary);
+            padding: 8px;
+            border-radius: var(--radius-sm);
+            overflow-x: auto;
+        }
+
+        /* Input Area */
+        .chat-input-area {
+            padding: 16px 24px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .input-container {
+            flex: 1;
+            position: relative;
+        }
+
+        .chat-input {
+            width: 100%;
+            min-height: 44px;
+            max-height: 200px;
+            padding: 12px 16px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        .chat-input:focus {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 2px rgba(0, 255, 136, 0.1);
+        }
+
+        .chat-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .input-hint {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-top: 8px;
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .hint-key {
+            padding: 2px 6px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        /* Right Panel - Events & Tools */
+        .right-panel {
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .panel-tab {
+            flex: 1;
+            padding: 12px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-bottom: 2px solid transparent;
+        }
+
+        .panel-tab:hover {
+            color: var(--text-primary);
+            background: var(--bg-tertiary);
+        }
+
+        .panel-tab.active {
+            color: var(--accent-primary);
+            border-bottom-color: var(--accent-primary);
+        }
+
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .event-item {
+            padding: 10px;
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            margin-bottom: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            animation: eventIn 0.3s ease;
+        }
+
+        @keyframes eventIn {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .event-type {
+            color: var(--accent-secondary);
+            font-weight: 600;
+        }
+
+        .event-data {
+            margin-top: 6px;
+            color: var(--text-secondary);
+            word-break: break-all;
+        }
+
+        .event-time {
+            margin-top: 4px;
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        /* Runtime Info */
+        .runtime-info {
+            padding: 12px;
+        }
+
+        .info-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .info-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .info-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            color: var(--accent-primary);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 40px;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .empty-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .empty-desc {
+            font-size: 14px;
+        }
+
+        /* Loading */
+        .loading-dots {
+            display: inline-flex;
+            gap: 4px;
+        }
+
+        .loading-dots span {
+            width: 6px;
+            height: 6px;
+            background: var(--accent-primary);
+            border-radius: 50%;
+            animation: loadingDot 1.4s infinite ease-in-out both;
+        }
+
+        .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes loadingDot {
+            0%, 80%, 100% {
+                transform: scale(0);
+                opacity: 0.5;
+            }
+            40% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .app-container {
+                grid-template-columns: 260px 1fr;
+            }
+            .right-panel {
+                display: none;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .app-container {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-grid"></div>
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">OC</div>
+                <div>
+                    <div class="logo-text">OCJBot Gateway</div>
+                    <div class="logo-subtitle">Agent OS v2.1.0</div>
+                </div>
+            </div>
+            <div class="header-status">
+                <div class="status-item">
+                    <span class="status-dot" id="wsStatus"></span>
+                    <span id="wsStatusText">Disconnected</span>
+                </div>
+                <div class="status-item">
+                    Runtime: <span id="runtimeType">Mock</span>
+                </div>
+                <div class="status-item">
+                    Session: <span id="currentSessionId">--</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">Sessions</div>
+                <button class="btn btn-primary" onclick="createSession()">
+                    <span>+ New Session</span>
+                </button>
+            </div>
+            <div class="session-list" id="sessionList">
+                <!-- Sessions will be rendered here -->
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="chat-header">
+                <div class="chat-title" id="chatTitle">Select or create a session</div>
+                <div class="chat-actions">
+                    <button class="btn btn-icon" title="Clear messages" onclick="clearMessages()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                        </svg>
+                    </button>
+                    <button class="btn btn-icon" title="Export session" onclick="exportSession()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="empty-state">
+                    <div class="empty-icon">💬</div>
+                    <div class="empty-title">No session selected</div>
+                    <div class="empty-desc">Create a new session or select an existing one to start chatting with the agent.</div>
+                </div>
+            </div>
+            <div class="chat-input-area">
+                <div class="input-wrapper">
+                    <div class="input-container">
+                        <textarea 
+                            class="chat-input" 
+                            id="messageInput" 
+                            placeholder="Type your message..."
+                            rows="1"
+                            onkeydown="handleKeyDown(event)"
+                            disabled
+                        ></textarea>
+                    </div>
+                    <button class="btn btn-primary" onclick="sendMessage()" id="sendBtn" disabled>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+                        </svg>
+                        Send
+                    </button>
+                </div>
+                <div class="input-hint">
+                    <span><span class="hint-key">Enter</span> to send</span>
+                    <span><span class="hint-key">Shift + Enter</span> for new line</span>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Panel -->
+        <aside class="right-panel">
+            <div class="panel-tabs">
+                <button class="panel-tab active" onclick="switchTab('events')">Events</button>
+                <button class="panel-tab" onclick="switchTab('runtime')">Runtime</button>
+                <button class="panel-tab" onclick="switchTab('tools')">Tools</button>
+            </div>
+            <div class="panel-content" id="panelContent">
+                <!-- Events Tab -->
+                <div id="eventsTab">
+                    <div id="eventList">
+                        <div class="empty-state">
+                            <div class="empty-icon">📡</div>
+                            <div class="empty-title">No events yet</div>
+                            <div class="empty-desc">Events will appear here as they occur.</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Runtime Tab (hidden) -->
+                <div id="runtimeTab" style="display:none;">
+                    <div class="runtime-info">
+                        <div class="info-card">
+                            <div class="info-label">Runtime Type</div>
+                            <div class="info-value" id="runtimeTypeDisplay">Mock</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">Health Status</div>
+                            <div class="info-value" id="healthStatus">--</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">Active Sessions</div>
+                            <div class="info-value" id="activeSessions">0</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">Total Messages</div>
+                            <div class="info-value" id="totalMessages">0</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">Providers</div>
+                            <div class="info-value" id="providers">--</div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-label">Agents</div>
+                            <div class="info-value" id="agents">--</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Tools Tab (hidden) -->
+                <div id="toolsTab" style="display:none;">
+                    <div class="info-card">
+                        <div class="info-label">Available Tools</div>
+                        <div class="info-value" style="font-size: 12px;">
+                            <div>• bash - Execute shell commands</div>
+                            <div>• read - Read file content</div>
+                            <div>• write - Write to file</div>
+                            <div>• edit - Edit file</div>
+                            <div>• web_search - Search the web</div>
+                        </div>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-label">Execute Tool</div>
+                        <textarea class="chat-input" style="font-size: 12px; min-height: 100px;" placeholder='{"name": "bash", "args": {"command": "ls"}}'></textarea>
+                        <button class="btn btn-secondary" style="width: 100%; margin-top: 8px;" onclick="executeTool()">Execute</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        // ===== State =====
+        const state = {
+            ws: null,
+            wsConnected: false,
+            sessions: [],
+            currentSession: null,
+            messages: {},
+            events: []
+        };
+
+        // ===== Configuration =====
+        const config = {
+            wsUrl: `ws://${window.location.hostname || '127.0.0.1'}:18789/ws`,
+            restUrl: `http://${window.location.hostname || '127.0.0.1'}:8080/api`
+        };
+
+        // ===== WebSocket =====
+        function connectWebSocket() {
+            updateWsStatus('connecting');
+            
+            state.ws = new WebSocket(config.wsUrl);
+            
+            state.ws.onopen = () => {
+                console.log('WebSocket connected');
+                state.wsConnected = true;
+                updateWsStatus('connected');
+                loadSessions();
+            };
+            
+            state.ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleWsMessage(data);
+            };
+            
+            state.ws.onclose = () => {
+                console.log('WebSocket disconnected');
+                state.wsConnected = false;
+                updateWsStatus('disconnected');
+                setTimeout(connectWebSocket, 3000);
+            };
+            
+            state.ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                updateWsStatus('disconnected');
+            };
+        }
+
+        function updateWsStatus(status) {
+            const dot = document.getElementById('wsStatus');
+            const text = document.getElementById('wsStatusText');
+            
+            dot.className = 'status-dot';
+            
+            if (status === 'connected') {
+                dot.classList.add('connected');
+                text.textContent = 'Connected';
+            } else if (status === 'connecting') {
+                dot.classList.add('connecting');
+                text.textContent = 'Connecting...';
+            } else {
+                text.textContent = 'Disconnected';
+            }
+        }
+
+        function handleWsMessage(data) {
+            console.log('Received:', data);
+            
+            switch (data.type) {
+                case 'welcome':
+                    addEvent('system', 'Connected to Gateway', data);
+                    break;
+                    
+                case 'session.created':
+                    addEvent('session', 'Session created', data);
+                    loadSessions();
+                    break;
+                    
+                case 'agent.response':
+                    if (state.currentSession && data.sessionId === state.currentSession.id) {
+                        addMessage('assistant', data.message);
+                    }
+                    addEvent('message', 'Agent response', data);
+                    break;
+                    
+                case 'event':
+                    addEvent(data.eventType || 'event', data.eventType || 'Event', data);
+                    break;
+                    
+                case 'error':
+                    addEvent('error', 'Error', data);
+                    break;
+                    
+                default:
+                    addEvent('unknown', data.type, data);
+            }
+        }
+
+        function sendWsMessage(type, payload) {
+            if (!state.wsConnected) {
+                console.error('WebSocket not connected');
+                return;
+            }
+            
+            const message = { type, payload };
+            state.ws.send(JSON.stringify(message));
+            console.log('Sent:', message);
+        }
+
+        // ===== Sessions =====
+        function loadSessions() {
+            // Mock data for now, will be replaced with actual API calls
+            renderSessions();
+        }
+
+        function createSession() {
+            const session = {
+                id: generateId(),
+                title: `Session ${state.sessions.length + 1}`,
+                status: 'idle',
+                createdAt: new Date().toISOString()
+            };
+            
+            state.sessions.unshift(session);
+            state.messages[session.id] = [];
+            
+            sendWsMessage('session.create', { title: session.title });
+            renderSessions();
+            selectSession(session.id);
+        }
+
+        function selectSession(sessionId) {
+            const session = state.sessions.find(s => s.id === sessionId);
+            if (!session) return;
+            
+            state.currentSession = session;
+            
+            document.getElementById('currentSessionId').textContent = session.id.substring(0, 8);
+            document.getElementById('chatTitle').textContent = session.title;
+            
+            document.querySelectorAll('.session-item').forEach(el => {
+                el.classList.toggle('active', el.dataset.id === sessionId);
+            });
+            
+            document.getElementById('messageInput').disabled = false;
+            document.getElementById('sendBtn').disabled = false;
+            
+            renderMessages();
+        }
+
+        function renderSessions() {
+            const container = document.getElementById('sessionList');
+            
+            if (state.sessions.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="padding: 20px;">
+                        <div class="empty-desc">No sessions yet. Create one to get started.</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = state.sessions.map(session => `
+                <div class="session-item ${state.currentSession?.id === session.id ? 'active' : ''}" 
+                     data-id="${session.id}" 
+                     onclick="selectSession('${session.id}')">
+                    <div class="session-title">${session.title}</div>
+                    <div class="session-meta">
+                        <span class="session-status ${session.status}">${session.status}</span>
+                        <span>${session.id.substring(0, 8)}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ===== Messages =====
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const text = input.value.trim();
+            
+            if (!text || !state.currentSession) return;
+            
+            addMessage('user', text);
+            
+            sendWsMessage('agent.send', {
+                sessionId: state.currentSession.id,
+                message: text
+            });
+            
+            input.value = '';
+            input.style.height = 'auto';
+        }
+
+        function addMessage(role, content) {
+            if (!state.currentSession) return;
+            
+            const message = {
+                id: generateId(),
+                role,
+                content,
+                timestamp: new Date().toISOString()
+            };
+            
+            if (!state.messages[state.currentSession.id]) {
+                state.messages[state.currentSession.id] = [];
+            }
+            state.messages[state.currentSession.id].push(message);
+            
+            renderMessages();
+        }
+
+        function renderMessages() {
+            const container = document.getElementById('chatMessages');
+            
+            if (!state.currentSession) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">💬</div>
+                        <div class="empty-title">No session selected</div>
+                        <div class="empty-desc">Create a new session or select an existing one to start chatting with the agent.</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            const messages = state.messages[state.currentSession.id] || [];
+            
+            if (messages.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">💭</div>
+                        <div class="empty-title">Start the conversation</div>
+                        <div class="empty-desc">Send a message to begin interacting with the agent.</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = messages.map(msg => `
+                <div class="message ${msg.role}">
+                    <div class="message-role">${msg.role}</div>
+                    <div class="message-content">${escapeHtml(msg.content)}</div>
+                    <div class="message-meta">${formatTime(msg.timestamp)}</div>
+                </div>
+            `).join('');
+            
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function clearMessages() {
+            if (!state.currentSession) return;
+            state.messages[state.currentSession.id] = [];
+            renderMessages();
+        }
+
+        // ===== Events =====
+        function addEvent(type, title, data) {
+            const event = {
+                type,
+                title,
+                data,
+                timestamp: new Date().toISOString()
+            };
+            
+            state.events.unshift(event);
+            if (state.events.length > 100) {
+                state.events.pop();
+            }
+            
+            renderEvents();
+        }
+
+        function renderEvents() {
+            const container = document.getElementById('eventList');
+            
+            if (state.events.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📡</div>
+                        <div class="empty-title">No events yet</div>
+                        <div class="empty-desc">Events will appear here as they occur.</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = state.events.map(event => `
+                <div class="event-item">
+                    <div class="event-type">[${event.type}]</div>
+                    <div class="event-data">${escapeHtml(JSON.stringify(event.data, null, 2))}</div>
+                    <div class="event-time">${formatTime(event.timestamp)}</div>
+                </div>
+            `).join('');
+        }
+
+        // ===== Tabs =====
+        function switchTab(tabName) {
+            document.querySelectorAll('.panel-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.textContent.toLowerCase() === tabName);
+            });
+            
+            document.getElementById('eventsTab').style.display = tabName === 'events' ? 'block' : 'none';
+            document.getElementById('runtimeTab').style.display = tabName === 'runtime' ? 'block' : 'none';
+            document.getElementById('toolsTab').style.display = tabName === 'tools' ? 'block' : 'none';
+        }
+
+        // ===== Utilities =====
+        function handleKeyDown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function generateId() {
+            return Math.random().toString(36).substring(2, 15);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatTime(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        }
+
+        function exportSession() {
+            if (!state.currentSession) return;
+            
+            const data = {
+                session: state.currentSession,
+                messages: state.messages[state.currentSession.id] || []
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `session-${state.currentSession.id.substring(0, 8)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function executeTool() {
+            addEvent('tool', 'Tool execution', { status: 'Mock - not implemented' });
+        }
+
+        // ===== Auto-resize textarea =====
+        const textarea = document.getElementById('messageInput');
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+        });
+
+        // ===== Initialize =====
+        document.addEventListener('DOMContentLoaded', () => {
+            connectWebSocket();
+            
+            // Simulate initial state
+            document.getElementById('runtimeTypeDisplay').textContent = 'Mock';
+            document.getElementById('healthStatus').textContent = 'Healthy';
+            document.getElementById('providers').textContent = 'Mock Provider';
+            document.getElementById('agents').textContent = 'Mock Agent';
+        });
+    </script>
+</body>
+</html>

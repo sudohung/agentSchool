@@ -1,0 +1,40 @@
+agent:
+  name: "OCJBot Assistant"
+  model: "openai/gpt-4o"
+  description: "A comprehensive AI personal assistant"
+
+memory:
+  enabled: true
+  autoRecall: true
+  autoCapture: true
+  topK: 5
+  threshold: 0.5
+  storagePath: ".ocjbot/memory"
+
+gateway:
+  host: "127.0.0.1"
+  port: 18789
+  restPort: 8080
+  websocketEnabled: true
+  restEnabled: true
+
+llm:
+  providers:
+    openai:
+      model: "gpt-4o"
+      apiKey: "${OPENAI_API_KEY}"
+    anthropic:
+      model: "claude-3-5-sonnet-20241022"
+      apiKey: "${ANTHROPIC_API_KEY}"
+
+tools:
+  - bash
+  - read
+  - write
+  - web_search
+
+skills:
+  - id: "code-assistant"
+    enabled: true
+  - id: "web-search"
+    enabled: true
