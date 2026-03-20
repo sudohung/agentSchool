@@ -1,0 +1,54 @@
+server:
+  port: 18789
+
+spring:
+  application:
+    name: ocjbot
+  servlet:
+    multipart:
+      max-file-size: 100MB
+
+ocjbot:
+  agent:
+    name: "OCJBot Assistant"
+    model: "openai/gpt-4o"
+    description: "A comprehensive AI personal assistant"
+    temperature: 0.7
+    max-tokens: 4096
+    
+  gateway:
+    host: "127.0.0.1"
+    port: 18789
+    websocket-enabled: true
+    rest-enabled: true
+    allowed-origins: "*"
+    
+  memory:
+    enabled: true
+    auto-recall: true
+    auto-capture: true
+    top-k: 5
+    threshold: 0.5
+    storage-path: ".ocjbot/memory"
+    
+  runtime:
+    type: "mock"
+    open-code-base-url: "http://127.0.0.1:4096"
+    
+  tools:
+    - bash
+    - read
+    - write
+    - web_search
+    
+  skills:
+    - id: "code-assistant"
+      enabled: true
+    - id: "web-search"
+      enabled: true
+
+logging:
+  level:
+    root: INFO
+    ai.openclaw.ocjbot: DEBUG
+    org.springframework.web: INFO

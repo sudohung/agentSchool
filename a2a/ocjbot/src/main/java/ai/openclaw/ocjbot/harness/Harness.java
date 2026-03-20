@@ -1,6 +1,6 @@
 package ai.openclaw.ocjbot.harness;
 
-import ai.openclaw.ocjbot.config.OcjbotConfig;
+import ai.openclaw.ocjbot.config.OcjbotProperties;
 import ai.openclaw.ocjbot.event.EventBus;
 import ai.openclaw.ocjbot.plugin.PluginManager;
 import ai.openclaw.ocjbot.runtime.AgentRuntime;
@@ -9,11 +9,7 @@ import ai.openclaw.ocjbot.tool.ToolRegistry;
 
 public interface Harness {
     
-    void initialize();
-    
-    void shutdown();
-    
-    OcjbotConfig getConfig();
+    OcjbotProperties getProperties();
     
     AgentRuntime getRuntime();
     
