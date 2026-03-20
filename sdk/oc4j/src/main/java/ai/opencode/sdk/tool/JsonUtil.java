@@ -1,4 +1,4 @@
-package ai.opencode.sdk.model.tool;
+package ai.opencode.sdk.tool;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
