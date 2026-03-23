@@ -97,21 +97,73 @@ public class OpenCodeRuntime implements AgentRuntime {
     
     @Override
     public RuntimeSession getSession(String sessionId) {
-        return RuntimeSession.builder()
-            .id(sessionId)
-            .title("Session")
-            .state(RuntimeSession.SessionState.IDLE)
-            .build();
+        ensureInitialized();
+        try {
+            Session session = client.getSession().get(sessionId);
+            return toRuntimeSession(session);
+        } catch (Exception e) {
+            log.warn("Failed to get session {}: {}", sessionId, e.getMessage());
+            return RuntimeSession.builder()
+                .id(sessionId)
+                .title("Session")
+                .state(RuntimeSession.SessionState.IDLE)
+                .build();
+        }
     }
     
     @Override
     public List<RuntimeSession> listSessions() {
-        return List.of();
+        ensureInitialized();
+        try {
+            List<Session> sessions = client.getSession().list();
+            return sessions.stream()
+                .map(this::toRuntimeSession)
+                .toList();
+        } catch (Exception e) {
+            log.warn("Failed to list sessions from OpenCode: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private RuntimeSession toRuntimeSession(Session session) {
+        RuntimeSession.SessionState state = RuntimeSession.SessionState.IDLE;
+        if (session.getTime() != null) {
+            Instant created = session.getTime().getCreated() != null 
+                ? Instant.ofEpochMilli(session.getTime().getCreated()) 
+                : null;
+            Instant updated = session.getTime().getUpdated() != null 
+                ? Instant.ofEpochMilli(session.getTime().getUpdated()) 
+                : null;
+            
+            return RuntimeSession.builder()
+                .id(session.getId())
+                .title(session.getTitle() != null ? session.getTitle() : "Untitled")
+                .parentId(session.getParentId())
+                .workspaceId(session.getWorkspaceId())
+                .state(state)
+                .createdAt(created)
+                .updatedAt(updated)
+                .build();
+        }
+        
+        return RuntimeSession.builder()
+            .id(session.getId())
+            .title(session.getTitle() != null ? session.getTitle() : "Untitled")
+            .parentId(session.getParentId())
+            .workspaceId(session.getWorkspaceId())
+            .state(state)
+            .build();
     }
     
     @Override
     public boolean deleteSession(String sessionId) {
-        return true;
+        ensureInitialized();
+        try {
+            return client.getSession().delete(sessionId);
+        } catch (Exception e) {
+            log.warn("Failed to delete session {}: {}", sessionId, e.getMessage());
+            return false;
+        }
     }
     
     @Override
@@ -156,7 +208,34 @@ public class OpenCodeRuntime implements AgentRuntime {
     
     @Override
     public List<RuntimeMessage> listMessages(String sessionId) {
-        return List.of();
+        ensureInitialized();
+        try {
+            List<MessageWithParts> messages = client.getMessage().list(sessionId);
+            return messages.stream()
+                .map(this::toRuntimeMessage)
+                .toList();
+        } catch (Exception e) {
+            log.warn("Failed to list messages for session {}: {}", sessionId, e.getMessage());
+            return List.of();
+        }
+    }
+
+    private RuntimeMessage toRuntimeMessage(MessageWithParts msg) {
+        String id = msg.getInfo() != null ? String.valueOf(msg.getInfo().get("id")) : UUID.randomUUID().toString();
+        String role = msg.getInfo() != null ? String.valueOf(msg.getInfo().get("role")) : "user";
+        Long timestamp = msg.getInfo() != null ? (Long) msg.getInfo().get("created") : null;
+        
+        List<MessagePart> parts = msg.getParts() != null ? msg.getParts().stream()
+            .map(p -> MessagePart.text(String.valueOf(p.get("text"))))
+            .toList() : List.of();
+        
+        return RuntimeMessage.builder()
+            .id(id)
+            .sessionId(null)
+            .role(RuntimeMessage.MessageRole.valueOf(role.toUpperCase()))
+            .parts(parts)
+            .timestamp(timestamp != null ? Instant.ofEpochMilli(timestamp) : Instant.now())
+            .build();
     }
     
     @Override

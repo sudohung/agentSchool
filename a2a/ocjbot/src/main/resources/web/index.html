@@ -811,10 +811,41 @@
                     </div>
                 </div>
                 <div id="sessionsPage" style="display: none;">
-                    <div class="empty-state">
-                        <div class="empty-icon">👥</div>
-                        <h2>Sessions</h2>
-                        <p>Sessions list will be here</p>
+                    <div style="margin-bottom: 24px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <div style="font-size: 14px; color: var(--text-secondary);">
+                                <span id="sessionCount">0</span> sessions
+                            </div>
+                            <button class="btn btn-primary" onclick="createSession()">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="5" x2="12" y2="19"/>
+                                    <line x1="5" y1="12" x2="19" y2="12"/>
+                                </svg>
+                                New Session
+                            </button>
+                        </div>
+                        <div style="display: flex; gap: 12px;">
+                            <div style="flex: 1; position: relative;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted);">
+                                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                                </svg>
+                                <input type="text" id="sessionSearch" placeholder="Search sessions..." 
+                                    style="width: 100%; padding: 10px 12px 10px 40px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); color: var(--text-primary); font-size: 14px;"
+                                    oninput="filterSessions()">
+                            </div>
+                            <select id="sessionSort" style="padding: 10px 16px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-md); color: var(--text-primary); font-size: 14px;" onchange="filterSessions()">
+                                <option value="newest">Newest First</option>
+                                <option value="oldest">Oldest First</option>
+                                <option value="name">Name A-Z</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="sessions-list" id="sessionsList">
+                        <div class="empty-state">
+                            <div class="empty-icon">👥</div>
+                            <h2>No Sessions</h2>
+                            <p>Create a new session to get started</p>
+                        </div>
                     </div>
                 </div>
                 <div id="runtimePage" style="display: none;">
@@ -886,6 +917,11 @@
                 tools: 'Tools'
             };
             document.getElementById('pageTitle').textContent = titles[page] || page;
+            
+            // Load page-specific data
+            if (page === 'sessions') {
+                loadSessions();
+            }
         }
 
         // Connect WebSocket
@@ -897,6 +933,7 @@
                 console.log('WebSocket connected');
                 fetchRuntimeInfo();
                 fetchHarnessInfo();
+                loadSessions();
             };
             
             state.ws.onmessage = (event) => {
@@ -966,6 +1003,164 @@
         function refreshData() {
             fetchRuntimeInfo();
             fetchHarnessInfo();
+            loadSessions();
+        }
+
+        // Session management
+        async function loadSessions() {
+            const container = document.getElementById('sessionsList');
+            container.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div>Loading sessions...</div></div>';
+            
+            try {
+                const response = await fetch('/api/sessions');
+                if (!response.ok) throw new Error('Failed to load');
+                const sessions = await response.json();
+                state.sessions = sessions;
+                state.filteredSessions = sessions;
+                renderSessions();
+                document.getElementById('statSessions').textContent = sessions.length;
+                document.getElementById('sessionCount').textContent = sessions.length;
+            } catch (e) {
+                console.error('Failed to load sessions', e);
+                container.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><h2>Error Loading Sessions</h2><p>Please try again</p></div>';
+            }
+        }
+
+        function filterSessions() {
+            const searchInput = document.getElementById('sessionSearch');
+            const sortInput = document.getElementById('sessionSort');
+            if (!searchInput || !sortInput) return;
+            
+            const search = searchInput.value.toLowerCase();
+            const sort = sortInput.value;
+            
+            let filtered = state.sessions.filter(s => 
+                (s.title || '').toLowerCase().includes(search) || 
+                (s.id || '').toLowerCase().includes(search)
+            );
+            
+            if (sort === 'newest') {
+                filtered.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+            } else if (sort === 'oldest') {
+                filtered.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+            } else if (sort === 'name') {
+                filtered.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+            }
+            
+            state.filteredSessions = filtered;
+            renderSessions();
+        }
+
+        function renderSessions() {
+            const container = document.getElementById('sessionsList');
+            if (!container) return;
+            
+            const sessions = state.filteredSessions || state.sessions;
+            
+            const countEl = document.getElementById('sessionCount');
+            if (countEl) countEl.textContent = sessions.length;
+            
+            if (sessions.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">👥</div>
+                        <h2>No Sessions Found</h2>
+                        <p>${state.sessions.length === 0 ? 'Create a new session to get started' : 'Try adjusting your search'}</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = sessions.map(session => `
+                <div class="session-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; transition: all 0.2s ease;">
+                    <div style="display: flex; align-items: center; gap: 16px; cursor: pointer;" onclick="viewSession('${session.id}')">
+                        <div style="width: 48px; height: 48px; border-radius: var(--radius-md); background: var(--gradient-primary); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 18px;">${session.title.charAt(0).toUpperCase()}</div>
+                        <div>
+                            <div style="font-size: 16px; font-weight: 600;">${escapeHtml(session.title)}</div>
+                            <div style="font-size: 13px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">${session.id.substring(0, 8)}... · ${formatDate(session.createdAt)}</div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <span class="session-status ${session.state}" style="padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 500; text-transform: uppercase;">${session.state}</span>
+                        <button class="btn-icon" onclick="viewSession('${session.id}')" title="View" style="width: 32px; height: 32px; border: none; border-radius: var(--radius-sm); background: var(--bg-tertiary); color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </button>
+                        <button class="btn-icon delete" onclick="deleteSession('${session.id}')" title="Delete" style="width: 32px; height: 32px; border: none; border-radius: var(--radius-sm); background: var(--bg-tertiary); color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            
+            renderRecentSessions();
+        }
+
+        function renderRecentSessions() {
+            const container = document.getElementById('recentSessions');
+            if (state.sessions.length === 0) {
+                container.innerHTML = `<div class="empty-state"><div class="empty-icon">💬</div><div>No sessions yet</div></div>`;
+                return;
+            }
+            
+            const recent = state.sessions.slice(0, 5);
+            container.innerHTML = recent.map(session => `
+                <div class="session-item" onclick="showPage('sessions')">
+                    <div class="session-info">
+                        <div class="session-title">${escapeHtml(session.title)}</div>
+                        <div class="session-id">${session.id.substring(0, 8)}...</div>
+                    </div>
+                    <span class="session-status ${session.state}">${session.state}</span>
+                </div>
+            `).join('');
+        }
+
+        async function createSession() {
+            try {
+                const response = await fetch('/api/sessions', { 
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (!response.ok) throw new Error('Failed to create');
+                const session = await response.json();
+                state.sessions.unshift(session);
+                filterSessions();
+            } catch (e) {
+                console.error('Failed to create session', e);
+                alert('Failed to create session. Please try again.');
+            }
+        }
+
+        async function deleteSession(id) {
+            if (!confirm('Are you sure you want to delete this session?')) return;
+            
+            try {
+                const response = await fetch(`/api/sessions/${id}`, { method: 'DELETE' });
+                if (!response.ok) throw new Error('Failed to delete');
+                state.sessions = state.sessions.filter(s => s.id !== id);
+                filterSessions();
+            } catch (e) {
+                console.error('Failed to delete session', e);
+                alert('Failed to delete session. Please try again.');
+            }
+        }
+
+        function viewSession(id) {
+            const session = state.sessions.find(s => s.id === id);
+            if (session) {
+                alert(`Session: ${session.title}\nID: ${session.id}\nStatus: ${session.state}\nCreated: ${formatDate(session.createdAt)}`);
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return 'Unknown';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
 
         // Initialize
