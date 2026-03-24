@@ -60,6 +60,17 @@ public class MessageAPI {
      * Send a text message.
      * @param sessionId session ID
      * @param text message text
+     * @param agent agent name
+     * @return response message with parts
+     */
+    public MessageWithParts sendText(String sessionId, String text, String agent) {
+        return sendText(sessionId, text, null, null, agent, false);
+    }
+
+    /**
+     * Send a text message.
+     * @param sessionId session ID
+     * @param text message text
      * @param providerId provider ID
      * @param modelId model ID
      * @param agent agent name
