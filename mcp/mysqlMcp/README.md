@@ -15,7 +15,7 @@ An MCP (Model Context Protocol) server for exploring and analyzing MySQL databas
 ## fast start
 ```bash
 mysqlVenv\Scripts\activate.bat
-python mysql_mcp_server.py --transport streamable_http --port 8125
+python mysql_mcp_server.py --transport streamable_http --port 8120
 ```
     
 
