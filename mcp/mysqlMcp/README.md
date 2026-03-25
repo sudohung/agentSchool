@@ -12,6 +12,13 @@ An MCP (Model Context Protocol) server for exploring and analyzing MySQL databas
 - 🔗 **Relationship Mapping**: Visualize foreign key relationships between tables
 - 💡 **Custom Queries**: Execute read-only SQL queries for deep analysis
 
+## fast start
+```bash
+mysqlVenv\Scripts\activate.bat
+python mysql_mcp_server.py --transport streamable_http --port 8125
+```
+    
+
 ## Installation
 
 ```bash
