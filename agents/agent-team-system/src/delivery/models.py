@@ -85,6 +85,11 @@ class FeedbackItem(BaseModel):
     status: str = "open"
     created_at: int
     resolved_at: Optional[int] = None
+    
+    # 扩展字段
+    delivery_id: str = ""
+    user_id: str = ""
+    attachments: List[str] = Field(default_factory=list)
 
 
 class DeliveryReport(BaseModel):
@@ -100,3 +105,14 @@ class DeliveryReport(BaseModel):
     total_time: float
     feedback_items: List[FeedbackItem] = Field(default_factory=list)
     generated_at: int
+
+
+class DeliveryResult(BaseModel):
+    """交付结果"""
+    success: bool
+    delivery_id: str
+    artifact_id: str
+    delivery_method: str
+    delivery_path: Optional[str] = None
+    verified: bool = False
+    error: Optional[str] = None

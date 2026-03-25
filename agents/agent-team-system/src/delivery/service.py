@@ -1,4 +1,4 @@
-"""交付服务 - 统一的交付入口."""
+"""交付服务 - 统一的交付入口 - 完善版."""
 
 from __future__ import annotations
 
@@ -18,16 +18,25 @@ from .models import (
 from .integrator import ProductIntegrator
 from .quality_checker import QualityChecker
 from .packager import DeliveryPackager
-from .feedback import FeedbackHandler
+from .feedback import FeedbackProcessor
+from .storage import DeliveryStorage
+from .manifest import ManifestGenerator
 
 logger = logging.getLogger(__name__)
 
 
 class DeliveryService:
     """
-    交付服务
+    交付服务 - 完善版
     
     统一的交付入口，协调各模块完成交付流程
+    
+    功能：
+    1. 产品整合
+    2. 质量检查
+    3. 打包交付物
+    4. 反馈处理
+    5. 交付历史管理
     """
     
     def __init__(
@@ -40,12 +49,16 @@ class DeliveryService:
         self.request_board = request_board
         self.output_path = Path(output_path)
         
+        # 初始化各模块
         self.integrator = ProductIntegrator(document_hub, output_path)
         self.quality_checker = QualityChecker()
         self.packager = DeliveryPackager(output_path)
-        self.feedback_handler = FeedbackHandler(request_board)
+        self.feedback_processor = FeedbackProcessor(request_board, document_hub)
+        self.storage = DeliveryStorage(str(output_path))
+        self.manifest_generator = ManifestGenerator()
         
         self._packages: Dict[str, DeliveryPackage] = {}
+        self._delivery_history: List[Dict[str, Any]] = []
     
     async def prepare_delivery(self, project_name: str) -> DeliveryPackage:
         """准备交付"""
@@ -62,7 +75,7 @@ class DeliveryService:
         package.quality_level = level
         
         package.status = DeliveryStatus.PACKAGING
-        await self.packager.package(package, DeliveryMethod.DIRECTORY)
+        await self.packager.package(package)
         
         package.status = DeliveryStatus.READY
         
@@ -72,126 +85,60 @@ class DeliveryService:
         
         return package
     
-    async def deliver(
+    async def process_feedback(
         self,
-        package_id: str,
-        method: DeliveryMethod = DeliveryMethod.DIRECTORY,
-    ) -> Path:
-        """执行交付"""
-        package = self._packages.get(package_id)
-        
-        if not package:
-            raise ValueError(f"Package not found: {package_id}")
-        
-        if package.status != DeliveryStatus.READY:
-            raise RuntimeError(f"Package not ready: {package.status.value}")
-        
-        delivery_path = await self.packager.package(package, method)
-        
-        package.status = DeliveryStatus.DELIVERED
-        package.delivered_at = int(time.time())
-        
-        logger.info(f"Delivered: {package_id} to {delivery_path}")
-        
-        return delivery_path
-    
-    async def accept_delivery(self, package_id: str) -> bool:
-        """验收交付"""
-        package = self._packages.get(package_id)
-        
-        if not package:
-            return False
-        
-        package.status = DeliveryStatus.ACCEPTED
-        logger.info(f"Delivery accepted: {package_id}")
-        
-        return True
-    
-    async def reject_delivery(self, package_id: str, reason: str) -> bool:
-        """拒绝交付"""
-        package = self._packages.get(package_id)
-        
-        if not package:
-            return False
-        
-        package.status = DeliveryStatus.REJECTED
-        logger.info(f"Delivery rejected: {package_id}, reason: {reason}")
-        
-        return True
-    
-    async def submit_feedback(
-        self,
-        package_id: str,
-        feedback_type: str,
-        priority: str,
+        delivery_id: str,
         content: str,
-        related_artifact: Optional[str] = None,
+        feedback_type: str = "other",
+        priority: str = "p2_medium",
+        user_id: str = "user",
     ) -> FeedbackItem:
-        """提交反馈"""
-        package = self._packages.get(package_id)
-        
-        if not package:
-            raise ValueError(f"Package not found: {package_id}")
-        
-        package.status = DeliveryStatus.FEEDBACK
-        
-        feedback = await self.feedback_handler.submit_feedback(
+        """处理反馈"""
+        feedback = await self.feedback_processor.collect(
+            delivery_id=delivery_id,
+            content=content,
             feedback_type=feedback_type,
             priority=priority,
-            content=content,
-            related_artifact=related_artifact,
+            user_id=user_id,
         )
         
-        logger.info(f"Feedback submitted for {package_id}: {feedback.id}")
+        # 分析反馈
+        analysis = await self.feedback_processor.analyze(feedback)
+        
+        # 优先级排序
+        final_priority = await self.feedback_processor.prioritize(feedback, analysis)
+        
+        # 创建任务
+        task = await self.feedback_processor.create_task(feedback, analysis)
+        
+        logger.info(
+            f"Feedback processed: {feedback.id} -> "
+            f"{analysis.feedback_type.value}, {final_priority.value}"
+        )
         
         return feedback
     
-    async def generate_report(
+    async def get_feedback_list(
         self,
-        package_id: str,
-        participating_agents: List[str] = None,
-        iterations: int = 0,
-        total_time: float = 0.0,
-    ) -> DeliveryReport:
-        """生成交付报告"""
-        package = self._packages.get(package_id)
-        
-        if not package:
-            raise ValueError(f"Package not found: {package_id}")
-        
-        feedback_items = await self.feedback_handler.get_feedback()
-        
-        summary = self._generate_summary(package)
-        
-        report = DeliveryReport(
-            package_id=package_id,
-            project_name=package.name,
-            summary=summary,
-            total_artifacts=len(package.artifacts),
-            quality_score=package.quality_score,
-            quality_level=package.quality_level,
-            participating_agents=participating_agents or [],
-            iterations=iterations,
-            total_time=total_time,
-            feedback_items=feedback_items,
-            generated_at=int(time.time()),
+        feedback_type: Optional[str] = None,
+        priority: Optional[str] = None,
+        status: Optional[str] = None,
+    ) -> List[FeedbackItem]:
+        """获取反馈列表"""
+        return await self.feedback_processor.get_feedback(
+            feedback_type=feedback_type,
+            priority=priority,
+            status=status,
         )
-        
-        return report
     
-    def _generate_summary(self, package: DeliveryPackage) -> str:
-        """生成摘要"""
-        artifact_types = {}
-        for artifact in package.artifacts:
-            artifact_types[artifact.type] = artifact_types.get(artifact.type, 0) + 1
-        
-        type_str = ", ".join(f"{t}: {c}" for t, c in artifact_types.items())
-        
-        return (
-            f"项目 '{package.name}' 交付完成。"
-            f"共产出 {len(package.artifacts)} 个产物（{type_str}）。"
-            f"质量评分：{package.quality_score:.1%}（{package.quality_level.value}）。"
-        )
+    async def get_delivery_history(
+        self,
+        package_id: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """获取交付历史"""
+        if package_id:
+            return [h for h in self._delivery_history if h["package_id"] == package_id]
+        return self._delivery_history.copy()
     
     def get_package(self, package_id: str) -> Optional[DeliveryPackage]:
         """获取交付包"""
