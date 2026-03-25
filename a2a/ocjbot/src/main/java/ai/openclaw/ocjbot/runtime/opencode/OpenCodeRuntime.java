@@ -5,6 +5,7 @@ import ai.openclaw.ocjbot.runtime.RuntimeType;
 import ai.openclaw.ocjbot.runtime.model.*;
 import ai.opencode.sdk.OpenCodeClient;
 import ai.opencode.sdk.ClientConfig;
+import ai.opencode.sdk.model.agent.DefaultAgentEnum;
 import ai.opencode.sdk.model.session.Session;
 import ai.opencode.sdk.model.message.MessageWithParts;
 import ai.opencode.sdk.model.provider.ProviderListResponse;
@@ -173,7 +174,35 @@ public class OpenCodeRuntime implements AgentRuntime {
     
     @Override
     public RuntimeMessage sendMessage(String sessionId, MessageRequest request) {
-        return sendText(sessionId, request.getText());
+        ensureInitialized();
+        try {
+            // 如果有指定 agent，使用特定的 agent
+            if (request.getAgent() != null && !request.getAgent().isEmpty()) {
+                log.info("Using specified agent: {}", request.getAgent());
+                // 这里可以根据 agentId 选择不同的 agent 进行处理
+                // 目前 OpenCode SDK 可能不直接支持指定 agent，需要通过 systemPrompt 或配置来实现
+            }
+            
+            String text = request.getText();
+            MessageWithParts response = client.getMessage().sendText(sessionId, text, request.getAgent());
+            String content = response.getParts() != null ? response.getParts().toString() : "No response";
+            return RuntimeMessage.builder()
+                .id(UUID.randomUUID().toString())
+                .sessionId(sessionId)
+                .role(RuntimeMessage.MessageRole.ASSISTANT)
+                .parts(List.of(MessagePart.text(content)))
+                .timestamp(Instant.now())
+                .build();
+        } catch (Exception e) {
+            log.warn("SendMessage failed, using fallback: {}", e.getMessage());
+            return RuntimeMessage.builder()
+                .id(UUID.randomUUID().toString())
+                .sessionId(sessionId)
+                .role(RuntimeMessage.MessageRole.ASSISTANT)
+                .parts(List.of(MessagePart.text("Mock response: " + request.getText())))
+                .timestamp(Instant.now())
+                .build();
+        }
     }
     
     @Override
@@ -195,6 +224,34 @@ public class OpenCodeRuntime implements AgentRuntime {
                 .sessionId(sessionId)
                 .role(RuntimeMessage.MessageRole.ASSISTANT)
                 .parts(List.of(MessagePart.text("Mock response: " + text)))
+                .timestamp(Instant.now())
+                .build();
+        }
+    }
+    
+    @Override
+    public RuntimeMessage plan(String sessionId, String text) {
+        return planWithAgent(sessionId, text, DefaultAgentEnum.DEFAULT_PLAN.getValue());
+    }
+    
+    /**
+     * 使用指定 agent 进行规划
+     */
+    public RuntimeMessage planWithAgent(String sessionId, String text, String agentId) {
+        ensureInitialized();
+        try {
+            // 构建带 agent 的 MessageRequest
+            MessageRequest request = MessageRequest.plan(text, agentId);
+            
+            // 使用 sendMessage 方法，它会处理 agent 参数
+            return sendMessage(sessionId, request);
+        } catch (Exception e) {
+            log.warn("Plan failed, using fallback: {}", e.getMessage());
+            return RuntimeMessage.builder()
+                .id(UUID.randomUUID().toString())
+                .sessionId(sessionId)
+                .role(RuntimeMessage.MessageRole.ASSISTANT)
+                .parts(List.of(MessagePart.text("Plan mock response: " + text)))
                 .timestamp(Instant.now())
                 .build();
         }

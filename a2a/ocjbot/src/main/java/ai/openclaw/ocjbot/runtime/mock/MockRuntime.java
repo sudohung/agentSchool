@@ -111,6 +111,42 @@ public class MockRuntime implements AgentRuntime {
     }
     
     @Override
+    public RuntimeMessage plan(String sessionId, String text) {
+        return planWithAgent(sessionId, text, null);
+    }
+    
+    /**
+     * 使用指定 agent 进行规划
+     */
+    public RuntimeMessage planWithAgent(String sessionId, String text, String agentId) {
+        List<RuntimeMessage> sessionMessages = messages.computeIfAbsent(sessionId, k -> new ArrayList<>());
+        
+        RuntimeMessage userMsg = RuntimeMessage.builder()
+            .id("msg-" + messageIdCounter.incrementAndGet())
+            .sessionId(sessionId)
+            .role(RuntimeMessage.MessageRole.USER)
+            .parts(List.of(MessagePart.text("[PLAN] " + (agentId != null ? "Agent: " + agentId + " - " : "") + text)))
+            .timestamp(Instant.now())
+            .build();
+        sessionMessages.add(userMsg);
+        
+        String responseText = agentId != null 
+            ? "Mock plan with agent [" + agentId + "]: Analyzing task and creating plan for: " + text
+            : "Mock plan: Analyzing task and creating plan for: " + text;
+        
+        RuntimeMessage assistantMsg = RuntimeMessage.builder()
+            .id("msg-" + messageIdCounter.incrementAndGet())
+            .sessionId(sessionId)
+            .role(RuntimeMessage.MessageRole.ASSISTANT)
+            .parts(List.of(MessagePart.text(responseText)))
+            .timestamp(Instant.now())
+            .build();
+        sessionMessages.add(assistantMsg);
+        
+        return assistantMsg;
+    }
+    
+    @Override
     public void sendMessageStream(String sessionId, MessageRequest request, Consumer<RuntimeEvent> eventHandler) {
         eventHandler.accept(RuntimeEvent.of(sessionId, "message.start", Map.of()));
         RuntimeMessage response = sendMessage(sessionId, request);

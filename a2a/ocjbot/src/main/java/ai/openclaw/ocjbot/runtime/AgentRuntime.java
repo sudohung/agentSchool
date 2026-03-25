@@ -71,11 +71,20 @@ public interface AgentRuntime extends AutoCloseable {
      * 发送消息并等待回复
      */
     RuntimeMessage sendMessage(String sessionId, MessageRequest request);
-    
+
     /**
      * 发送文本消息
      */
     RuntimeMessage sendText(String sessionId, String text);
+
+    /**
+     * 规划 - 使用默认 agent 进行任务规划
+     * 
+     * @param sessionId 会话 ID
+     * @param text 规划内容
+     * @return 规划结果
+     */
+    RuntimeMessage plan(String sessionId, String text);
     
     /**
      * 发送消息并流式接收响应

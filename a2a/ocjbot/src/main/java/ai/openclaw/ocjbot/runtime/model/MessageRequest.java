@@ -36,4 +36,11 @@ public class MessageRequest {
             .modelId(modelId)
             .build();
     }
+    
+    public static MessageRequest plan(String text, String agent) {
+        return MessageRequest.builder()
+            .text(text)
+            .agent(agent)
+            .build();
+    }
 }
