@@ -40,6 +40,9 @@ ocjbot:
     # open-code-directory: "your-directory"
     # open-code-workspace: "your-workspace"
     # open-code-timeout: 30000
+    # 默认 Provider 和 Model
+    default-provider: "opencode"
+    default-model: "minimax-m2.5-free"
     
   tools:
     - bash

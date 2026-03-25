@@ -78,6 +78,14 @@ public class OcjbotProperties {
         private String openCodeUsername;
         private String openCodePassword;
         private String openCodeDirectory;
+        private String openCodeWorkspace;
+        private Long openCodeTimeout = 60000L;
+        
+        /** 默认 Provider ID */
+        private String defaultProvider;
+        
+        /** 默认 Model ID */
+        private String defaultModel;
     }
 
     @Data

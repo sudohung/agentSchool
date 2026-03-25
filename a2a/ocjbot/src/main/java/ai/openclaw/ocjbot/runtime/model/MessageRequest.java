@@ -43,4 +43,21 @@ public class MessageRequest {
             .agent(agent)
             .build();
     }
+    
+    public static MessageRequest withProvider(String text, String providerId, String modelId) {
+        return MessageRequest.builder()
+            .text(text)
+            .providerId(providerId)
+            .modelId(modelId)
+            .build();
+    }
+    
+    public static MessageRequest withAgentAndProvider(String text, String agent, String providerId, String modelId) {
+        return MessageRequest.builder()
+            .text(text)
+            .agent(agent)
+            .providerId(providerId)
+            .modelId(modelId)
+            .build();
+    }
 }

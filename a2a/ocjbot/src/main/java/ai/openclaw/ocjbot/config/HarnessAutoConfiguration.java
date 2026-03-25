@@ -63,12 +63,19 @@ public class HarnessAutoConfiguration {
     }
 
     private AgentRuntime createOpenCodeRuntime(OcjbotProperties properties) {
+        OcjbotProperties.RuntimeConfig runtimeConfig = properties.getRuntime();
+        
         OpenCodeRuntimeConfig config = OpenCodeRuntimeConfig.builder()
-            .baseUrl(properties.getRuntime().getOpenCodeBaseUrl())
-            .username(properties.getRuntime().getOpenCodeUsername())
-            .password(properties.getRuntime().getOpenCodePassword())
-            .directory(properties.getRuntime().getOpenCodeDirectory())
-            .timeout(Duration.ofSeconds(60))
+            .baseUrl(runtimeConfig.getOpenCodeBaseUrl())
+            .username(runtimeConfig.getOpenCodeUsername())
+            .password(runtimeConfig.getOpenCodePassword())
+            .directory(runtimeConfig.getOpenCodeDirectory())
+            .workspace(runtimeConfig.getOpenCodeWorkspace())
+            .timeout(runtimeConfig.getOpenCodeTimeout() != null 
+                ? Duration.ofMillis(runtimeConfig.getOpenCodeTimeout()) 
+                : Duration.ofSeconds(60))
+            .defaultProvider(runtimeConfig.getDefaultProvider())
+            .defaultModel(runtimeConfig.getDefaultModel())
             .build();
         
         return new OpenCodeRuntime(config);

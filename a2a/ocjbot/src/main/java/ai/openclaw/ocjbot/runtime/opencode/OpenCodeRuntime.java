@@ -179,12 +179,33 @@ public class OpenCodeRuntime implements AgentRuntime {
             // 如果有指定 agent，使用特定的 agent
             if (request.getAgent() != null && !request.getAgent().isEmpty()) {
                 log.info("Using specified agent: {}", request.getAgent());
-                // 这里可以根据 agentId 选择不同的 agent 进行处理
-                // 目前 OpenCode SDK 可能不直接支持指定 agent，需要通过 systemPrompt 或配置来实现
             }
             
             String text = request.getText();
-            MessageWithParts response = client.getMessage().sendText(sessionId, text, request.getAgent());
+            
+            // 使用请求中的 provider/model 或默认配置
+            String providerId = request.getProviderId() != null ? request.getProviderId() : config.getDefaultProvider();
+            String modelId = request.getModelId() != null ? request.getModelId() : config.getDefaultModel();
+            
+            MessageWithParts response;
+            
+            // 根据参数选择不同的发送方法
+            if (providerId != null && !providerId.isEmpty()) {
+                log.info("Using provider: {}, model: {}", providerId, modelId);
+                response = client.getMessage().sendText(
+                    sessionId, 
+                    text, 
+                    providerId,
+                    modelId,
+                    request.getAgent(),
+                    false
+                );
+            } else if (request.getAgent() != null && !request.getAgent().isEmpty()) {
+                response = client.getMessage().sendText(sessionId, text, request.getAgent());
+            } else {
+                response = client.getMessage().sendText(sessionId, text);
+            }
+            
             String content = response.getParts() != null ? response.getParts().toString() : "No response";
             return RuntimeMessage.builder()
                 .id(UUID.randomUUID().toString())
@@ -207,9 +228,30 @@ public class OpenCodeRuntime implements AgentRuntime {
     
     @Override
     public RuntimeMessage sendText(String sessionId, String text) {
+        return sendTextWithProvider(sessionId, text, null, null, null);
+    }
+    
+    /**
+     * 使用指定 provider 发送消息
+     */
+    public RuntimeMessage sendTextWithProvider(String sessionId, String text, String agent, String providerId, String modelId) {
         ensureInitialized();
         try {
-            MessageWithParts response = client.getMessage().sendText(sessionId, text);
+            // 使用传入的 provider/model 或默认配置
+            String effectiveProviderId = providerId != null ? providerId : config.getDefaultProvider();
+            String effectiveModelId = modelId != null ? modelId : config.getDefaultModel();
+            
+            MessageWithParts response;
+            
+            if (effectiveProviderId != null && !effectiveProviderId.isEmpty()) {
+                log.info("Sending message with provider: {}, model: {}", effectiveProviderId, effectiveModelId);
+                response = client.getMessage().sendText(sessionId, text, effectiveProviderId, effectiveModelId, agent, false);
+            } else if (agent != null && !agent.isEmpty()) {
+                response = client.getMessage().sendText(sessionId, text, agent);
+            } else {
+                response = client.getMessage().sendText(sessionId, text);
+            }
+            
             String content = response.getParts() != null ? response.getParts().toString() : "No response";
             return RuntimeMessage.builder()
                 .id(UUID.randomUUID().toString())

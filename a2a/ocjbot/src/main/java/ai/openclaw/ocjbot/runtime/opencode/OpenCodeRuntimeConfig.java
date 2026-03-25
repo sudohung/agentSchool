@@ -27,6 +27,12 @@ public class OpenCodeRuntimeConfig {
     @Builder.Default
     private Duration timeout = Duration.ofSeconds(60);
     
+    /** 默认 Provider ID */
+    private String defaultProvider;
+    
+    /** 默认 Model ID */
+    private String defaultModel;
+    
     public static OpenCodeRuntimeConfig defaults() {
         return OpenCodeRuntimeConfig.builder().build();
     }

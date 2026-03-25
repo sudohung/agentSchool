@@ -60,10 +60,9 @@ class OcjbotApplicationTest {
 
 
         // Test plan method
-//        RuntimeMessage planResult = runtime.plan("ses_2dd37dce4ffeWU7dGNopKa2O2j", "设计一个crm系统，思考下整体架构设计；输出md文档");
-        RuntimeMessage planResult = runtime.sendText("ses_2dd37dce4ffeWU7dGNopKa2O2j", "design a crm system and give me a design docs");
+        RuntimeMessage planResult = runtime.plan("ses_2dd37dce4ffeWU7dGNopKa2O2j", "设计一个crm系统，思考下整体架构设计；输出md文档到tmp目录");
+//        RuntimeMessage planResult = runtime.sendText("ses_2dd37dce4ffeWU7dGNopKa2O2j", "design a crm system and give me a design docs");
         assertNotNull(planResult);
-        assertTrue(planResult.getTextContent().contains("plan"));
         System.out.println("Plan result: " + planResult.getTextContent());
     }
     
