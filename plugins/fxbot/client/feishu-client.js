@@ -24,7 +24,7 @@ const feishuClient = new lark.Client({
     appSecret: FeishuConfig.appSecret
 });
 
-const hostname = 'http://172.20.157.162'
+const hostname = 'http://127.0.0.1'
 
 // 创建 OpenCode 客户端实例
 const opencodeClient = createOpencodeClient({
@@ -54,7 +54,7 @@ const kimik25Client = createOpencodeClient({
 console.log(`opencode sessions  ${opencodeClient}`)
 
 // 创建 Agent 策略实例
-const agent = new OpencodeAgent(opencodeClient).initModel(FeishuConfig.opencodeProvider,"qwen3.5-plus");
+const agent = new OpencodeAgent(opencodeClient).initModel(FeishuConfig.opencodeProvider,"deepseek-v4-flash");
 const bk1 = new OpencodeAgent(opencodeClient).initModel("opencode","minimax-m2.5-free");
 const bk2 = new OpencodeAgent(opencodeClient).initModel("opencode","big-pickle");
 
