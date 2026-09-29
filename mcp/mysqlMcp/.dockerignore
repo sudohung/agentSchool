@@ -1,0 +1,16 @@
+# 版本控制与虚拟环境
+.git
+.gitignore
+venv
+
+# Python 缓存
+__pycache__
+*.pyc
+*.pyo
+
+# 敏感配置：禁止将 .env 打进镜像，运行时通过 docker run -e 注入
+.env
+
+# 本地脚本与文档
+start.bat
+README.md

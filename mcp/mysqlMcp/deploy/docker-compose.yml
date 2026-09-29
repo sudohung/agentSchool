@@ -1,0 +1,34 @@
+# MySQL MCP Server 双实例部署（crm / socute）
+# 镜像由 ../Dockerfile 构建构建: docker build -t mysql-mcp-server:latest ..
+# 启动:   docker compose up -d
+# 停止:   docker compose down
+services:
+  # ============ crm 实例：xp_dragon_pandora 库，宿主机 8200 ============
+  mysql-mcp-crm:
+    image: mysql-mcp-server:latest
+    container_name: mysql-mcp-crm
+    restart: unless-stopped
+    env_file:
+      - env.crm
+    ports:
+      - "8200:8200"
+
+  # ============ socute 实例：xp_socute_platform 库，宿主机 8201 ============
+  mysql-mcp-socute:
+    image: mysql-mcp-server:latest
+    container_name: mysql-mcp-socute
+    restart: unless-stopped
+    env_file:
+      - env.socute
+    ports:
+      - "8201:8201"
+
+# ============ 网络修复：宿主机 eth0 MTU=1300（隧道网络），容器网桥默认 1500 会导致
+# 大响应包（如 mysql_list_tables 返回上百行）被 PMTU 黑洞丢弃、查询无限挂起。
+# 将本栈网桥 MTU 降至 1300，使 TCP MSS 与物理路径匹配 ============
+networks:
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: "1300"
+

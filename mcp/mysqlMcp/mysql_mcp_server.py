@@ -72,7 +72,10 @@ class DatabaseClient:
                 database=self.config.database,
                 charset=self.config.charset,
                 cursorclass=pymysql.cursors.DictCursor,
-                autocommit=True
+                autocommit=True,
+                connect_timeout=10,
+                read_timeout=30,
+                write_timeout=30
             )
             logger.info(f"Connected to MySQL: {self.config.host}:{self.config.port}")
 
@@ -468,7 +471,7 @@ async def database_overview(params: DatabaseOverviewInput, ctx: Context) -> str:
             return "\n".join(lines)
 
         else:
-            return json.dumps(info, indent=2)
+            return json.dumps(info, indent=2, default=str)
 
     except Exception as e:
         logger.error(f"Error getting database overview: {e}")
@@ -611,7 +614,7 @@ async def list_tables(params: ListTablesInput, ctx: Context) -> str:
                 "database": target_db,
                 "count": len(results),
                 "tables": results
-            }, indent=2)
+            }, indent=2, default=str)
 
     except Exception as e:
         logger.error(f"Error listing tables: {e}")
