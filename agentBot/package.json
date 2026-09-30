@@ -1,0 +1,19 @@
+{
+  "name": "agent-bot",
+  "version": "1.0.0",
+  "description": "飞书 × OpenCode Agent 机器人（重构版）：飞书消息接入、多模型 Agent 切换、事件实时回写、权限/提问闭环",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@larksuiteoapi/node-sdk": "^1.59.0",
+    "@opencode-ai/sdk": "^1.14.40",
+    "dotenv": "^16.4.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

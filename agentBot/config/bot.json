@@ -1,0 +1,42 @@
+{
+  "opencodeBaseUrl": "http://192.168.137.2:4096",
+  "defaultKey": "main",
+  "agents": [
+    {
+      "key": "main",
+      "provider": "fuyao",
+      "model": "fuyao-coding-high",
+      "description": "默认主力：Fuyao Coding (high)"
+    },
+    {
+      "key": "max",
+      "provider": "fuyao",
+      "model": "fuyao-coding-max",
+      "description": "Fuyao Coding (max)"
+    },
+    {
+      "key": "work",
+      "provider": "fuyao",
+      "model": "fuyao-work-high",
+      "description": "Fuyao Work (high)"
+    },
+    {
+      "key": "workmax",
+      "provider": "fuyao",
+      "model": "fuyao-work-max",
+      "description": "Fuyao Work (max)"
+    },
+    {
+      "key": "datax",
+      "provider": "fuyao",
+      "model": "fuyao-data-xhigh",
+      "description": "Fuyao Data (xhigh)"
+    },
+    {
+      "key": "sub",
+      "provider": "volcengine-plan",
+      "model": "glm-5.3",
+      "description": "volGLM53"
+    }
+  ]
+}
