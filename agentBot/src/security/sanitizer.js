@@ -58,6 +58,13 @@ const RULES = [
         pattern: /^\s*at\s+.+$/gm,
         placeholder: MaskPlaceholder.STACK,
     },
+    {
+        name: 'at-tag',
+        // AI 回复中回显的 at 标签（如 <at id=open_id></at> 语法示例）：
+        // 直接渲染会因无效用户资源导致卡片创建失败(230099)，机器人自己的 @ 前缀在脱敏后注入，不受影响
+        pattern: /<at\s[^>]*>(?:\s*<\/at>)?|<\/at>/gi,
+        placeholder: '',
+    },
 ];
 
 /** 单条内容长度上限：超过先截断再脱敏，防止超长卡片 */

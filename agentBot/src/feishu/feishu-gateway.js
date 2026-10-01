@@ -129,6 +129,11 @@ export class FeishuGateway {
                         return {};
                     }
 
+                    // 引用/回复消息诊断：parent_id 是否存在及原始内容
+                    if (data.message?.parent_id) {
+                        console.log(`${LogPrefix.GATEWAY} 引用消息: parent_id=${data.message.parent_id}, root_id=${data.message.root_id || '无'}, msg_type=${data.message.message_type}, content=${String(content).slice(0, 300)}`);
+                    }
+
                     const messageTime = typeof create_time === 'string'
                         ? parseInt(create_time, 10)
                         : create_time;
