@@ -12,8 +12,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 dotenv.config({ path: join(__dirname, '../../.env') });
 
-/** bot.json 路径（运行时可变配置：服务地址 + 模型列表） */
+/** bot.json 路径（运行时可变配置：服务地址 + 模型列表 + 安全开关） */
 const BOT_JSON_PATH = join(__dirname, '../../config/bot.json');
+
+/** 安全配置默认值：出站脱敏默认开启 */
+const SECURITY_DEFAULTS = { maskSensitive: true };
 
 const int = (val, fallback) => {
     const n = parseInt(val, 10);
@@ -75,6 +78,22 @@ export const BotConfig = {
     },
 
     /**
+     * 获取安全配置（bot.json 优先，缺省用默认值）
+     * @returns {{maskSensitive:boolean}}
+     */
+    getSecurityConfig() {
+        return { ...SECURITY_DEFAULTS, ...(readBotJson()?.security || {}) };
+    },
+
+    /**
+     * 出站脱敏开关（每次实时读取，管理页切换后立即生效）
+     * @returns {boolean}
+     */
+    isMaskSensitiveEnabled() {
+        return this.getSecurityConfig().maskSensitive !== false;
+    },
+
+    /**
      * 获取 OpenCode 服务地址（bot.json 优先，其次环境变量）
      * @returns {string}
      */
@@ -133,10 +152,14 @@ export const BotConfig = {
             throw new Error(`默认 Agent "${defaultKey}" 不在列表中`);
         }
 
-        // 原子写入：先写临时文件再重命名
+        // 原子写入：先写临时文件再重命名（未提供的字段保留旧值，避免覆盖 security 等配置）
+        const prev = readBotJson() || {};
+        const security = body.security !== undefined
+            ? { ...SECURITY_DEFAULTS, ...prev.security, ...body.security }
+            : (prev.security || SECURITY_DEFAULTS);
         const prevUrl = this.getOpencodeBaseUrl();
         const tmp = `${BOT_JSON_PATH}.tmp`;
-        writeFileSync(tmp, JSON.stringify({ opencodeBaseUrl, defaultKey, agents }, null, 2));
+        writeFileSync(tmp, JSON.stringify({ opencodeBaseUrl, defaultKey, agents, security }, null, 2));
         renameSync(tmp, BOT_JSON_PATH);
 
         return { urlChanged: prevUrl !== opencodeBaseUrl };

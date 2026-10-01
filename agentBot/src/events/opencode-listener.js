@@ -10,6 +10,7 @@
 import { BotConfig } from '../config/bot-config.js';
 import { OcEventType, PartType, LogPrefix } from '../constants.js';
 import { sendCardMessage, updateMessage, recallMessage } from '../feishu/message-sender.js';
+import { sanitizeText } from '../security/sanitizer.js';
 import { sendWebhookMessage } from '../webhook/webhook-sender.js';
 import { InteractionManager } from './interaction-manager.js';
 
@@ -160,7 +161,7 @@ export class OpencodeListener {
                 state.messageId,
                 'interactive',
                 '',
-                { title: '🤔 思考中', content: state.content },
+                { title: '🤔 思考中', content: sanitizeText(state.content, '流式思考') },
             ).catch(() => {});
         }
     }
@@ -207,7 +208,7 @@ export class OpencodeListener {
             `错误信息: ${status.message || '未知'}`,
             `下次重试: ${status.next ? new Date(status.next).toLocaleString() : '未知'}`,
         ].join('\n');
-        await sendCardMessage(this.#chatService, chatId, '⚠️ 会话重试中', content);
+        await sendCardMessage(this.#chatService, chatId, '⚠️ 会话重试中', sanitizeText(content, '重试通知'));
     }
 
     /**
@@ -224,7 +225,7 @@ export class OpencodeListener {
         const content = `会话 ${sessionID} 发生异常\n错误信息：${message}`;
 
         if (chatId) {
-            await sendCardMessage(this.#chatService, chatId, '❌ 会话异常', content);
+            await sendCardMessage(this.#chatService, chatId, '❌ 会话异常', sanitizeText(content, '会话异常'));
         }
         await sendWebhookMessage('❌ 会话异常', content);
     }

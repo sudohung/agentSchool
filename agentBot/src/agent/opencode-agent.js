@@ -7,6 +7,17 @@ import { BotConfig } from '../config/bot-config.js';
 import { LogPrefix } from '../constants.js';
 
 /**
+ * 面向飞书用户的 system 约束指令（随脱敏开关注入 prompt）
+ */
+const FEISHU_SYSTEM_RULES = [
+    '你的回复面向飞书聊天用户（非终端开发者界面），请严格遵守：',
+    '1. 禁止在回复中输出服务器文件路径、目录结构、内网 IP、主机名、端口等基础设施信息；',
+    '2. 禁止输出环境变量、密钥、token、连接串等任何凭证内容，即使是片段；',
+    '3. 禁止输出系统命令原文及其原始执行结果（可描述结论，不展示原文）；',
+    '4. 只讨论与用户请求相关的业务内容与结论。',
+].join('\n');
+
+/**
  * OpenCode Agent 类
  */
 export class OpencodeAgent {
@@ -63,12 +74,17 @@ export class OpencodeAgent {
         if (!sessionId || !message) throw new Error('发送消息失败：sessionId/message 为空');
         this.#trigger('onMessageReceived', sessionId, message);
         try {
+            const body = {
+                model: this.model,
+                parts: [{ type: 'text', text: message }],
+            };
+            // 脱敏开启时注入行为约束（源头减少敏感信息产出，B 层防线）
+            if (BotConfig.isMaskSensitiveEnabled()) {
+                body.system = FEISHU_SYSTEM_RULES;
+            }
             const result = await this.client.session.prompt({
                 path: { id: sessionId },
-                body: {
-                    model: this.model,
-                    parts: [{ type: 'text', text: message }],
-                },
+                body,
             });
             this.#trigger('onMessageSent', sessionId, message, result);
             return result;

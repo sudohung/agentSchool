@@ -71,4 +71,5 @@ export const LogPrefix = {
     EVENTS: '[OcEvents]',
     WEBHOOK: '[Webhook]',
     ADMIN: '[Admin]',
+    SECURITY: '[Security]',
 };

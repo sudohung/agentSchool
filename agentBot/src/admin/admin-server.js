@@ -80,6 +80,14 @@ const ADMIN_HTML = `<!DOCTYPE html>
   </div>
 
   <div class="card">
+    <h2>安全设置</h2>
+    <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#2c3e50">
+      <input type="checkbox" id="maskSensitive" style="width:auto"> 出站内容脱敏
+    </label>
+    <div class="meta">开启后：AI 回复/思考流/提问卡片中的路径、内网 IP、密钥等敏感信息自动过滤，并向 AI 注入行为约束。关闭后原文直接展示，存在泄漏风险。保存后立即生效</div>
+  </div>
+
+  <div class="card">
     <div class="row">
       <div><button class="btn btn-primary" onclick="save()">💾 保存配置</button></div>
       <div style="flex:0"><button class="btn" style="background:#fff4e5;color:#b26a00" onclick="restart()">🔄 重启服务</button></div>
@@ -182,6 +190,7 @@ async function load() {
     $('#tbl tbody').innerHTML = '';
     (cfg.agents||[]).forEach(addRow);
     $('#defaultKey').value = cfg.defaultKey || 'main';
+    $('#maskSensitive').checked = cfg.security ? cfg.security.maskSensitive !== false : true;
     // 页面打开即拉取当前 baseUrl 的可用模型，供下拉选择
     fetchModels();
   } catch (e) { showMsg('加载失败: ' + e.message, false); }
@@ -213,6 +222,7 @@ async function save() {
     opencodeBaseUrl: $('#baseUrl').value.trim(),
     defaultKey: $('#defaultKey').value || agents[0]?.key,
     agents,
+    security: { maskSensitive: $('#maskSensitive').checked },
   };
   try {
     const r = await fetch('/api/config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
@@ -313,6 +323,7 @@ export class AdminServer {
                 defaultKey: cfg.defaultKey,
                 agents: cfg.agents,
                 source: cfg.source,
+                security: BotConfig.getSecurityConfig(),
                 feishuAppId: process.env.FEISHU_APP_ID || '',
                 feishuWs: this.#gateway?.getConnectionStatus?.() || null,
             });

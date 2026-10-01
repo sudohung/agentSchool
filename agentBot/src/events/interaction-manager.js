@@ -7,6 +7,7 @@
 import { PendingInteraction, PermissionAction, CardActionType, LogPrefix } from '../constants.js';
 import { sendTextMessage, sendInteractiveCard } from '../feishu/message-sender.js';
 import { buildQuestionCard, buildReceiptCard } from '../feishu/card-builder.js';
+import { sanitizeDeep, sanitizeText } from '../security/sanitizer.js';
 
 /** 待处理交互过期时间（毫秒） */
 const INTERACTION_TTL = 10 * 60 * 1000;
@@ -44,7 +45,7 @@ export class InteractionManager {
         // 清理过期交互
         await this.#cleanup();
 
-        const questions = properties.questions || [];
+        const questions = sanitizeDeep(properties.questions || [], '提问卡片');
         this.#pending.set(chatId, {
             type: PendingInteraction.QUESTION,
             requestId,
@@ -151,7 +152,7 @@ export class InteractionManager {
         await sendTextMessage(
             this.#chatService,
             chatId,
-            `🔐 工具调用权限请求：${properties.permission}\n内容：${(properties.patterns || []).join(', ')}\n回复 /permit:once、/permit:always 或 /permit:reject`,
+            `🔐 工具调用权限请求：${properties.permission}\n内容：${sanitizeText((properties.patterns || []).join(', '), '权限请求')}\n回复 /permit:once、/permit:always 或 /permit:reject`,
         );
     }
 

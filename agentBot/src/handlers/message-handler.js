@@ -10,6 +10,7 @@ import {
     updateMessage,
     sendTextMessage,
 } from '../feishu/message-sender.js';
+import { sanitizeText } from '../security/sanitizer.js';
 import { runFilterChain, preprocessMessage } from './filters.js';
 import { CommandRouter, extractTextResponse } from './commands.js';
 
@@ -85,7 +86,7 @@ export class MessageHandler {
                     thinking.data.message_id,
                     'interactive',
                     userMessage,
-                    { title: '执行结果', content: commandResult.message },
+                    { title: '执行结果', content: sanitizeText(commandResult.message, '命令结果') },
                 );
                 return;
             }
@@ -94,7 +95,8 @@ export class MessageHandler {
             await this.#handleAiMessage(chatId, message, userMessage);
         } catch (error) {
             console.error(`${LogPrefix.HANDLER} 处理失败: ${error.message}`, error.stack);
-            await sendErrorMessage(chatService, chatId, `回复: ${userMessage} -> ${error.message}`).catch(() => {});
+            // 错误详情只进服务端日志，飞书侧仅回简要提示，避免路径/堆栈泄漏
+            await sendErrorMessage(chatService, chatId, '处理失败，请稍后重试或联系管理员查看服务日志').catch(() => {});
         } finally {
             sessionManager.markCompleted(chatId, userMessage);
         }
@@ -114,10 +116,10 @@ export class MessageHandler {
         if (thinkingId) {
             await updateMessage(chatService, thinkingId, 'interactive', userMessage, {
                 title: '回复',
-                content: aiResponse,
+                content: sanitizeText(aiResponse, 'AI回复'),
             });
         } else {
-            await sendTextMessage(chatService, chatId, aiResponse);
+            await sendTextMessage(chatService, chatId, sanitizeText(aiResponse, 'AI回复'));
         }
     }
 }
