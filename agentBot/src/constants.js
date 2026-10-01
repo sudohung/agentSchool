@@ -37,6 +37,8 @@ export const OcEventType = {
     SESSION_ERROR: 'session.error',
     SESSION_STATUS: 'session.status',
     QUESTION_ASKED: 'question.asked',
+    QUESTION_REPLIED: 'question.replied',
+    QUESTION_REJECTED: 'question.rejected',
     PERMISSION_ASKED: 'permission.asked',
     SERVER_HEARTBEAT: 'server.heartbeat',
 };
@@ -55,6 +57,11 @@ export const PendingInteraction = {
     PERMISSION: 'permission',
 };
 
+/** 卡片按钮动作类型（card.action.trigger 回调路由） */
+export const CardActionType = {
+    QUESTION_REPLY: 'question_reply',
+};
+
 /** 消息前缀 */
 export const LogPrefix = {
     GATEWAY: '[Gateway]',
@@ -64,4 +71,5 @@ export const LogPrefix = {
     EVENTS: '[OcEvents]',
     WEBHOOK: '[Webhook]',
     ADMIN: '[Admin]',
+    SECURITY: '[Security]',
 };

@@ -74,10 +74,11 @@ export class FeishuGateway {
     }
 
     /**
-     * 启动长连接并注册消息事件
+     * 启动长连接并注册消息/卡片交互事件
      * @param {(chatId: string, text: string, messageContext: Object) => Promise<void>} onMessage
+     * @param {(data: Object) => Promise<Object|null>} [onCardAction] - 卡片按钮回调，返回卡片 JSON 将原地更新卡片
      */
-    start(onMessage) {
+    start(onMessage, onCardAction) {
         if (this.#connected) {
             console.warn(`${LogPrefix.GATEWAY} 长连接已启动，忽略重复启动`);
             return;
@@ -119,42 +120,59 @@ export class FeishuGateway {
             },
         });
 
-        this.#wsClient.start({
-            eventDispatcher: new lark.EventDispatcher({}).register({
-                'im.message.receive_v1': async (data) => {
-                    try {
-                        const { chat_id, message_id, create_time, content } = data.message || {};
-                        if (!chat_id || !message_id) {
-                            console.warn(`${LogPrefix.GATEWAY} 消息缺少 chat_id/message_id，忽略`);
-                            return {};
-                        }
-
-                        const messageTime = typeof create_time === 'string'
-                            ? parseInt(create_time, 10)
-                            : create_time;
-                        if (this.#shouldSkip(message_id, messageTime)) {
-                            return {};
-                        }
-
-                        // 仅处理文本消息，其他类型（图片/文件等）提示不支持
-                        let text = '';
-                        try {
-                            text = JSON.parse(content)?.text || '';
-                        } catch {
-                            text = '';
-                        }
-                        if (!text) {
-                            console.log(`${LogPrefix.GATEWAY} 非文本消息，跳过：${message_id}`);
-                            return {};
-                        }
-
-                        await this.#onMessage(chat_id, text, data.message);
-                    } catch (error) {
-                        console.error(`${LogPrefix.GATEWAY} 消息处理异常: ${error.message}`);
+        const handles = {
+            'im.message.receive_v1': async (data) => {
+                try {
+                    const { chat_id, message_id, create_time, content } = data.message || {};
+                    if (!chat_id || !message_id) {
+                        console.warn(`${LogPrefix.GATEWAY} 消息缺少 chat_id/message_id，忽略`);
+                        return {};
                     }
+
+                    const messageTime = typeof create_time === 'string'
+                        ? parseInt(create_time, 10)
+                        : create_time;
+                    if (this.#shouldSkip(message_id, messageTime)) {
+                        return {};
+                    }
+
+                    // 仅处理文本消息，其他类型（图片/文件等）提示不支持
+                    let text = '';
+                    try {
+                        text = JSON.parse(content)?.text || '';
+                    } catch {
+                        text = '';
+                    }
+                    if (!text) {
+                        console.log(`${LogPrefix.GATEWAY} 非文本消息，跳过：${message_id}`);
+                        return {};
+                    }
+
+                    await this.#onMessage(chat_id, text, data.message);
+                } catch (error) {
+                    console.error(`${LogPrefix.GATEWAY} 消息处理异常: ${error.message}`);
+                }
+                return {};
+            },
+        };
+
+        // 卡片按钮回调：长连接模式接收 card.action.trigger，返回值作为回执卡片原地更新
+        if (typeof onCardAction === 'function') {
+            handles['card.action.trigger'] = async (data) => {
+                try {
+                    console.log(`${LogPrefix.GATEWAY} 收到卡片按钮回调: ${JSON.stringify(data)?.slice(0, 500)}`);
+                    const result = (await onCardAction(data)) || {};
+                    console.log(`${LogPrefix.GATEWAY} 卡片回调处理完成，返回回执: ${result?.header ? result.header.title?.content : JSON.stringify(result).slice(0, 200)}`);
+                    return result;
+                } catch (error) {
+                    console.error(`${LogPrefix.GATEWAY} 卡片交互处理异常: ${error.message}`, error.stack);
                     return {};
-                },
-            }),
+                }
+            };
+        }
+
+        this.#wsClient.start({
+            eventDispatcher: new lark.EventDispatcher({}).register(handles),
         });
 
         this.#connected = true;
