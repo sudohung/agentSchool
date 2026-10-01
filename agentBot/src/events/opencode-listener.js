@@ -49,11 +49,12 @@ export class OpencodeListener {
     /** @type {Function} 返回最新 OpenCode SDK 客户端 */
     #getClient;
 
-    /** 提供给消息处理器的交互路由（question/permission 回复闭环） */
+    /** 提供给消息处理器的交互路由（question/permission 回复闭环 + 卡片按钮回调） */
     getInteraction() {
         return {
             routeReply: (chatId, message) => this.#interaction.routeReply(chatId, message),
             respondPermission: (chatId, action) => this.#interaction.respondPermission(chatId, action),
+            handleCardAction: (data) => this.#interaction.handleCardAction(data),
         };
     }
 
@@ -101,10 +102,18 @@ export class OpencodeListener {
                 if (chatId) await this.#handlePartUpdated(chatId, event);
                 break;
             case OcEventType.SESSION_IDLE:
+                console.log(`${LogPrefix.EVENTS} session.idle: session=${event.properties?.sessionID} chat=${chatId || '未映射'}`);
                 if (chatId) await this.#handleSessionIdle(chatId);
                 break;
             case OcEventType.QUESTION_ASKED:
+                console.log(`${LogPrefix.EVENTS} question.asked: session=${event.properties?.sessionID}, request=${event.properties?.id}, 问题数=${event.properties?.questions?.length}`);
                 await this.#handleQuestionAsked(event, chatId);
+                break;
+            case OcEventType.QUESTION_REPLIED:
+                console.log(`${LogPrefix.EVENTS} question.replied: session=${event.properties?.sessionID}, request=${event.properties?.requestID}, answers=${JSON.stringify(event.properties?.answers)}`);
+                break;
+            case OcEventType.QUESTION_REJECTED:
+                console.log(`${LogPrefix.EVENTS} question.rejected: session=${event.properties?.sessionID}, request=${event.properties?.requestID}`);
                 break;
             case OcEventType.PERMISSION_ASKED:
                 await this.#handlePermissionAsked(event, chatId);
@@ -145,12 +154,13 @@ export class OpencodeListener {
             if (now - state.updatedAt < STREAM_THROTTLE) return;
             state.updatedAt = now;
             state.content = `${state.content}${part.text}`;
+            // 注意：占位消息是卡片（interactive），只能走 patch 更新，用 text 更新会报 230054
             await updateMessage(
                 this.#chatService,
                 state.messageId,
-                'text',
+                'interactive',
                 '',
-                state.content,
+                { title: '🤔 思考中', content: state.content },
             ).catch(() => {});
         }
     }

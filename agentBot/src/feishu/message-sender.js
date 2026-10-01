@@ -102,6 +102,30 @@ export async function sendThinkingMessage(chatService, chatId) {
     return await sendCardMessage(chatService, chatId, 'Thinking...', '正在处理您的请求...');
 }
 
+/**
+ * 发送自定义交互卡片（完整卡片 JSON，支持按钮等组件）
+ * @returns {Promise<{code:number, data:{message_id:string}}>}
+ */
+export async function sendInteractiveCard(chatService, chatId, card) {
+    if (!chatId) throw new Error('发送卡片失败：chatId 为空');
+    if (!card || typeof card !== 'object') throw new Error('发送卡片失败：卡片内容为空');
+    const client = chatService.getClient();
+    return await withRetry(async () => {
+        const res = await client.im.v1.message.create({
+            params: { receive_id_type: 'chat_id' },
+            data: {
+                receive_id: chatId,
+                content: JSON.stringify(card),
+                msg_type: MsgType.INTERACTIVE,
+            },
+        });
+        return {
+            code: res.code || 0,
+            data: { message_id: res.data?.message_id || '' },
+        };
+    }, `发送交互卡片到 ${chatId}`);
+}
+
 /** 发送错误卡片 */
 export async function sendErrorMessage(chatService, chatId, errorMessage, title = '❌ 处理失败') {
     return await sendCardMessage(chatService, chatId, title, `错误：${errorMessage}`);
@@ -130,14 +154,15 @@ export async function updateMessage(chatService, messageId, msgType, userMessage
         }
 
         if (msgType === MsgType.INTERACTIVE) {
-            const { title = truncate(userMessage), content: cardContent = '' } =
-                typeof content === 'object' && content !== null ? content : { content };
+            const isObject = typeof content === 'object' && content !== null;
+            const cardTitle = (isObject && content.title) || (userMessage ? `回复：${truncate(userMessage)}` : '回复');
+            const cardContent = (isObject ? content.content : content) || '';
             return await client.im.v1.message.patch({
                 path: { message_id: messageId },
                 data: {
                     content: lark.messageCard.defaultCard({
-                        title: `回复：${truncate(userMessage)}`,
-                        content: cardContent || title,
+                        title: cardTitle,
+                        content: cardContent,
                     }),
                 },
             });

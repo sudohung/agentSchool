@@ -49,11 +49,13 @@ listener.start().catch((error) => {
 });
 
 // ==================== 步骤5：消息处理 + 飞书网关（前台） ====================
+const interaction = listener.getInteraction();
+
 const messageHandler = new MessageHandler({
     sessionManager,
     registry,
     chatService,
-    interaction: listener.getInteraction(),
+    interaction,
 });
 
 const gateway = new FeishuGateway({
@@ -64,8 +66,11 @@ const gateway = new FeishuGateway({
     logLevel: BotConfig.logConfig.level,
 });
 
-gateway.start((chatId, text, messageContext) =>
-    messageHandler.handle(chatId, text, messageContext));
+// 第二个回调：卡片按钮点击（card.action.trigger），用于 question 选项闭环
+gateway.start(
+    (chatId, text, messageContext) => messageHandler.handle(chatId, text, messageContext),
+    (cardAction) => interaction.handleCardAction(cardAction),
+);
 
 // 优雅退出
 process.on('SIGINT', () => {

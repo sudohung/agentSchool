@@ -1,4 +1,4 @@
-/**
+﻿/**
  * OpenCode Agent 策略实现
  * 封装 @opencode-ai/sdk 的会话与消息能力
  */
@@ -105,16 +105,27 @@ export class OpencodeAgent {
      * 注意：SDK 1.18.x 未生成 question 接口，此处直接调用服务端 HTTP API
      * @param {string} requestId - question 请求 ID（que_xxx）
      * @param {string[][]} answers - 答案列表，每个问题对应一个选中 label 数组
+     * @param {string} [sessionId] - 所属会话 ID，用于 404 时按会话重定位真实 requestId
      * @returns {Promise<boolean>} 是否成功
      */
-    async replyQuestion(requestId, answers) {
+    async replyQuestion(requestId, answers, sessionId) {
         try {
-            const url = `${BotConfig.opencodeBaseUrl}/question/${encodeURIComponent(requestId)}/reply`;
-            const res = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ answers }),
-            });
+            console.log(`${LogPrefix.AGENT_MGR} question.reply 请求: requestId=${requestId}, sessionId=${sessionId || '无'}, answers=${JSON.stringify(answers)}`);
+            let res = await this.#postQuestionReply(requestId, answers);
+
+            // 404 自愈：按钮/记忆中的 requestId 与服务端待答问题不匹配（过期、多实例错位等）
+            // 按会话 ID 重新定位当前待答的 requestId 后重试一次
+            if (res.status === 404 && sessionId) {
+                const realId = await this.#findPendingQuestionId(sessionId);
+                if (realId && realId !== requestId) {
+                    console.warn(`${LogPrefix.AGENT_MGR} question.reply 404，requestId 不匹配，重定位: ${requestId} -> ${realId}`);
+                    res = await this.#postQuestionReply(realId, answers);
+                } else {
+                    // 打印服务端当前待答列表，协助定位 ID 错位原因
+                    await this.#logPendingQuestions();
+                }
+            }
+
             if (!res.ok) {
                 console.error(`${LogPrefix.AGENT_MGR} question.reply HTTP ${res.status}`);
                 return false;
@@ -122,6 +133,77 @@ export class OpencodeAgent {
             return true;
         } catch (error) {
             console.error(`${LogPrefix.AGENT_MGR} question.reply 失败: ${error.message}`);
+            return false;
+        }
+    }
+
+    /**
+     * 调用 question.reply HTTP 接口
+     */
+    async #postQuestionReply(requestId, answers) {
+        const url = `${BotConfig.getOpencodeBaseUrl()}/question/${encodeURIComponent(requestId)}/reply`;
+        return await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ answers }),
+        });
+    }
+
+    /**
+     * 按会话 ID 查询当前待答提问的真实 requestId
+     * @returns {Promise<string|null>}
+     */
+    async #findPendingQuestionId(sessionId) {
+        try {
+            const res = await fetch(`${BotConfig.getOpencodeBaseUrl()}/question`);
+            if (!res.ok) return null;
+            const list = await res.json();
+            const hit = (Array.isArray(list) ? list : []).find((q) => q?.sessionID === sessionId);
+            return hit?.id || null;
+        } catch (error) {
+            console.error(`${LogPrefix.AGENT_MGR} 查询待答提问失败: ${error.message}`);
+            return null;
+        }
+    }
+
+    /**
+     * 打印服务端当前待答提问列表（诊断 requestId 错位）
+     */
+    async #logPendingQuestions() {
+        try {
+            const res = await fetch(`${BotConfig.getOpencodeBaseUrl()}/question`);
+            if (!res.ok) return;
+            const list = await res.json();
+            const brief = (Array.isArray(list) ? list : []).map((q) => ({
+                id: q.id,
+                sessionID: q.sessionID,
+            }));
+            console.warn(`${LogPrefix.AGENT_MGR} 服务端当前待答提问: ${JSON.stringify(brief) || '[]'}`);
+        } catch (error) {
+            console.error(`${LogPrefix.AGENT_MGR} 查询待答提问列表失败: ${error.message}`);
+        }
+    }
+
+    /**
+     * 拒绝工具提问（question.reject 闭环）
+     * 用于交互超时兜底：拒绝后 OpenCode 会话不会永久挂起
+     * @param {string} requestId - question 请求 ID（que_xxx）
+     * @returns {Promise<boolean>} 是否成功
+     */
+    async rejectQuestion(requestId) {
+        try {
+            const url = `${BotConfig.getOpencodeBaseUrl()}/question/${encodeURIComponent(requestId)}/reject`;
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            if (!res.ok) {
+                console.error(`${LogPrefix.AGENT_MGR} question.reject HTTP ${res.status}`);
+                return false;
+            }
+            return true;
+        } catch (error) {
+            console.error(`${LogPrefix.AGENT_MGR} question.reject 失败: ${error.message}`);
             return false;
         }
     }
