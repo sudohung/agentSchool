@@ -1,0 +1,18 @@
+services:
+  scheduler:
+    build: .
+    image: opencode-scheduler
+    container_name: oc-scheduler
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      OPENCODE_BASE_URL: http://host.docker.internal:4097
+      AI_DEFAULT_MODEL: fuyao/fuyao-coding-high
+      TZ: Asia/Shanghai
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - oc-scheduler-data:/data
+volumes:
+  oc-scheduler-data:

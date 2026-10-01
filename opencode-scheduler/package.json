@@ -1,0 +1,17 @@
+{
+  "name": "opencode-scheduler",
+  "version": "1.0.0",
+  "description": "Scheduled job daemon for opencode: cron/one-shot jobs, bash & AI-prompt executors, MCP tools, web admin UI",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "cron-parser": "^4.9.0",
+    "node-cron": "^3.0.3"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}
