@@ -46,7 +46,7 @@ function buildToolDefinitions() {
         },
         {
             name: 'chat',
-            description: '向指定会话发送消息并获取回复。默认异步（wait=false）：立即返回 taskId，用 get_result 轮询直到 done/failed/waiting_input。注意：wait=true 同步模式最多等待 20 秒，仅适合极短任务——MCP 客户端工具调用通常有 30s 超时（超时报 -32001），分析排查类任务必须用默认异步模式。同一凭证的下一条消息在 agent 反问时会自动作为答案回传。',
+            description: '向指定会话发送消息并获取回复。两种模式：①异步（默认，wait=false）：立即返回 taskId，用 get_result 轮询直到 done/failed/waiting_input——分析排查类长任务必须用此模式，且建议将「chat + 轮询」整体交给 subagent 任务执行，主会话不阻塞；②同步（wait=true）：最多等待 20 秒直接返回结果——适合极短任务，直接在当前会话调用即可，无需子 agent。注意：MCP 客户端工具调用通常有 30s 超时（超时报 -32001）。同一凭证的下一条消息在 agent 反问时会自动作为答案回传。',
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -60,7 +60,7 @@ function buildToolDefinitions() {
         },
         {
             name: 'get_result',
-            description: '查询任务结果。status: pending（排队/执行中）、waiting_input（agent 反问，见 question 字段）、done（见 reply 字段）、failed（见 error 字段）。优先用 taskId 查询；若同步调用时客户端超时（-32001）丢了 taskId，可直接传 callerSessionId 查询该会话最新任务。',
+            description: '查询任务结果（长轮询）：任务未完成时服务端最长等待 25s，完成后立即返回；超时未完成返回当前状态（pending/running），继续调用本接口即可。建议由 subagent 任务执行轮询，主会话无需阻塞等待。status: pending（排队/执行中）、waiting_input（agent 反问，见 question 字段）、done（见 reply 字段）、failed（见 error 字段）。优先用 taskId 查询；若同步调用时客户端超时（-32001）丢了 taskId，可直接传 callerSessionId 查询该会话最新任务。',
             inputSchema: {
                 type: 'object',
                 properties: {

@@ -1,6 +1,9 @@
 {
   "instances": {
-    "op_docker_inst": "http://172.22.221.176:4097"
+    "op_docker_inst": {
+      "baseUrl": "http://172.22.221.176:4097",
+      "directory": "/workspace"
+    }
   },
   "roles": [
     {
@@ -28,6 +31,7 @@
     "idleTimeoutMinutes": 1440,
     "maxConcurrent": 4,
     "queueTimeoutMinutes": 10,
-    "syncWaitCapMs": 20000
+    "syncWaitCapMs": 20000,
+    "longPollWindowMs": 25000
   }
 }

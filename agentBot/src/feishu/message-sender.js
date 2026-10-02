@@ -34,6 +34,11 @@ async function withRetry(fn, action) {
         }
     }
     console.error(`${LogPrefix.SENDER} ${action} 最终失败: ${lastError.message}`);
+    // 打印飞书返回的业务错误码与信息（400/230099 等定位关键）
+    const feishuError = lastError?.response?.data;
+    if (feishuError) {
+        console.error(`${LogPrefix.SENDER} ${action} 飞书错误详情: ${JSON.stringify(feishuError).slice(0, 500)}`);
+    }
     throw lastError;
 }
 

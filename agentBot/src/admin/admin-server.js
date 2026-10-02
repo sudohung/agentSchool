@@ -90,11 +90,11 @@ const ADMIN_HTML = `<!DOCTYPE html>
   <div class="card">
     <h2>OpenCode 实例注册表（Agent API 用）</h2>
     <table id="tblInst">
-      <thead><tr><th style="width:22%">实例 Key</th><th style="width:48%">服务地址</th><th style="width:10%"></th><th style="width:20%"></th></tr></thead>
+      <thead><tr><th style="width:18%">实例 Key</th><th style="width:34%">服务地址</th><th style="width:28%">项目目录（列表选择）</th><th style="width:10%"></th><th style="width:10%"></th></tr></thead>
       <tbody></tbody>
     </table>
     <button class="btn btn-add" onclick="addInstRow()">+ 添加实例</button>
-    <div class="meta">职能可引用实例 Key；未指定实例的职能使用全局服务地址。修改后需点击下方保存。</div>
+    <div class="meta">职能可引用实例 Key；未指定实例的职能使用全局服务地址。项目目录必须从实例的项目列表中选择（点"选择目录"加载，选"(默认)"则归档到服务端默认目录），配置后该实例创建的会话会归档到对应项目下，可在 opencode UI 项目列表中看到。修改后需点击下方保存。</div>
   </div>
 
   <div class="card">
@@ -276,8 +276,25 @@ function addInstRow(inst = {}) {
     inp.type = 'text'; inp.className = cls; inp.value = val || '';
     td.appendChild(inp); return td;
   };
+  // 兼容两种配置：字符串（旧格式）或 {baseUrl, directory} 对象
+  const baseUrl = typeof inst === 'string' ? inst : (inst.baseUrl || '');
+  const directory = typeof inst === 'string' ? '' : (inst.directory || '');
   tr.appendChild(mk('i-key', inst.key));
-  tr.appendChild(mk('i-url', inst.baseUrl));
+  tr.appendChild(mk('i-url', baseUrl));
+  // 目录下拉：必须从实例项目列表中选择（不允许自由输入），(默认) = 服务端默认目录
+  const tdDir = document.createElement('td');
+  const selDir = document.createElement('select');
+  selDir.className = 'i-dir';
+  selDir.innerHTML = '<option value="">(默认)</option>';
+  if (directory) {
+    // 已保存的目录先作为选项保留（列表加载后会被合并/覆盖）
+    const opt = document.createElement('option');
+    opt.value = directory; opt.textContent = directory;
+    selDir.appendChild(opt);
+    selDir.value = directory;
+  }
+  tdDir.appendChild(selDir);
+  tr.appendChild(tdDir);
   const tdBtn = document.createElement('td');
   const btn = document.createElement('button');
   btn.className = 'btn btn-del'; btn.textContent = '删除';
@@ -291,6 +308,61 @@ function addInstRow(inst = {}) {
   checkBtn.textContent = '测试连接';
   checkBtn.onclick = () => checkInstConnectivity(checkBtn);
   tdCheck.appendChild(checkBtn); tr.appendChild(tdCheck);
+  // 可选目录加载按钮
+  const tdDirBtn = document.createElement('td');
+  const dirBtn = document.createElement('button');
+  dirBtn.className = 'btn btn-add'; dirBtn.style.marginTop = '0';
+  dirBtn.textContent = '选择目录';
+  dirBtn.onclick = () => loadDirOptions(tr, false);
+  tdDirBtn.appendChild(dirBtn); tr.appendChild(tdDirBtn);
+}
+
+// ==================== 实例可选目录（项目列表） ====================
+
+/** 地址 -> 可选目录缓存 */
+const DIR_CACHE = {};
+
+/** 拉取（带缓存）实例的项目列表，填充目录下拉；silent=true 时不提示 */
+async function loadDirOptions(tr, silent) {
+  const baseUrl = tr.querySelector('.i-url').value.trim();
+  if (!baseUrl) { if (!silent) showRoleMsg('请先填写该实例的服务地址', false); return; }
+  if (!DIR_CACHE[baseUrl]) {
+    try {
+      const r = await fetch('/api/instance/projects?baseUrl=' + encodeURIComponent(baseUrl));
+      const res = await r.json();
+      if (!r.ok) { if (!silent) showRoleMsg('获取可选目录失败: ' + (res.error || r.status), false); return; }
+      DIR_CACHE[baseUrl] = (res.projects || []).map(p => p.worktree);
+    } catch (e) { if (!silent) showRoleMsg('获取可选目录失败: ' + e.message, false); return; }
+  }
+  const list = DIR_CACHE[baseUrl];
+  const sel = tr.querySelector('.i-dir');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">(默认)</option>' +
+    list.map(w => '<option value="' + w + '">' + w + '</option>').join('');
+  // 已保存但不在项目列表中的目录保留为独立选项，避免配置丢失
+  if (cur && !list.includes(cur)) {
+    const opt = document.createElement('option');
+    opt.value = cur; opt.textContent = cur + '（已保存）';
+    sel.appendChild(opt);
+  }
+  sel.value = cur || '';
+  if (!silent) showRoleMsg('✅ 已获取实例的 ' + list.length + ' 个可选目录，请从下拉选择', true);
+}
+
+/** 实例行目录为空时，自动用服务端默认目录填充（用户显式配置优先，不覆盖） */
+async function autofillInstDirectory(tr) {
+  const selDir = tr.querySelector('.i-dir');
+  const baseUrl = tr.querySelector('.i-url').value.trim();
+  if (!baseUrl || selDir.value) return;
+  const dir = await fetchInstancePath(baseUrl);
+  if (dir && !selDir.value) {
+    if (![...selDir.options].some(o => o.value === dir)) {
+      const opt = document.createElement('option');
+      opt.value = dir; opt.textContent = dir + '（默认）';
+      selDir.appendChild(opt);
+    }
+    selDir.value = dir;
+  }
 }
 
 function addRoleRow(r = {}) {
@@ -347,7 +419,17 @@ function refreshInstanceOptions() {
   });
 }
 
-/** 实例连通性检测：拉取该实例的可用模型并提示结果 */
+/** 获取实例服务端默认目录（GET /path） */
+async function fetchInstancePath(baseUrl) {
+  try {
+    const r = await fetch('/api/instance/path?baseUrl=' + encodeURIComponent(baseUrl));
+    const res = await r.json();
+    if (r.ok) return res.directory || '';
+  } catch (e) { /* 实例不可达时忽略 */ }
+  return '';
+}
+
+/** 实例连通性检测：拉取该实例的可用模型并提示结果，同时回填默认目录 */
 async function checkInstConnectivity(btn) {
   const tr = btn.closest('tr');
   const baseUrl = tr.querySelector('.i-url').value.trim();
@@ -359,7 +441,11 @@ async function checkInstConnectivity(btn) {
     const res = await r.json();
     if (!r.ok) { showRoleMsg('❌ 实例 [' + key + '] 连接失败: ' + (res.error || r.status), false); return; }
     const total = (res.providers || []).reduce((n, p) => n + (p.models || []).length, 0);
-    showRoleMsg('✅ 实例 [' + key + '] 连接正常，可用模型 ' + total + ' 个', true);
+    // 连接成功时顺带获取默认目录回填 + 刷新可选目录列表
+    const dir = await fetchInstancePath(baseUrl);
+    if (dir && !tr.querySelector('.i-dir').value.trim()) tr.querySelector('.i-dir').value = dir;
+    await loadDirOptions(tr, true);
+    showRoleMsg('✅ 实例 [' + key + '] 连接正常，可用模型 ' + total + ' 个，默认目录: ' + (dir || '未知'), true);
   } catch (e) {
     showRoleMsg('❌ 实例 [' + key + '] 连接失败: ' + e.message, false);
   } finally {
@@ -419,9 +505,10 @@ function refreshAllRoleModels() {
 
 document.addEventListener('change', (e) => {
   if (e.target.classList.contains('i-key')) refreshInstanceOptions();
-  // 实例地址变化：清空模型缓存并刷新所有职能行的模型下拉
+  // 实例地址变化：清空模型与目录缓存并刷新所有职能行的模型下拉
   if (e.target.classList.contains('i-url')) {
     Object.keys(ROLE_MODELS_CACHE).forEach(k => delete ROLE_MODELS_CACHE[k]);
+    Object.keys(DIR_CACHE).forEach(k => delete DIR_CACHE[k]);
     refreshAllRoleModels();
   }
   // 职能行切换实例：记录新选择并重查该实例的模型
@@ -444,8 +531,13 @@ async function loadRoles() {
     const cfg = await r.json();
     $('#tblInst tbody').innerHTML = '';
     $('#tblRole tbody').innerHTML = '';
-    Object.entries(cfg.instances || {}).forEach(([key, baseUrl]) => addInstRow({ key, baseUrl }));
+    Object.entries(cfg.instances || {}).forEach(([key, raw]) => {
+      const inst = typeof raw === 'string' ? { baseUrl: raw } : raw;
+      addInstRow({ key, ...inst });
+    });
     (cfg.roles || []).forEach(addRoleRow);
+    // 已连接实例的目录为空时，自动用服务端默认目录回填
+    document.querySelectorAll('#tblInst tbody tr').forEach(autofillInstDirectory);
   } catch (e) { showRoleMsg('职能配置加载失败: ' + e.message, false); }
 }
 
@@ -455,7 +547,8 @@ async function saveRoles() {
   [...document.querySelectorAll('#tblInst tbody tr')].forEach(tr => {
     const key = tr.querySelector('.i-key').value.trim();
     const baseUrl = tr.querySelector('.i-url').value.trim();
-    if (key && baseUrl) instances[key] = baseUrl; else instBad = true;
+    const directory = tr.querySelector('.i-dir').value.trim();
+    if (key && baseUrl) instances[key] = { baseUrl, directory }; else instBad = true;
   });
   if (instBad) { showRoleMsg('保存失败：实例的 key/服务地址需填写完整', false); return; }
 
@@ -600,6 +693,45 @@ export class AdminServer {
             console.log(`${LogPrefix.ADMIN} 收到重启请求，3 秒后退出进程（等待容器自动拉起）`);
             setTimeout(() => process.exit(0), 3000);
             return;
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/instance/projects') {
+            // 获取 OpenCode 实例的项目列表（worktree 即可选目录，供实例目录配置下拉选择）
+            const baseUrl = url.searchParams.get('baseUrl') || '';
+            if (!/^https?:\/\//.test(baseUrl)) {
+                return this.#json(res, 400, { error: '服务地址必须以 http:// 或 https:// 开头' });
+            }
+            try {
+                const resp = await fetch(`${baseUrl.replace(/\/+$/, '')}/project`, { signal: AbortSignal.timeout(8000) });
+                if (!resp.ok) throw new Error(`OpenCode 返回 ${resp.status}`);
+                const data = await resp.json();
+                const projects = (Array.isArray(data) ? data : [])
+                    .filter((p) => p?.worktree)
+                    .map((p) => ({ id: p.id, worktree: p.worktree, vcs: p.vcs || '' }));
+                return this.#json(res, 200, { projects });
+            } catch (error) {
+                return this.#json(res, 502, { error: `获取项目列表失败: ${error.message}` });
+            }
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/instance/path') {
+            // 获取 OpenCode 实例的服务端路径信息（directory 为默认目录，用于会话归档配置自动填充）
+            const baseUrl = url.searchParams.get('baseUrl') || '';
+            if (!/^https?:\/\//.test(baseUrl)) {
+                return this.#json(res, 400, { error: '服务地址必须以 http:// 或 https:// 开头' });
+            }
+            try {
+                const resp = await fetch(`${baseUrl.replace(/\/+$/, '')}/path`, { signal: AbortSignal.timeout(8000) });
+                if (!resp.ok) throw new Error(`OpenCode 返回 ${resp.status}`);
+                const data = await resp.json();
+                return this.#json(res, 200, {
+                    directory: data?.directory || '',
+                    worktree: data?.worktree || '',
+                    home: data?.home || '',
+                });
+            } catch (error) {
+                return this.#json(res, 502, { error: `获取实例路径失败: ${error.message}` });
+            }
         }
 
         // ==================== 职能与实例管理（Agent API） ====================

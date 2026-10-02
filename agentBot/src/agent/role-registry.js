@@ -16,12 +16,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 /** roles.json 路径 */
 const ROLES_JSON_PATH = join(__dirname, '../../config/roles.json');
 
-/** 会话队列配置默认值（syncWaitCapMs 须低于 MCP 客户端工具默认 30s 超时，避免 -32001） */
+/** 会话队列配置默认值（syncWaitCapMs/longPollWindowMs 均须低于 MCP 客户端工具默认 30s 超时，避免 -32001） */
 const SESSION_DEFAULTS = {
     idleTimeoutMinutes: 1440,
     maxConcurrent: 4,
     queueTimeoutMinutes: 10,
     syncWaitCapMs: 20000,
+    longPollWindowMs: 25000,
 };
 
 /**
@@ -122,8 +123,28 @@ export class RoleRegistry {
      * @returns {string} baseUrl
      */
     resolveInstanceUrl(instanceKey) {
-        if (!instanceKey) return BotConfig.getOpencodeBaseUrl();
-        return this.#instances.get(instanceKey) || BotConfig.getOpencodeBaseUrl();
+        if (!instanceKey || !this.#instances.has(instanceKey)) return BotConfig.getOpencodeBaseUrl();
+        return this.#parseInstance(this.#instances.get(instanceKey)).baseUrl;
+    }
+
+    /**
+     * 解析实例的项目目录（会话归档到 opencode UI 对应项目下；空 = 服务端默认目录）
+     * @param {string} instanceKey
+     * @returns {string} directory
+     */
+    resolveInstanceDirectory(instanceKey) {
+        if (!instanceKey || !this.#instances.has(instanceKey)) return BotConfig.getOpencodeDirectory();
+        return this.#parseInstance(this.#instances.get(instanceKey)).directory;
+    }
+
+    /**
+     * 兼容两种实例配置格式："http://..." 字符串 或 { baseUrl, directory } 对象
+     * @param {string|Object} raw
+     * @returns {{baseUrl:string, directory:string}}
+     */
+    #parseInstance(raw) {
+        if (typeof raw === 'string') return { baseUrl: raw, directory: '' };
+        return { baseUrl: raw?.baseUrl || '', directory: raw?.directory || '' };
     }
 
     /** 获取会话队列配置 */
@@ -150,11 +171,12 @@ export class RoleRegistry {
      * @returns {{roleCount:number, instanceCount:number}}
      */
     saveConfig(cfg) {
-        // 校验实例表：key 非空、地址合法
+        // 校验实例表：key 非空、地址合法（支持字符串或 {baseUrl, directory} 对象）
         const instances = cfg?.instances || {};
-        for (const [key, baseUrl] of Object.entries(instances)) {
+        for (const [key, raw] of Object.entries(instances)) {
+            const inst = typeof raw === 'string' ? { baseUrl: raw } : raw;
             if (!key.trim()) throw new Error('实例 key 不能为空');
-            if (!/^https?:\/\//.test(baseUrl || '')) {
+            if (!/^https?:\/\//.test(inst?.baseUrl || '')) {
                 throw new Error(`实例 ${key} 的地址必须以 http:// 或 https:// 开头`);
             }
         }

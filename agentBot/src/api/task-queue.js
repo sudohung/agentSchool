@@ -21,6 +21,12 @@ const TASK_SWEEP_INTERVAL = 10 * 60 * 1000;
  * 同步上限必须明显低于客户端超时，否则长任务会被客户端侧掐断
  */
 const DEFAULT_SYNC_WAIT_CAP = 20000;
+/**
+ * get_result 长轮询等待窗口（毫秒）
+ * 未到终态时在服务内等待至多该时长再返回，减少调用端空轮询次数；
+ * 必须低于 MCP 客户端工具默认 30s 超时（-32001），留出网络与序列化余量
+ */
+const DEFAULT_LONG_POLL_WINDOW = 25000;
 
 /**
  * 任务队列类
@@ -101,25 +107,29 @@ export class TaskQueue {
     }
 
     /**
-     * 查询任务结果（轮询入口）
+     * 查询任务结果（长轮询模式）
+     * 任务未到终态（pending/running）时在服务内等待至多 longPollWindowMs：
+     * 等到终态立即返回；超时仍无终态则返回当前快照，调用方接着发起下一次 get_result
      * @param {string} taskId
-     * @returns {Object} 任务快照
+     * @param {{longPollMs?:number}} [options]
+     * @returns {Promise<Object>} 任务快照
      */
-    getResult(taskId) {
+    async getResult(taskId, options = {}) {
         const task = this.#tasks.get(taskId);
         if (!task) {
             throw new Error(`任务不存在或已过期: ${taskId}`);
         }
-        return this.#snapshot(task);
+        return this.#longPollSnapshot(task, options.longPollMs);
     }
 
     /**
-     * 按会话凭证查询最新任务结果
+     * 按会话凭证查询最新任务结果（长轮询模式）
      * 用途：客户端同步等待超时（如 MCP 客户端 30s 上限报 -32001）后 taskId 丢失，可凭凭证找回任务状态
      * @param {string} callerSessionId
-     * @returns {Object} 最新任务快照；该凭证尚无任务时返回占位
+     * @param {{longPollMs?:number}} [options]
+     * @returns {Promise<Object>} 最新任务快照；该凭证尚无任务时立即返回占位
      */
-    getResultByCredential(callerSessionId) {
+    async getResultByCredential(callerSessionId, options = {}) {
         this.#sessions.requireBinding(callerSessionId);
         let latest = null;
         for (const task of this.#tasks.values()) {
@@ -129,7 +139,27 @@ export class TaskQueue {
         if (!latest) {
             return { status: 'no_task', hint: '该会话暂无任务记录，请用 chat 提交新消息' };
         }
-        return this.#snapshot(latest);
+        return this.#longPollSnapshot(latest, options.longPollMs);
+    }
+
+    /**
+     * 长轮询核心：未终态时在服务内等待至多窗口时长，终态立即返回
+     */
+    async #longPollSnapshot(task, longPollMs) {
+        const terminal = [ApiTaskStatus.DONE, ApiTaskStatus.FAILED, ApiTaskStatus.WAITING_INPUT];
+        if (terminal.includes(task.status)) {
+            return this.#snapshot(task);
+        }
+        const windowMs = Math.max(0, Math.min(
+            longPollMs || this.#roleRegistry.getSessionConfig().longPollWindowMs || DEFAULT_LONG_POLL_WINDOW,
+            DEFAULT_LONG_POLL_WINDOW,
+        ));
+        // 等待终态（terminalPromise 在 done/failed/waiting_input 时 resolve）或窗口超时
+        await Promise.race([
+            task.terminalPromise,
+            new Promise((resolve) => setTimeout(resolve, windowMs)),
+        ]);
+        return this.#snapshot(task);
     }
 
     // ==================== 事件回调（opencode-listener 路由） ====================
@@ -317,8 +347,8 @@ export class TaskQueue {
         if (task.status === ApiTaskStatus.DONE) snap.reply = task.reply;
         if (task.status === ApiTaskStatus.WAITING_INPUT) snap.question = task.question;
         if (task.status === ApiTaskStatus.FAILED) snap.error = task.error;
-        if (task.status === ApiTaskStatus.PENDING) snap.hint = '任务排队中，请稍后用 get_result 轮询';
-        if (task.status === ApiTaskStatus.RUNNING) snap.hint = '任务执行中，请稍后用 get_result 轮询';
+        if (task.status === ApiTaskStatus.PENDING) snap.hint = '任务排队中，请继续调用 get_result 轮询（建议由子 agent/后台任务执行，避免阻塞主会话）';
+        if (task.status === ApiTaskStatus.RUNNING) snap.hint = '任务执行中，请继续调用 get_result 轮询（建议由子 agent/后台任务执行，避免阻塞主会话）';
         return snap;
     }
 

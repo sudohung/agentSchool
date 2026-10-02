@@ -102,6 +102,15 @@ export const BotConfig = {
     },
 
     /**
+     * 获取全局 OpenCode 项目目录（Agent API 会话归档到 UI 对应项目下）
+     * bot.json opencodeDirectory 优先，其次环境变量 OPENCODE_DIRECTORY，空 = 服务端默认目录
+     * @returns {string}
+     */
+    getOpencodeDirectory() {
+        return readBotJson()?.opencodeDirectory || process.env.OPENCODE_DIRECTORY || '';
+    },
+
+    /**
      * 加载完整运行时配置（bot.json 优先，旧 agents.json 做迁移兜底）
      * @returns {{opencodeBaseUrl:string, defaultKey:string, agents:Array, source:string}}
      */
