@@ -107,7 +107,9 @@ export class MessageHandler {
             // 步骤6：普通消息 -> AI Agent 处理（引用回复时携带引用上下文，回复时按需 @）
             await this.#handleAiMessage(chatId, message, userMessage, messageContext, atList);
         } catch (error) {
-            console.error(`${LogPrefix.HANDLER} 处理失败: ${error.message}`, error.stack);
+            // undici 的 fetch failed 会把真实原因藏在 cause（HeadersTimeoutError/连接错误等）
+            const cause = error?.cause?.message || error?.cause?.code || error?.cause;
+            console.error(`${LogPrefix.HANDLER} 处理失败: ${error.message}${cause ? ` | cause: ${cause}` : ''}`, error.stack);
             // 错误详情只进服务端日志，飞书侧仅回简要提示，避免路径/堆栈泄漏
             await sendErrorMessage(chatService, chatId, '处理失败，请稍后重试或联系管理员查看服务日志').catch(() => {});
         } finally {

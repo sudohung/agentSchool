@@ -35,8 +35,10 @@ export class OpencodeListener {
     #interaction;
     /** @type {Map<string, {messageId:string, content:string, updatedAt:number}>} chatId -> 流式状态 */
     #streamStates = new Map();
+    /** @type {Object|null} API 通道事件路由（Agent API 会话的 question/permission 事件） */
+    #apiRouter;
 
-    constructor({ opencodeClient, getClient, sessionManager, chatService }) {
+    constructor({ opencodeClient, getClient, sessionManager, chatService, apiRouter }) {
         // getClient：函数，返回最新 OpenCode 客户端（支持配置热更新后重连用新地址）
         this.#getClient = getClient || (() => opencodeClient);
         if (!opencodeClient && !getClient) {
@@ -44,6 +46,7 @@ export class OpencodeListener {
         }
         this.#sessionManager = sessionManager;
         this.#chatService = chatService;
+        this.#apiRouter = apiRouter || null;
         this.#interaction = new InteractionManager(sessionManager, chatService);
     }
 
@@ -94,9 +97,14 @@ export class OpencodeListener {
      */
     async #dispatch(event) {
         if (!event?.type || event.type === OcEventType.SERVER_HEARTBEAT) return;
-        const chatId = this.#sessionManager.getChatIdBySessionId(
-            event.properties?.part?.sessionID || event.properties?.sessionID,
-        );
+        const internalSessionId = event.properties?.part?.sessionID || event.properties?.sessionID;
+        const chatId = this.#sessionManager.getChatIdBySessionId(internalSessionId);
+
+        // API 通道会话的事件路由到 Agent API 处理（question -> 任务等待输入，permission -> 自动拒绝）
+        if (!chatId && this.#apiRouter?.hasSession?.(internalSessionId)) {
+            await this.#dispatchApiEvent(event, internalSessionId);
+            return;
+        }
 
         switch (event.type) {
             case OcEventType.MESSAGE_PART_UPDATED:
@@ -124,6 +132,24 @@ export class OpencodeListener {
                 break;
             case OcEventType.SESSION_ERROR:
                 await this.#handleSessionError(event, chatId);
+                break;
+            default:
+                break;
+        }
+    }
+
+    /**
+     * API 通道事件处理（Agent API 会话专用，不进飞书交互链路）
+     */
+    async #dispatchApiEvent(event, internalSessionId) {
+        switch (event.type) {
+            case OcEventType.QUESTION_ASKED:
+                console.log(`${LogPrefix.EVENTS} API question.asked: session=${internalSessionId}, request=${event.properties?.id}`);
+                this.#apiRouter.onQuestionAsked(event.properties);
+                break;
+            case OcEventType.PERMISSION_ASKED:
+                console.log(`${LogPrefix.EVENTS} API permission.asked: session=${internalSessionId}, permission=${event.properties?.permission}`);
+                await this.#apiRouter.onPermissionAsked(event.properties);
                 break;
             default:
                 break;

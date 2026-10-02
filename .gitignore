@@ -15,3 +15,6 @@ nul
 *.xlsx
 *.png
 .claude/
+
+# agentBot 运行时状态（会话绑定自动持久化，不入库）
+agentBot/config/api-sessions.json

@@ -88,6 +88,28 @@ const ADMIN_HTML = `<!DOCTYPE html>
   </div>
 
   <div class="card">
+    <h2>OpenCode 实例注册表（Agent API 用）</h2>
+    <table id="tblInst">
+      <thead><tr><th style="width:22%">实例 Key</th><th style="width:48%">服务地址</th><th style="width:10%"></th><th style="width:20%"></th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <button class="btn btn-add" onclick="addInstRow()">+ 添加实例</button>
+    <div class="meta">职能可引用实例 Key；未指定实例的职能使用全局服务地址。修改后需点击下方保存。</div>
+  </div>
+
+  <div class="card">
+    <h2>Agent 职能列表（MCP 调用方按职能申请会话）</h2>
+    <table id="tblRole">
+      <thead><tr><th style="width:12%">Key</th><th style="width:12%">名称</th><th style="width:16%">说明</th><th style="width:22%">提示词</th><th style="width:10%">实例</th><th style="width:12%">模型</th><th style="width:8%">技能</th><th style="width:4%">只读</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <button class="btn btn-add" onclick="addRoleRow()">+ 添加职能</button>
+    <div style="margin-top:14px"><button class="btn btn-primary" onclick="saveRoles()">💾 保存职能与实例</button></div>
+    <div class="meta">实例/模型留空则使用全局配置；模型格式 provider/model；技能为逗号分隔的技能名；只读职能的权限请求将被自动拒绝。保存后立即生效。</div>
+    <div class="msg" id="roleMsg"></div>
+  </div>
+
+  <div class="card">
     <div class="row">
       <div><button class="btn btn-primary" onclick="save()">💾 保存配置</button></div>
       <div style="flex:0"><button class="btn" style="background:#fff4e5;color:#b26a00" onclick="restart()">🔄 重启服务</button></div>
@@ -193,6 +215,8 @@ async function load() {
     $('#maskSensitive').checked = cfg.security ? cfg.security.maskSensitive !== false : true;
     // 页面打开即拉取当前 baseUrl 的可用模型，供下拉选择
     fetchModels();
+    // 职能表的全局实例模型下拉依赖 baseUrl，就绪后刷新一次
+    refreshAllRoleModels();
   } catch (e) { showMsg('加载失败: ' + e.message, false); }
 }
 
@@ -242,6 +266,229 @@ async function restart() {
   catch (e) { showMsg('重启请求已发送，若页面无响应请稍后刷新', true); }
 }
 
+// ==================== 职能与实例管理 ====================
+
+function addInstRow(inst = {}) {
+  const tr = document.createElement('tr');
+  const mk = (cls, val) => {
+    const td = document.createElement('td');
+    const inp = document.createElement('input');
+    inp.type = 'text'; inp.className = cls; inp.value = val || '';
+    td.appendChild(inp); return td;
+  };
+  tr.appendChild(mk('i-key', inst.key));
+  tr.appendChild(mk('i-url', inst.baseUrl));
+  const tdBtn = document.createElement('td');
+  const btn = document.createElement('button');
+  btn.className = 'btn btn-del'; btn.textContent = '删除';
+  btn.onclick = () => tr.remove();
+  tdBtn.appendChild(btn); tr.appendChild(tdBtn);
+  $('#tblInst tbody').appendChild(tr);
+  // 连通性检测按钮
+  const tdCheck = document.createElement('td');
+  const checkBtn = document.createElement('button');
+  checkBtn.className = 'btn btn-add'; checkBtn.style.marginTop = '0';
+  checkBtn.textContent = '测试连接';
+  checkBtn.onclick = () => checkInstConnectivity(checkBtn);
+  tdCheck.appendChild(checkBtn); tr.appendChild(tdCheck);
+}
+
+function addRoleRow(r = {}) {
+  const tr = document.createElement('tr');
+  const mk = (cls, val) => {
+    const td = document.createElement('td');
+    const inp = document.createElement('input');
+    inp.type = 'text'; inp.className = cls; inp.value = val || '';
+    td.appendChild(inp); return td;
+  };
+  tr.appendChild(mk('r-key', r.key));
+  tr.appendChild(mk('r-name', r.name));
+  tr.appendChild(mk('r-desc', r.desc));
+  tr.appendChild(mk('r-prompt', r.prompt));
+  const tdInst = document.createElement('td');
+  const sel = document.createElement('select');
+  sel.className = 'r-instance';
+  sel.innerHTML = '<option value="">(全局)</option>';
+  // 记住服务端已保存的实例选择（refreshInstanceOptions 回显时依赖 dataset.cur）
+  sel.dataset.cur = r.instance || '';
+  tdInst.appendChild(sel); tr.appendChild(tdInst);
+  // 模型输入带 datalist：按所选实例动态填充可选模型（provider/model）
+  const tdModel = document.createElement('td');
+  const inpModel = document.createElement('input');
+  inpModel.type = 'text'; inpModel.className = 'r-model'; inpModel.value = r.model || '';
+  const dlModel = document.createElement('datalist');
+  inpModel.setAttribute('list', 'dl-role-model-' + (++roleSeq));
+  dlModel.id = 'dl-role-model-' + roleSeq;
+  tdModel.appendChild(inpModel); tdModel.appendChild(dlModel);
+  tr.appendChild(tdModel);
+  tr.appendChild(mk('r-skills', (r.skills || []).join(',')));
+  const tdRo = document.createElement('td');
+  const ro = document.createElement('input');
+  ro.type = 'checkbox'; ro.className = 'r-readonly'; ro.checked = r.readOnly === true;
+  tdRo.appendChild(ro); tr.appendChild(tdRo);
+  const tdBtn = document.createElement('td');
+  const btn = document.createElement('button');
+  btn.className = 'btn btn-del'; btn.textContent = '删除';
+  btn.onclick = () => tr.remove();
+  tdBtn.appendChild(btn); tr.appendChild(tdBtn);
+  $('#tblRole tbody').appendChild(tr);
+  refreshInstanceOptions();
+  fillRoleModelDatalist(tr);
+}
+
+function refreshInstanceOptions() {
+  const instKeys = [...document.querySelectorAll('.i-key')].map(i => i.value.trim()).filter(Boolean);
+  document.querySelectorAll('#tblRole tbody tr').forEach(tr => {
+    const sel = tr.querySelector('.r-instance');
+    const cur = sel.value || sel.dataset.cur || '';
+    sel.innerHTML = '<option value="">(全局)</option>' +
+      instKeys.map(k => '<option ' + (k === cur ? 'selected' : '') + '>' + k + '</option>').join('');
+    sel.dataset.cur = cur;
+  });
+}
+
+/** 实例连通性检测：拉取该实例的可用模型并提示结果 */
+async function checkInstConnectivity(btn) {
+  const tr = btn.closest('tr');
+  const baseUrl = tr.querySelector('.i-url').value.trim();
+  const key = tr.querySelector('.i-key').value.trim() || baseUrl;
+  if (!baseUrl) { showRoleMsg('该实例未填写服务地址', false); return; }
+  btn.textContent = '检测中...';
+  try {
+    const r = await fetch('/api/models?baseUrl=' + encodeURIComponent(baseUrl));
+    const res = await r.json();
+    if (!r.ok) { showRoleMsg('❌ 实例 [' + key + '] 连接失败: ' + (res.error || r.status), false); return; }
+    const total = (res.providers || []).reduce((n, p) => n + (p.models || []).length, 0);
+    showRoleMsg('✅ 实例 [' + key + '] 连接正常，可用模型 ' + total + ' 个', true);
+  } catch (e) {
+    showRoleMsg('❌ 实例 [' + key + '] 连接失败: ' + e.message, false);
+  } finally {
+    btn.textContent = '测试连接';
+  }
+}
+
+// ==================== 职能模型下拉（按实例查询可选模型） ====================
+
+let roleSeq = 0;
+/** 实例地址 -> 可用模型缓存 { baseUrl: [{id, name, models:[{id,name}]}] } */
+const ROLE_MODELS_CACHE = {};
+
+/** 解析实例 key 对应的服务地址（空 = 全局地址，实时取输入框值） */
+function resolveInstBaseUrl(instKey) {
+  if (!instKey) return $('#baseUrl').value.trim();
+  const row = [...document.querySelectorAll('#tblInst tbody tr')]
+    .find(r => r.querySelector('.i-key').value.trim() === instKey);
+  return row ? row.querySelector('.i-url').value.trim() : '';
+}
+
+/** 拉取（带缓存）指定实例的可用模型列表 */
+async function ensureInstanceModels(baseUrl) {
+  if (!baseUrl) return [];
+  if (ROLE_MODELS_CACHE[baseUrl]) return ROLE_MODELS_CACHE[baseUrl];
+  try {
+    const r = await fetch('/api/models?baseUrl=' + encodeURIComponent(baseUrl));
+    const res = await r.json();
+    if (r.ok && Array.isArray(res.providers)) {
+      ROLE_MODELS_CACHE[baseUrl] = res.providers;
+      return res.providers;
+    }
+  } catch (e) { /* 实例不可达时静默降级为手动输入 */ }
+  return [];
+}
+
+/** 填充职能行的模型 datalist：选项值为 provider/model 格式 */
+async function fillRoleModelDatalist(tr) {
+  const instKey = tr.querySelector('.r-instance').value;
+  const baseUrl = resolveInstBaseUrl(instKey);
+  const dl = tr.querySelector('datalist');
+  dl.innerHTML = '<option value="">（加载中...）</option>';
+  const providers = await ensureInstanceModels(baseUrl);
+  if (!providers.length) {
+    dl.innerHTML = '';
+    return;
+  }
+  dl.innerHTML = providers.flatMap(p => (p.models || []).map(m =>
+    '<option value="' + p.id + '/' + m.id + '">' + (p.name || p.id) + ' / ' + (m.name || m.id) + '</option>'
+  )).join('');
+}
+
+/** 刷新所有职能行的模型下拉（实例地址/选择变化后调用） */
+function refreshAllRoleModels() {
+  document.querySelectorAll('#tblRole tbody tr').forEach(fillRoleModelDatalist);
+}
+
+document.addEventListener('change', (e) => {
+  if (e.target.classList.contains('i-key')) refreshInstanceOptions();
+  // 实例地址变化：清空模型缓存并刷新所有职能行的模型下拉
+  if (e.target.classList.contains('i-url')) {
+    Object.keys(ROLE_MODELS_CACHE).forEach(k => delete ROLE_MODELS_CACHE[k]);
+    refreshAllRoleModels();
+  }
+  // 职能行切换实例：记录新选择并重查该实例的模型
+  if (e.target.classList.contains('r-instance')) {
+    e.target.dataset.cur = e.target.value;
+    fillRoleModelDatalist(e.target.closest('tr'));
+  }
+});
+
+function showRoleMsg(text, ok) {
+  const m = $('#roleMsg');
+  m.textContent = text;
+  m.className = 'msg ' + (ok ? 'msg-ok' : 'msg-err');
+  setTimeout(() => { m.className = 'msg'; }, 6000);
+}
+
+async function loadRoles() {
+  try {
+    const r = await fetch('/api/roles');
+    const cfg = await r.json();
+    $('#tblInst tbody').innerHTML = '';
+    $('#tblRole tbody').innerHTML = '';
+    Object.entries(cfg.instances || {}).forEach(([key, baseUrl]) => addInstRow({ key, baseUrl }));
+    (cfg.roles || []).forEach(addRoleRow);
+  } catch (e) { showRoleMsg('职能配置加载失败: ' + e.message, false); }
+}
+
+async function saveRoles() {
+  const instances = {};
+  let instBad = false;
+  [...document.querySelectorAll('#tblInst tbody tr')].forEach(tr => {
+    const key = tr.querySelector('.i-key').value.trim();
+    const baseUrl = tr.querySelector('.i-url').value.trim();
+    if (key && baseUrl) instances[key] = baseUrl; else instBad = true;
+  });
+  if (instBad) { showRoleMsg('保存失败：实例的 key/服务地址需填写完整', false); return; }
+
+  const roles = [];
+  const badRows = [];
+  [...document.querySelectorAll('#tblRole tbody tr')].forEach((tr, i) => {
+    const r = {
+      key: tr.querySelector('.r-key').value.trim(),
+      name: tr.querySelector('.r-name').value.trim(),
+      desc: tr.querySelector('.r-desc').value.trim(),
+      prompt: tr.querySelector('.r-prompt').value.trim(),
+      instance: tr.querySelector('.r-instance').value,
+      model: tr.querySelector('.r-model').value.trim(),
+      skills: tr.querySelector('.r-skills').value.split(',').map(s => s.trim()).filter(Boolean),
+      readOnly: tr.querySelector('.r-readonly').checked,
+    };
+    if (!r.key || !r.name) { badRows.push(i + 1); return; }
+    roles.push(r);
+  });
+  if (badRows.length) { showRoleMsg('保存失败：第 ' + badRows.join('、') + ' 行职能的 key/名称未填完整', false); return; }
+  if (roles.length === 0) { showRoleMsg('至少需要配置一个职能', false); return; }
+
+  try {
+    const r = await fetch('/api/roles', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ instances, roles }) });
+    const res = await r.json();
+    if (!r.ok) { showRoleMsg('保存失败: ' + (res.error || r.status), false); return; }
+    showRoleMsg('✅ 已保存并热生效（' + res.summary.roleCount + ' 个职能 / ' + res.summary.instanceCount + ' 个实例）', true);
+    loadRoles();
+  } catch (e) { showRoleMsg('保存失败: ' + e.message, false); }
+}
+
+loadRoles();
+
 load();
 </script>
 </body>
@@ -255,15 +502,21 @@ export class AdminServer {
     #registry;
     /** @type {import('../feishu/feishu-gateway.js').FeishuGateway|null} */
     #gateway;
+    /** @type {import('../agent/role-registry.js').RoleRegistry|null} */
+    #roleRegistry;
+    /** @type {import('../agent/instance-pool.js').InstancePool|null} */
+    #instancePool;
     #port;
 
     /**
-     * @param {{registry: AgentRegistry, gateway?: FeishuGateway, port?: number}} options
+     * @param {{registry: AgentRegistry, gateway?: FeishuGateway, roleRegistry?: RoleRegistry, instancePool?: InstancePool, port?: number}} options
      */
-    constructor({ registry, gateway = null, port = 8081 }) {
+    constructor({ registry, gateway = null, roleRegistry = null, instancePool = null, port = 8081 }) {
         if (!registry) throw new Error('AdminServer 初始化失败：缺少 registry');
         this.#registry = registry;
         this.#gateway = gateway;
+        this.#roleRegistry = roleRegistry;
+        this.#instancePool = instancePool;
         this.#port = port;
     }
 
@@ -347,6 +600,27 @@ export class AdminServer {
             console.log(`${LogPrefix.ADMIN} 收到重启请求，3 秒后退出进程（等待容器自动拉起）`);
             setTimeout(() => process.exit(0), 3000);
             return;
+        }
+
+        // ==================== 职能与实例管理（Agent API） ====================
+        if (req.method === 'GET' && url.pathname === '/api/roles') {
+            if (!this.#roleRegistry) return this.#json(res, 404, { error: '职能管理未启用' });
+            return this.#json(res, 200, this.#roleRegistry.getConfig());
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/roles') {
+            if (!this.#roleRegistry) return this.#json(res, 404, { error: '职能管理未启用' });
+            const body = await this.#readJson(req);
+            try {
+                const summary = this.#roleRegistry.saveConfig(body);
+                // 实例地址可能变化：清空 Agent 缓存，下次使用时按新配置重建
+                this.#instancePool?.invalidate();
+                console.log(`${LogPrefix.ADMIN} 职能配置已更新: ${summary.roleCount} 个职能 / ${summary.instanceCount} 个实例`);
+                return this.#json(res, 200, { saved: true, summary });
+            } catch (error) {
+                // 配置校验失败：返回 400，不触发重载
+                return this.#json(res, 400, { error: error.message });
+            }
         }
 
         this.#json(res, 404, { error: 'not found' });

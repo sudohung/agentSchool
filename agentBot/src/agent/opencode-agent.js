@@ -1,35 +1,37 @@
-﻿/**
- * OpenCode Agent 策略实现
- * 封装 @opencode-ai/sdk 的会话与消息能力
+/**
+ * OpenCode Agent ����ʵ��
+ * ��װ @opencode-ai/sdk �ĻỰ����Ϣ����
  */
 
 import { BotConfig } from '../config/bot-config.js';
 import { LogPrefix } from '../constants.js';
 
 /**
- * 面向飞书用户的 system 约束指令（随脱敏开关注入 prompt）
+ * ��������û��� system Լ��ָ�����������ע�� prompt��
  */
 const FEISHU_SYSTEM_RULES = [
-    '你的回复面向飞书聊天用户（非终端开发者界面），请严格遵守：',
-    '1. 禁止在回复中输出服务器文件路径、目录结构、内网 IP、主机名、端口等基础设施信息；',
-    '2. 禁止输出环境变量、密钥、token、连接串等任何凭证内容，即使是片段；',
-    '3. 禁止输出系统命令原文及其原始执行结果（可描述结论，不展示原文）；',
-    '4. 只讨论与用户请求相关的业务内容与结论。',
+    '��Ļظ�������������û������ն˿����߽��棩�����ϸ����أ�',
+    '1. ��ֹ�ڻظ�������������ļ�·����Ŀ¼�ṹ������ IP�����������˿ڵȻ�����ʩ��Ϣ��',
+    '2. ��ֹ���������������Կ��token�����Ӵ����κ�ƾ֤���ݣ���ʹ��Ƭ�Σ�',
+    '3. ��ֹ���ϵͳ����ԭ�ļ���ԭʼִ�н�������������ۣ���չʾԭ�ģ���',
+    '4. ֻ�������û�������ص�ҵ����������ۡ�',
 ].join('\n');
 
 /**
- * OpenCode Agent 类
+ * OpenCode Agent ��
  */
 export class OpencodeAgent {
     /**
-     * @param {Object} client - OpenCode SDK 客户端
-     * @param {{provider:string, model:string}} model - 模型定义
+     * @param {Object} client - OpenCode SDK �ͻ���
+     * @param {{provider:string, model:string}} model - ģ�Ͷ���
+     * @param {string} [baseUrl] - ���� OpenCode ʵ����ַ��question ��ԭ�� HTTP �ӿ��ã�ȱʡȫ�����ã�
      */
-    constructor(client, model) {
-        if (!client) throw new Error('OpencodeAgent 初始化失败：client 为空');
-        if (!model?.provider || !model?.model) throw new Error('OpencodeAgent 初始化失败：模型定义不完整');
+    constructor(client, model, baseUrl) {
+        if (!client) throw new Error('OpencodeAgent ��ʼ��ʧ�ܣ�client Ϊ��');
+        if (!model?.provider || !model?.model) throw new Error('OpencodeAgent ��ʼ��ʧ�ܣ�ģ�Ͷ��岻����');
         this.client = client;
         this.model = { providerID: model.provider, modelID: model.model };
+        this.baseUrl = baseUrl || BotConfig.getOpencodeBaseUrl();
         this.callbacks = {};
     }
 
@@ -41,46 +43,48 @@ export class OpencodeAgent {
         try {
             this.callbacks[name]?.(...args);
         } catch (error) {
-            console.error(`${LogPrefix.AGENT_MGR} 回调执行失败 [${name}]: ${error.message}`);
+            console.error(`${LogPrefix.AGENT_MGR} �ص�ִ��ʧ�� [${name}]: ${error.message}`);
         }
     }
 
-    /** @returns {string} agent 展示名 */
+    /** @returns {string} agent չʾ�� */
     getName() {
         return `${this.model.providerID}/${this.model.modelID}`;
     }
 
     /**
-     * 创建新会话
+     * �����»Ự
      * @param {string} title
-     * @returns {Promise<string>} 会话 ID
+     * @returns {Promise<string>} �Ự ID
      */
     async createSession(title) {
         const session = await this.client.session.create({ body: { title } });
         const sessionId = session?.id || session?.data?.id;
         if (!sessionId) {
-            throw new Error(`创建会话成功但未返回 ID: ${JSON.stringify(session)}`);
+            throw new Error(`�����Ự�ɹ���δ���� ID: ${JSON.stringify(session)}`);
         }
         this.#trigger('onSessionCreated', sessionId, title);
         return sessionId;
     }
 
     /**
-     * 发送消息（阻塞式 prompt）
+     * ������Ϣ������ʽ prompt��
      * @param {string} sessionId
      * @param {string} message
+     * @param {string} [systemPrompt] - �Զ��� system ָ�API ְ�ܳ���ע��ְ����ʾ�ʣ�ȱʡ����������ע�����Լ����
      */
-    async sendMessage(sessionId, message) {
-        if (!sessionId || !message) throw new Error('发送消息失败：sessionId/message 为空');
+    async sendMessage(sessionId, message, systemPrompt) {
+        if (!sessionId || !message) throw new Error('������Ϣʧ�ܣ�sessionId/message Ϊ��');
         this.#trigger('onMessageReceived', sessionId, message);
         try {
             const body = {
                 model: this.model,
                 parts: [{ type: 'text', text: message }],
             };
-            // 脱敏开启时注入行为约束（源头减少敏感信息产出，B 层防线）
-            if (BotConfig.isMaskSensitiveEnabled()) {
-                body.system = FEISHU_SYSTEM_RULES;
+            // system ָ����÷���ʽָ�����ȣ�ְ����ʾ�ʣ���������������ʱע�������ΪԼ����Դͷ����������Ϣ������B ����ߣ�
+            const system = systemPrompt || (BotConfig.isMaskSensitiveEnabled() ? FEISHU_SYSTEM_RULES : '');
+            if (system) {
+                body.system = system;
             }
             const result = await this.client.session.prompt({
                 path: { id: sessionId },
@@ -89,12 +93,15 @@ export class OpencodeAgent {
             this.#trigger('onMessageSent', sessionId, message, result);
             return result;
         } catch (error) {
+            // undici 的 fetch failed 会把真实原因藏在 cause（HeadersTimeoutError/连接错误等）
+            const cause = error?.cause?.message || error?.cause?.code || error?.cause;
+            console.error(`${LogPrefix.AGENT_MGR} prompt 调用失败: session=${sessionId}, error=${error.message}${cause ? ` | cause: ${cause}` : ''}`);
             this.#trigger('onError', sessionId, error);
             throw error;
         }
     }
 
-    /** 中断会话 */
+    /** �жϻỰ */
     async abort(sessionId) {
         try {
             await this.client.session.abort({ path: { id: sessionId } });
@@ -104,40 +111,40 @@ export class OpencodeAgent {
         }
     }
 
-    /** 列出所有会话 */
+    /** �г����лỰ */
     async listSessions() {
         const res = await this.client.session.list();
         return res?.data || res || [];
     }
 
-    /** 获取会话消息列表 */
+    /** ��ȡ�Ự��Ϣ�б� */
     async getSessionMessages(sessionId) {
         const res = await this.client.session.messages({ path: { id: sessionId } });
         return res?.data || res || [];
     }
 
     /**
-     * 回答工具提问（question.reply 闭环）
-     * 注意：SDK 1.18.x 未生成 question 接口，此处直接调用服务端 HTTP API
-     * @param {string} requestId - question 请求 ID（que_xxx）
-     * @param {string[][]} answers - 答案列表，每个问题对应一个选中 label 数组
-     * @param {string} [sessionId] - 所属会话 ID，用于 404 时按会话重定位真实 requestId
-     * @returns {Promise<boolean>} 是否成功
+     * �ش𹤾����ʣ�question.reply �ջ���
+     * ע�⣺SDK 1.18.x δ���� question �ӿڣ��˴�ֱ�ӵ��÷���� HTTP API
+     * @param {string} requestId - question ���� ID��que_xxx��
+     * @param {string[][]} answers - ���б���ÿ�������Ӧһ��ѡ�� label ����
+     * @param {string} [sessionId] - �����Ự ID������ 404 ʱ���Ự�ض�λ��ʵ requestId
+     * @returns {Promise<boolean>} �Ƿ�ɹ�
      */
     async replyQuestion(requestId, answers, sessionId) {
         try {
-            console.log(`${LogPrefix.AGENT_MGR} question.reply 请求: requestId=${requestId}, sessionId=${sessionId || '无'}, answers=${JSON.stringify(answers)}`);
+            console.log(`${LogPrefix.AGENT_MGR} question.reply ����: requestId=${requestId}, sessionId=${sessionId || '��'}, answers=${JSON.stringify(answers)}`);
             let res = await this.#postQuestionReply(requestId, answers);
 
-            // 404 自愈：按钮/记忆中的 requestId 与服务端待答问题不匹配（过期、多实例错位等）
-            // 按会话 ID 重新定位当前待答的 requestId 后重试一次
+            // 404 ��������ť/�����е� requestId �����˴������ⲻƥ�䣨���ڡ���ʵ����λ�ȣ�
+            // ���Ự ID ���¶�λ��ǰ����� requestId ������һ��
             if (res.status === 404 && sessionId) {
                 const realId = await this.#findPendingQuestionId(sessionId);
                 if (realId && realId !== requestId) {
-                    console.warn(`${LogPrefix.AGENT_MGR} question.reply 404，requestId 不匹配，重定位: ${requestId} -> ${realId}`);
+                    console.warn(`${LogPrefix.AGENT_MGR} question.reply 404��requestId ��ƥ�䣬�ض�λ: ${requestId} -> ${realId}`);
                     res = await this.#postQuestionReply(realId, answers);
                 } else {
-                    // 打印服务端当前待答列表，协助定位 ID 错位原因
+                    // ��ӡ����˵�ǰ�����б���Э����λ ID ��λԭ��
                     await this.#logPendingQuestions();
                 }
             }
@@ -148,16 +155,16 @@ export class OpencodeAgent {
             }
             return true;
         } catch (error) {
-            console.error(`${LogPrefix.AGENT_MGR} question.reply 失败: ${error.message}`);
+            console.error(`${LogPrefix.AGENT_MGR} question.reply ʧ��: ${error.message}`);
             return false;
         }
     }
 
     /**
-     * 调用 question.reply HTTP 接口
+     * ���� question.reply HTTP �ӿ�
      */
     async #postQuestionReply(requestId, answers) {
-        const url = `${BotConfig.getOpencodeBaseUrl()}/question/${encodeURIComponent(requestId)}/reply`;
+        const url = `${this.baseUrl}/question/${encodeURIComponent(requestId)}/reply`;
         return await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -166,49 +173,49 @@ export class OpencodeAgent {
     }
 
     /**
-     * 按会话 ID 查询当前待答提问的真实 requestId
+     * ���Ự ID ��ѯ��ǰ�������ʵ���ʵ requestId
      * @returns {Promise<string|null>}
      */
     async #findPendingQuestionId(sessionId) {
         try {
-            const res = await fetch(`${BotConfig.getOpencodeBaseUrl()}/question`);
+            const res = await fetch(`${this.baseUrl}/question`);
             if (!res.ok) return null;
             const list = await res.json();
             const hit = (Array.isArray(list) ? list : []).find((q) => q?.sessionID === sessionId);
             return hit?.id || null;
         } catch (error) {
-            console.error(`${LogPrefix.AGENT_MGR} 查询待答提问失败: ${error.message}`);
+            console.error(`${LogPrefix.AGENT_MGR} ��ѯ��������ʧ��: ${error.message}`);
             return null;
         }
     }
 
     /**
-     * 打印服务端当前待答提问列表（诊断 requestId 错位）
+     * ��ӡ����˵�ǰ���������б������ requestId ��λ��
      */
     async #logPendingQuestions() {
         try {
-            const res = await fetch(`${BotConfig.getOpencodeBaseUrl()}/question`);
+            const res = await fetch(`${this.baseUrl}/question`);
             if (!res.ok) return;
             const list = await res.json();
             const brief = (Array.isArray(list) ? list : []).map((q) => ({
                 id: q.id,
                 sessionID: q.sessionID,
             }));
-            console.warn(`${LogPrefix.AGENT_MGR} 服务端当前待答提问: ${JSON.stringify(brief) || '[]'}`);
+            console.warn(`${LogPrefix.AGENT_MGR} ����˵�ǰ��������: ${JSON.stringify(brief) || '[]'}`);
         } catch (error) {
-            console.error(`${LogPrefix.AGENT_MGR} 查询待答提问列表失败: ${error.message}`);
+            console.error(`${LogPrefix.AGENT_MGR} ��ѯ���������б�ʧ��: ${error.message}`);
         }
     }
 
     /**
-     * 拒绝工具提问（question.reject 闭环）
-     * 用于交互超时兜底：拒绝后 OpenCode 会话不会永久挂起
-     * @param {string} requestId - question 请求 ID（que_xxx）
-     * @returns {Promise<boolean>} 是否成功
+     * �ܾ��������ʣ�question.reject �ջ���
+     * ���ڽ�����ʱ���ף��ܾ��� OpenCode �Ự�������ù���
+     * @param {string} requestId - question ���� ID��que_xxx��
+     * @returns {Promise<boolean>} �Ƿ�ɹ�
      */
     async rejectQuestion(requestId) {
         try {
-            const url = `${BotConfig.getOpencodeBaseUrl()}/question/${encodeURIComponent(requestId)}/reject`;
+            const url = `${this.baseUrl}/question/${encodeURIComponent(requestId)}/reject`;
             const res = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -219,13 +226,13 @@ export class OpencodeAgent {
             }
             return true;
         } catch (error) {
-            console.error(`${LogPrefix.AGENT_MGR} question.reject 失败: ${error.message}`);
+            console.error(`${LogPrefix.AGENT_MGR} question.reject ʧ��: ${error.message}`);
             return false;
         }
     }
 
     /**
-     * 响应权限请求
+     * ��ӦȨ������
      * @param {string} sessionId
      * @param {string} permissionId
      * @param {'once'|'always'|'reject'} response
@@ -234,18 +241,18 @@ export class OpencodeAgent {
         try {
             const body = { response };
             const path = { id: sessionId, permissionID: permissionId };
-            // 优先使用新版 SDK 的 session.permissions.respond，降级到旧版顶层方法
+            // ����ʹ���°� SDK �� session.permissions.respond���������ɰ涥�㷽��
             const respond = this.client.session?.permissions?.respond;
             if (typeof respond === 'function') {
                 await respond.call(this.client.session.permissions, { path, body });
             } else if (typeof this.client.postSessionIdPermissionsPermissionId === 'function') {
                 await this.client.postSessionIdPermissionsPermissionId({ path, body });
             } else {
-                throw new Error('SDK 不支持权限响应接口');
+                throw new Error('SDK ��֧��Ȩ����Ӧ�ӿ�');
             }
             return true;
         } catch (error) {
-            console.error(`${LogPrefix.AGENT_MGR} 权限响应失败: ${error.message}`);
+            console.error(`${LogPrefix.AGENT_MGR} Ȩ����Ӧʧ��: ${error.message}`);
             return false;
         }
     }

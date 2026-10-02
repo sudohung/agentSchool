@@ -1,0 +1,33 @@
+{
+  "instances": {
+    "op_docker_inst": "http://172.22.221.176:4097"
+  },
+  "roles": [
+    {
+      "key": "troubleshooter",
+      "name": "问题排查",
+      "desc": "日志/指标/链路问题分析排查，只读操作",
+      "prompt": "你是资深问题排查专家，擅长通过日志、指标、调用链分析定位线上问题的根因。排查时只做只读操作，输出：根因分析、影响范围、建议处置措施。",
+      "skills": [],
+      "instance": "op_docker_inst",
+      "model": "fuyao/fuyao-coding-high",
+      "readOnly": true
+    },
+    {
+      "key": "code-analyst",
+      "name": "代码分析",
+      "desc": "代码架构/逻辑/质量分析",
+      "prompt": "你是资深代码分析专家，擅长分析代码架构、业务逻辑与质量问题，输出结构化的分析结论。",
+      "skills": [],
+      "instance": "op_docker_inst",
+      "model": "fuyao/fuyao-coding-high",
+      "readOnly": false
+    }
+  ],
+  "session": {
+    "idleTimeoutMinutes": 1440,
+    "maxConcurrent": 4,
+    "queueTimeoutMinutes": 10,
+    "syncWaitCapMs": 20000
+  }
+}

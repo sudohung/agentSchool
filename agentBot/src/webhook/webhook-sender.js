@@ -60,6 +60,8 @@ export async function sendWebhookMessage(title, content) {
             const res = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                // 全局 dispatcher 已放开响应超时，这里对单次请求设 30s 上限防挂死
+                signal: AbortSignal.timeout(30000),
                 body: JSON.stringify(body),
             });
 

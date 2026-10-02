@@ -62,6 +62,15 @@ export const CardActionType = {
     QUESTION_REPLY: 'question_reply',
 };
 
+/** API 调用任务状态（Agent API 异步任务状态机） */
+export const ApiTaskStatus = {
+    PENDING: 'pending',
+    RUNNING: 'running',
+    WAITING_INPUT: 'waiting_input',
+    DONE: 'done',
+    FAILED: 'failed',
+};
+
 /** 消息前缀 */
 export const LogPrefix = {
     GATEWAY: '[Gateway]',
@@ -72,4 +81,9 @@ export const LogPrefix = {
     WEBHOOK: '[Webhook]',
     ADMIN: '[Admin]',
     SECURITY: '[Security]',
+    ROLE: '[RoleRegistry]',
+    POOL: '[InstancePool]',
+    API_SESSION: '[ApiSession]',
+    TASK: '[TaskQueue]',
+    MCP: '[McpServer]',
 };

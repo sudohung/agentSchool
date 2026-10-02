@@ -127,10 +127,10 @@ export const BotConfig = {
 
     /**
      * 校验并保存运行时配置（原子写入 bot.json）
-     * @param {{opencodeBaseUrl:string, defaultKey:string, agents:Array}} cfg
+     * @param {{opencodeBaseUrl:string, defaultKey:string, agents:Array, security?:Object}} cfg
      * @returns {{urlChanged:boolean}} 保存结果
      */
-    saveBotConfig({ opencodeBaseUrl, defaultKey, agents }) {
+    saveBotConfig({ opencodeBaseUrl, defaultKey, agents, security: securityInput }) {
         // 校验服务地址
         if (!opencodeBaseUrl || !/^https?:\/\//.test(opencodeBaseUrl)) {
             throw new Error('OpenCode 地址必须以 http:// 或 https:// 开头');
@@ -154,8 +154,8 @@ export const BotConfig = {
 
         // 原子写入：先写临时文件再重命名（未提供的字段保留旧值，避免覆盖 security 等配置）
         const prev = readBotJson() || {};
-        const security = body.security !== undefined
-            ? { ...SECURITY_DEFAULTS, ...prev.security, ...body.security }
+        const security = securityInput !== undefined
+            ? { ...SECURITY_DEFAULTS, ...prev.security, ...securityInput }
             : (prev.security || SECURITY_DEFAULTS);
         const prevUrl = this.getOpencodeBaseUrl();
         const tmp = `${BOT_JSON_PATH}.tmp`;

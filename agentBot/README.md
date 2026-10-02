@@ -71,10 +71,6 @@ agentBot/
     │   ├── feishu-gateway.js       # WS 长连接 + 消息去重
     │   ├── message-sender.js       # 消息发送/更新/撤回（带重试）
     │   └── chat-service.js         # 群管理 API
-    ├── agent/
-    │   ├── opencode-agent.js       # OpenCode 策略实现
-    │   ├── agent-registry.js       # 配置驱动注册表（单一 client）
-    │   └── session-manager.js      # 会话映射/上下文/串行锁
     ├── handlers/
     │   ├── filters.js              # 过滤链
     │   ├── commands.js             # 命令路由（策略注册表）
@@ -82,6 +78,16 @@ agentBot/
     ├── events/
     │   ├── opencode-listener.js    # 事件订阅主循环
     │   └── interaction-manager.js  # question/permission 闭环
+    ├── api/                        # Agent API（供其他智能体经 MCP 调用）
+    │   ├── mcp-server.js           # MCP Streamable HTTP（JSON-RPC 2.0）
+    │   ├── api-session-manager.js  # 会话凭证生成/绑定映射/持久化
+    │   └── task-queue.js           # 同步/异步任务队列 + 反问闭环
+    ├── agent/
+    │   ├── opencode-agent.js       # OpenCode 策略实现
+    │   ├── agent-registry.js       # 配置驱动注册表（单一 client）
+    │   ├── role-registry.js        # 职能注册表（roles.json 热重载）
+    │   ├── instance-pool.js        # 多 OpenCode 实例 client 池
+    │   └── session-manager.js      # 会话映射/上下文/串行锁
     └── webhook/webhook-sender.js   # Webhook 通知
 ```
 
@@ -92,9 +98,28 @@ agentBot/
 - **OpenCode 服务地址**：修改后保存会自动重启服务（Docker `restart: always` 自动拉起）
 - **Agent 模型列表**：增删改模型（key/provider/model/说明），保存后**热生效**，无需重启
 - **默认 Agent**：新会话使用的模型
+- **实例注册表 / 职能列表**：Agent API 通道使用的多 OpenCode 实例与职能管理，保存后热生效
 - 可选安全：设置环境变量 `ADMIN_TOKEN` 后，API 需携带 `x-admin-token` 请求头
 
 配置持久化在 `config/bot.json`（优先于环境变量），`OPENCODE_BASE_URL` 环境变量仅作初始兜底。
+
+## Agent API（MCP，供其他智能体调用）
+
+agentBot 同时以 MCP Server 形式对外提供服务（默认端口 8082，Docker 部署为 8083），
+opencode / codex 等支持 MCP 的智能体可将其挂载为工具服务器：
+
+| 工具 | 说明 |
+|---|---|
+| `list_roles` | 获取可用职能列表（管理页可配置） |
+| `apply_session` | 按职能申请会话，返回 `callerSessionId`（格式：职能key_uuid），调用方自行保存 |
+| `chat` | 向指定会话发消息；默认异步返回 `taskId` 用 `get_result` 轮询，`wait=true` 同步等待 |
+| `get_result` | 轮询任务结果（pending / waiting_input（agent 反问）/ done / failed） |
+| `close_session` | 主动释放会话凭证 |
+
+- 同一 `callerSessionId` 的请求串行执行；不同凭证并行（受全局并发上限约束）
+- 不同凭证即不同会话，可同时持有多个职能的会话按需指定
+- 每个职能可独立配置 OpenCode 实例与模型（管理页），留空用全局配置
+- 会话空闲超时自动清理（默认 24h）；绑定关系持久化，服务重启后凭证仍有效
 
 ## Docker 部署
 
