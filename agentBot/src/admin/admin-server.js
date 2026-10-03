@@ -10,6 +10,7 @@
 import { createServer } from 'http';
 import { BotConfig } from '../config/bot-config.js';
 import { LogPrefix } from '../constants.js';
+import { extractTextResponse } from '../handlers/commands.js';
 
 /** 请求体大小上限（字节） */
 const BODY_LIMIT = 1024 * 1024;
@@ -85,6 +86,18 @@ const ADMIN_HTML = `<!DOCTYPE html>
       <input type="checkbox" id="maskSensitive" style="width:auto"> 出站内容脱敏
     </label>
     <div class="meta">开启后：AI 回复/思考流/提问卡片中的路径、内网 IP、密钥等敏感信息自动过滤，并向 AI 注入行为约束。关闭后原文直接展示，存在泄漏风险。保存后立即生效</div>
+  </div>
+
+  <div class="card">
+    <h2>主实例提问（全局默认 OpenCode 实例）</h2>
+    <textarea id="askInput" rows="3" placeholder="输入问题，发送给主实例（全局服务地址 + 默认模型）..." style="width:100%;padding:9px 12px;border:1px solid #d5dce3;border-radius:6px;font-size:14px;font-family:inherit;resize:vertical"></textarea>
+    <div class="row" style="margin-top:10px">
+      <div style="flex:0"><button class="btn btn-primary" onclick="askMain()">💬 提问</button></div>
+      <div style="flex:0"><button class="btn" style="background:#eef4ff;color:#2f6fed" onclick="newAskSession()">🆕 新会话</button></div>
+      <div style="flex:0"><button class="btn" style="background:#f5f6f8;color:#5a6b7b" onclick="stopPolling()">⏹ 停止刷新</button></div>
+    </div>
+    <div class="meta">同一会话内多轮追问；点"新会话"重置上下文。提问可能耗时数分钟，页面每 2 秒自动刷新状态</div>
+    <pre id="askResult" style="margin-top:12px;padding:12px;border-radius:6px;background:#f8f9fa;border:1px solid #eef1f4;font-size:13px;white-space:pre-wrap;word-break:break-word;max-height:420px;overflow:auto;display:none"></pre>
   </div>
 
   <div class="card">
@@ -580,6 +593,57 @@ async function saveRoles() {
   } catch (e) { showRoleMsg('保存失败: ' + e.message, false); }
 }
 
+// ==================== 主实例提问 ====================
+let askPolling = null;
+
+function renderAsk(res) {
+  const box = $('#askResult');
+  box.style.display = 'block';
+  if (res.status === 'running' || res.status === 'pending') {
+    box.textContent = '⏳ 主实例思考中...（提问时间：' + new Date(res.createdAt || Date.now()).toLocaleTimeString() + '）';
+  } else if (res.status === 'done') {
+    box.textContent = res.reply || '（无文本回复）';
+  } else if (res.status === 'failed') {
+    box.textContent = '❌ 提问失败: ' + (res.error || '未知错误');
+  } else if (res.status === 'no_task') {
+    box.textContent = '暂无提问记录';
+  }
+}
+
+function stopPolling() { if (askPolling) { clearInterval(askPolling); askPolling = null; } }
+
+function startPolling(askId) {
+  stopPolling();
+  askPolling = setInterval(async () => {
+    try {
+      const r = await fetch('/api/ask/result?askId=' + encodeURIComponent(askId));
+      const res = await r.json();
+      renderAsk(res);
+      if (res.status === 'done' || res.status === 'failed') stopPolling();
+    } catch (e) { /* 轮询失败静默，下一轮重试 */ }
+  }, 2000);
+}
+
+async function askMain() {
+  const q = $('#askInput').value.trim();
+  if (!q) { renderAsk({ status: 'failed', error: '请输入问题' }); return; }
+  try {
+    const r = await fetch('/api/ask', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ question: q }) });
+    const res = await r.json();
+    if (!r.ok) { renderAsk({ status: 'failed', error: res.error || ('提交失败: ' + r.status) }); return; }
+    renderAsk({ status: 'running', createdAt: Date.now() });
+    startPolling(res.askId);
+  } catch (e) { renderAsk({ status: 'failed', error: '提交失败: ' + e.message }); }
+}
+
+async function newAskSession() {
+  try {
+    await fetch('/api/ask/new', { method:'POST' });
+    stopPolling();
+    renderAsk({ status: 'no_task' });
+  } catch (e) { renderAsk({ status: 'failed', error: '重置失败: ' + e.message }); }
+}
+
 loadRoles();
 
 load();
@@ -600,6 +664,10 @@ export class AdminServer {
     /** @type {import('../agent/instance-pool.js').InstancePool|null} */
     #instancePool;
     #port;
+    /** @type {string} 主实例提问的内部会话 ID（管理页多轮追问共享） */
+    #askSessionId = '';
+    /** @type {Object|null} 最近一次提问任务（同时仅支持一个执行中的提问） */
+    #askTask = null;
 
     /**
      * @param {{registry: AgentRegistry, gateway?: FeishuGateway, roleRegistry?: RoleRegistry, instancePool?: InstancePool, port?: number}} options
@@ -734,6 +802,47 @@ export class AdminServer {
             }
         }
 
+        // ==================== 主实例提问 ====================
+        if (req.method === 'POST' && url.pathname === '/api/ask') {
+            if (!this.#instancePool) return this.#json(res, 404, { error: '实例池未启用' });
+            const body = await this.#readJson(req);
+            const question = String(body?.question || '').trim();
+            if (!question) return this.#json(res, 400, { error: '问题不能为空' });
+            if (this.#askTask && ['pending', 'running'].includes(this.#askTask.status)) {
+                return this.#json(res, 409, { error: '已有提问执行中，请等待完成后再提问' });
+            }
+            const task = {
+                askId: `ask_${Date.now().toString(36)}`,
+                status: 'running',
+                reply: '',
+                error: '',
+                createdAt: Date.now(),
+            };
+            this.#askTask = task;
+            // 后台执行：提问可能耗时数分钟，立即返回 askId 供页面轮询
+            this.#runAsk(task, question).catch((error) => {
+                console.error(`${LogPrefix.ADMIN} 主实例提问执行异常: ${error.message}`);
+            });
+            return this.#json(res, 200, { askId: task.askId, status: task.status });
+        }
+
+        if (req.method === 'GET' && url.pathname === '/api/ask/result') {
+            if (!this.#askTask) return this.#json(res, 200, { status: 'no_task' });
+            return this.#json(res, 200, {
+                askId: this.#askTask.askId,
+                status: this.#askTask.status,
+                reply: this.#askTask.reply,
+                error: this.#askTask.error,
+                createdAt: this.#askTask.createdAt,
+            });
+        }
+
+        if (req.method === 'POST' && url.pathname === '/api/ask/new') {
+            this.#askSessionId = '';
+            console.log(`${LogPrefix.ADMIN} 主实例提问会话已重置`);
+            return this.#json(res, 200, { reset: true });
+        }
+
         // ==================== 职能与实例管理（Agent API） ====================
         if (req.method === 'GET' && url.pathname === '/api/roles') {
             if (!this.#roleRegistry) return this.#json(res, 404, { error: '职能管理未启用' });
@@ -756,6 +865,38 @@ export class AdminServer {
         }
 
         this.#json(res, 404, { error: 'not found' });
+    }
+
+    /**
+     * 主实例提问执行：主实例 = 全局默认实例 + 默认模型（role.instance/model 留空走全局配置）
+     * 会话失效（OpenCode 重启/会话过期）时自动重建并重试一次
+     * @param {Object} task - 提问任务对象
+     * @param {string} question
+     */
+    async #runAsk(task, question) {
+        try {
+            const role = { key: 'admin-main', name: '管理页主实例提问', instance: '', model: '' };
+            const agent = this.#instancePool.getAgentForRole(role);
+            if (!this.#askSessionId) {
+                this.#askSessionId = await agent.createSession(`admin-console-${Date.now()}`);
+            }
+            let result;
+            try {
+                result = await agent.sendMessage(this.#askSessionId, question);
+            } catch (error) {
+                // 会话失效：重建会话后重试一次
+                console.warn(`${LogPrefix.ADMIN} 主实例提问会话失效，重建重试: ${error.message}`);
+                this.#askSessionId = await agent.createSession(`admin-console-${Date.now()}`);
+                result = await agent.sendMessage(this.#askSessionId, question);
+            }
+            task.reply = extractTextResponse(result) || '（无文本回复）';
+            task.status = 'done';
+        } catch (error) {
+            console.error(`${LogPrefix.ADMIN} 主实例提问失败: ${error.message}`);
+            task.status = 'failed';
+            task.error = error.message;
+        }
+        console.log(`${LogPrefix.ADMIN} 主实例提问完成: askId=${task.askId}, status=${task.status}`);
     }
 
     /**

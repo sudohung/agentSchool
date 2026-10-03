@@ -16,6 +16,12 @@ const TERMINAL_TASK_TTL = 60 * 60 * 1000;
 /** 终结任务清理扫描间隔（毫秒） */
 const TASK_SWEEP_INTERVAL = 10 * 60 * 1000;
 /**
+ * 待答提问等待超时（毫秒）
+ * waiting_input 超过该时长无回应则自动拒绝提问并转 failed：
+ * 避免调用方不回应时任务永久卡死（占用并发名额 + 会话绑定悬挂）
+ */
+const QUESTION_WAIT_TTL = 10 * 60 * 1000;
+/**
  * 同步等待默认上限（毫秒）
  * 注意：MCP 客户端（如 opencode）工具调用默认 30s 超时（超时报 -32001），
  * 同步上限必须明显低于客户端超时，否则长任务会被客户端侧掐断
@@ -64,7 +70,11 @@ export class TaskQueue {
     /** 启动终结任务清理 */
     startSweeper() {
         if (this.#sweeper) return;
-        this.#sweeper = setInterval(() => this.#sweepTerminalTasks(), TASK_SWEEP_INTERVAL);
+        this.#sweeper = setInterval(() => {
+            this.#sweepTerminalTasks().catch((error) => {
+                console.error(`${LogPrefix.TASK} 任务清理扫描异常: ${error.message}`);
+            });
+        }, TASK_SWEEP_INTERVAL);
         this.#sweeper.unref?.();
     }
 
@@ -345,7 +355,11 @@ export class TaskQueue {
             role: task.roleKey,
         };
         if (task.status === ApiTaskStatus.DONE) snap.reply = task.reply;
-        if (task.status === ApiTaskStatus.WAITING_INPUT) snap.question = task.question;
+        if (task.status === ApiTaskStatus.WAITING_INPUT) {
+            snap.question = task.question;
+            snap.questionText = this.#formatQuestionText(task.question);
+            snap.hint = '下游 agent 需要用户决策：①将 questionText 原样转达给最终用户并收集答复（用户可直接回答或选择选项）；②用同一 callerSessionId 调用 chat（message=用户答复），任务会自动继续执行；③不要将 waiting_input 当作任务结束，也不要继续轮询。超时 10 分钟未回应任务将自动失败';
+        }
         if (task.status === ApiTaskStatus.FAILED) snap.error = task.error;
         if (task.status === ApiTaskStatus.PENDING) snap.hint = '任务排队中，请继续调用 get_result 轮询（建议由子 agent/后台任务执行，避免阻塞主会话）';
         if (task.status === ApiTaskStatus.RUNNING) snap.hint = '任务执行中，请继续调用 get_result 轮询（建议由子 agent/后台任务执行，避免阻塞主会话）';
@@ -353,16 +367,56 @@ export class TaskQueue {
     }
 
     /**
-     * 清理已终结超过保留时长的任务
+     * 格式化提问为可读文本（调用方拿到即可直接转述给最终用户）
+     * @param {Array<{question:string, header:string, options?:Array<{label:string}>}>} questions
+     * @returns {string}
      */
-    #sweepTerminalTasks() {
+    #formatQuestionText(questions) {
+        return (questions || []).map((q, i) => {
+            const options = (q.options || []).map((o) => o.label).join(' / ');
+            return `${i + 1}. ${q.question}（${q.header}）\n   选项：${options || '自由回答'}`;
+        }).join('\n');
+    }
+
+    /**
+     * 清理扫描：
+     *  1. waiting_input 超时（10 分钟）的提问自动拒绝并转 failed，释放并发名额
+     *  2. 已终结超过保留时长的任务移除
+     */
+    async #sweepTerminalTasks() {
         const now = Date.now();
         for (const [taskId, task] of this.#tasks.entries()) {
+            // 场景1：提问等待超时 -> 自动拒绝，防止永久卡死
+            if (task.status === ApiTaskStatus.WAITING_INPUT && now - task.updatedAt > QUESTION_WAIT_TTL) {
+                await this.#timeoutPendingQuestion(task);
+                continue;
+            }
+
+            // 场景2：终结任务过期清理
             const terminal = [ApiTaskStatus.DONE, ApiTaskStatus.FAILED].includes(task.status);
             if (!terminal) continue;
             if (now - task.updatedAt > TERMINAL_TASK_TTL) {
                 this.#tasks.delete(taskId);
             }
         }
+    }
+
+    /**
+     * 提问等待超时处理：question.reject 回传下游 + 清理会话绑定的待答状态 + 任务转 failed
+     */
+    async #timeoutPendingQuestion(task) {
+        const binding = this.#sessions.findByInternalSessionId(task.internalSessionId);
+        const pending = binding?.pendingQuestion;
+        if (binding && pending?.requestId) {
+            try {
+                const { agent } = this.#sessions.getAgentByBinding(binding);
+                const ok = await agent.rejectQuestion(pending.requestId);
+                console.log(`${LogPrefix.TASK} 提问等待超时自动拒绝: taskId=${task.taskId}, request=${pending.requestId}, 结果=${ok}`);
+            } catch (error) {
+                console.warn(`${LogPrefix.TASK} 提问超时拒绝失败（继续任务失败流程）: ${error.message}`);
+            }
+            binding.pendingQuestion = null;
+        }
+        this.#finishTask(task, ApiTaskStatus.FAILED, '', '提问等待超时（10 分钟无回应），已自动拒绝；请重新发起任务');
     }
 }

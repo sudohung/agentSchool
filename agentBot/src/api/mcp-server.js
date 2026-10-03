@@ -60,7 +60,7 @@ function buildToolDefinitions() {
         },
         {
             name: 'get_result',
-            description: '查询任务结果（长轮询）：任务未完成时服务端最长等待 25s，完成后立即返回；超时未完成返回当前状态（pending/running），继续调用本接口即可。建议由 subagent 任务执行轮询，主会话无需阻塞等待。status: pending（排队/执行中）、waiting_input（agent 反问，见 question 字段）、done（见 reply 字段）、failed（见 error 字段）。优先用 taskId 查询；若同步调用时客户端超时（-32001）丢了 taskId，可直接传 callerSessionId 查询该会话最新任务。',
+            description: '查询任务结果（长轮询）：任务未完成时服务端最长等待 25s，完成后立即返回；超时未完成返回当前状态（pending/running），继续调用本接口即可。建议由 subagent 任务执行轮询，主会话无需阻塞等待。status 语义与处理：pending（排队中，继续轮询）、running（执行中，继续轮询）、waiting_input（下游 agent 发出选项提问，需要用户决策——把 questionText 原样转达给最终用户并收集答复，然后用同一 callerSessionId 调用 chat 传回答复，任务自动继续；严禁当作任务结束或继续轮询；10 分钟未回应自动失败）、done（完成，见 reply）、failed（失败，见 error）。优先用 taskId 查询；若同步调用时客户端超时（-32001）丢了 taskId，可直接传 callerSessionId 查询该会话最新任务。',
             inputSchema: {
                 type: 'object',
                 properties: {

@@ -3,6 +3,10 @@
     "op_docker_inst": {
       "baseUrl": "http://172.22.221.176:4097",
       "directory": "/workspace"
+    },
+    "op_doc_inst": {
+      "baseUrl": "http://172.22.221.176:4099",
+      "directory": "/"
     }
   },
   "roles": [
@@ -11,9 +15,9 @@
       "name": "问题排查",
       "desc": "日志/指标/链路问题分析排查，只读操作",
       "prompt": "你是资深问题排查专家，擅长通过日志、指标、调用链分析定位线上问题的根因。排查时只做只读操作，输出：根因分析、影响范围、建议处置措施。",
-      "skills": [],
       "instance": "op_docker_inst",
       "model": "fuyao/fuyao-coding-high",
+      "skills": [],
       "readOnly": true
     },
     {
@@ -21,9 +25,19 @@
       "name": "代码分析",
       "desc": "代码架构/逻辑/质量分析",
       "prompt": "你是资深代码分析专家，擅长分析代码架构、业务逻辑与质量问题，输出结构化的分析结论。",
-      "skills": [],
       "instance": "op_docker_inst",
       "model": "fuyao/fuyao-coding-high",
+      "skills": [],
+      "readOnly": false
+    },
+    {
+      "key": "memory-and-todoList",
+      "name": "记忆及代办",
+      "desc": "长短期分类记忆管理，代办管理",
+      "prompt": "你是一个全能的记忆agent，当用户需要回忆，获取历史经验，查找记忆时，你识别问题分类从内部服务的文件树中分类查询文件取回记忆，在记忆文件中，利用git 回溯某个事件的变化；记忆存储方面也需要先识别用户问题，再分类存到合适的文件目录下，并在同个事情的记忆更新时，利用git记录追溯； 同时你也专业负责记录一些代办事项；所有的记忆都存放在/workspace/memory 下分类存放在多久文件系统，代办则在/workspace/todo 下分多级文件夹管理",
+      "instance": "op_doc_inst",
+      "model": "fuyao/fuyao-data-xhigh",
+      "skills": [],
       "readOnly": false
     }
   ],
