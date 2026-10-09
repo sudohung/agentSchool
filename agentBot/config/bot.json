@@ -1,5 +1,5 @@
 {
-  "opencodeBaseUrl": "http://192.168.137.2:4096",
+  "opencodeBaseUrl": "http://127.0.0.1:4096",
   "defaultKey": "main",
   "agents": [
     {
@@ -38,5 +38,8 @@
       "model": "glm-5.3",
       "description": "volGLM53"
     }
-  ]
+  ],
+  "security": {
+    "maskSensitive": true
+  }
 }
