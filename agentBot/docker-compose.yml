@@ -15,8 +15,14 @@ services:
     volumes:
       # 配置持久化：配置页修改的 bot.json / 黑名单保存在宿主机
       - ./config:/app/config
+    networks:
+      - agent-net
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
+
+networks:
+  agent-net:
+    external: true
