@@ -345,6 +345,7 @@ curl 'http://localhost:8080/api/cron/preview?expr=0%209%20*%20*%201-5'
 | `DB_PATH` | `/data/scheduler.db` | SQLite 数据库路径 |
 | `OUTPUT_DIR` | `/data/outputs` | 超长输出落盘目录 |
 | `OPENCODE_BASE_URL` | `http://127.0.0.1:4096` | opencode Server 地址 |
+| `OPENCODE_PASSWORD` | （空） | opencode v2 实例的默认访问密码；v1 实例可不填。多实例可在 `instance_register` 时按实例传 `password` |
 | `OPENCODE_DIRECTORY` | （空） | 新建会话时指定的项目目录 |
 | `AI_DEFAULT_MODEL` | （空） | AI 任务默认模型（`provider/model-id`），任务未指定 model 时使用。**建议配置一个当前用户有权限的模型**，否则使用 opencode 会话默认模型（可能无权限报 403） |
 | `AI_TIMEOUT_MS` | `600000` | AI 任务默认超时（10 分钟） |
@@ -353,6 +354,8 @@ curl 'http://localhost:8080/api/cron/preview?expr=0%209%20*%20*%201-5'
 | `NOTIFY_MAX_BYTES` | `8192` | 通知文本阈值，超出截断并落盘 |
 | `DEFAULT_WORKDIR` | `/workspace` | bash 任务默认工作目录 |
 | `TZ` | `Asia/Shanghai` | 时区（影响 cron 计算与显示） |
+
+> **opencode v1 / v2 兼容**：调度器会自动探测实例协议。v1（`/session` REST）无鉴权；v2（`/api/session`，带 `OPENCODE_PASSWORD`）需要 HTTP Basic 认证。注册 v2 实例时通过 `instance_register` 的 `password` 参数按实例保存密码，未传则回退 `OPENCODE_PASSWORD`。v2 的会话创建、prompt 提交、消息轮询分别走 `/api/session`、`/api/session/:id/prompt`、`/api/session/:id/message`。
 
 ---
 

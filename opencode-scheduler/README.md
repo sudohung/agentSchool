@@ -57,6 +57,7 @@ docker run -d --name oc-scheduler \
 | `DB_PATH` | /data/scheduler.db | SQLite 路径 |
 | `OUTPUT_DIR` | /data/outputs | 超长输出落盘目录 |
 | `OPENCODE_BASE_URL` | http://127.0.0.1:4096 | opencode Server 地址 |
+| `OPENCODE_PASSWORD` | - | opencode v2 实例默认访问密码（v1 可不填；多实例可在 instance_register 传 password） |
 | `OPENCODE_DIRECTORY` | - | 新建会话时的项目目录（可选） |
 | `AI_TIMEOUT_MS` | 600000 | AI 任务默认超时 |
 | `BASH_TIMEOUT_MS` | 300000 | bash 任务默认超时 |

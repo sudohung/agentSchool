@@ -22,13 +22,14 @@ export async function runAiPrompt(job) {
     return { ok: false, output: '', error: `opencode 实例不可达 (${instance.name ? instance.name + ' ' : ''}${instance.base_url})，failfast 跳过本轮，等待实例恢复`, sessionId: job.session_id, timedOut: false };
   }
   const baseUrl = instance?.base_url;
+  const password = instance?.password;
 
-  // 1. 确定目标会话：优先源会话，失效则新建
+  // 1. 确定目标会话：优先源会话，失效则新建（v2 在会话维度指定模型）
   let sessionId = job.session_id;
-  if (sessionId && await sessionExists(sessionId, baseUrl)) {
+  if (sessionId && await sessionExists(sessionId, baseUrl, password)) {
     // 复用源会话
   } else {
-    sessionId = await createSession(`定时 AI 任务: ${job.name}`, baseUrl);
+    sessionId = await createSession(`定时 AI 任务: ${job.name}`, baseUrl, password, job.model || config.aiDefaultModel);
   }
 
   // 2. 提交 prompt 并等待最终结果
@@ -41,7 +42,7 @@ export async function runAiPrompt(job) {
 
   try {
     const model = job.model || config.aiDefaultModel || undefined;
-    const result = await runPromptAndWait(sessionId, prompt, model, timeoutMs, baseUrl);
+    const result = await runPromptAndWait(sessionId, prompt, model, timeoutMs, baseUrl, password);
     return { ok: true, output: result, error: null, sessionId, timedOut: false };
   } catch (err) {
     const timedOut = /超时/.test(err.message);

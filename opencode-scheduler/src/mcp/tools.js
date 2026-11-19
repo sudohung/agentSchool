@@ -8,13 +8,14 @@ const tool = (name, description, inputSchema, handler) => ({ name, description, 
 const REGISTER_HINT = '【多实例注册】调用本服务前，agent 必须先调用 instance_register 注册自身所属的 opencode 实例（用 opencode-instance-discovery 技能获取本实例 ip:port，用 opencode-session-id 技能获取当前 sessionId）。';
 
 export const tools = [
-  tool('instance_register', '注册当前 agent 所属的 opencode 实例（被动发现）。agent 先自行获取本实例的 ip:port 与当前 sessionId，再调用本工具。注册后创建定时任务将自动路由回本实例（结果回传原会话）。', {
+  tool('instance_register', '注册当前 agent 所属的 opencode 实例（被动发现）。agent 先自行获取本实例的 ip:port 与当前 sessionId，再调用本工具。注册后创建定时任务将自动路由回本实例（结果回传原会话）。若本实例是 opencode v2（带访问密码），必须同时传 password（或由服务端配置 OPENCODE_PASSWORD）。', {
     type: 'object',
     required: ['baseUrl'],
     properties: {
       baseUrl: { type: 'string', description: '本实例的 opencode server 地址，如 http://10.1.2.3:4096' },
       sessionId: { type: 'string', description: '当前会话 ID（本次对话的 session id，用于验证并建立归属绑定）' },
       name: { type: 'string', description: '实例名称（可选，便于识别，如 dev-laptop-4096）' },
+      password: { type: 'string', description: '本实例的访问密码（可选）。opencode v2 实例必填，v1 实例可省略；按实例保存，不影响其他实例' },
     },
   }, async args => JSON.stringify(await registerInstance(args), null, 2)),
   tool('job_add', `创建定时任务。支持 cron 循环任务与一次性定时任务；type=bash 执行 shell 命令，type=ai 向 opencode 提交 prompt 由 AI 执行并回传最终结果。\n【创建前必做】①${REGISTER_HINT}②sessionId 必须绑定：agent 必须先调用 opencode-session-id 技能脚本获取当前会话 ID 填入，否则用户在对话中收不到任务结果；③飞书通知（feishuWebhook）必须让用户明确决定是否使用，用户未表态时先询问，不得默认省略或替用户决定。`, {
@@ -30,14 +31,14 @@ export const tools = [
       prompt: { type: 'string', description: 'type=ai 时必填：提交给 opencode 的提示词' },
       sessionId: { type: 'string', description: '【强制绑定】源 opencode 会话 ID，执行结果将回传该会话。agent 创建任务时必须先调用 opencode-session-id 技能脚本获取当前会话 ID 并填入此处，否则用户在对话中收不到结果；仅当用户明确不要回传会话时才可省略（结果将发到新建的独立会话）' },
       instanceBaseUrl: { type: 'string', description: '指定目标 opencode 实例地址（可选，仅当任务不绑定当前会话或需跨实例执行时填写，须为已注册实例）' },
-      workdir: { type: 'string', description: 'bash 执行工作目录（默认 /workspace）' },
+      workdir: { type: 'string', description: 'bash 执行工作目录（默认 /workspace）。注意：bash 任务在调度器容器内执行，必须是调度器容器内的路径，且目录必须已存在' },
       model: { type: 'string', description: 'ai 任务覆盖模型，如 provider/model-id（可选，默认用 AI_DEFAULT_MODEL 环境变量）' },
       timeoutMs: { type: 'number', description: '执行超时毫秒数（bash 默认 300000，ai 默认 600000）' },
       maxRetries: { type: 'number', description: '失败重试次数，默认 1' },
       feishuWebhook: { type: 'string', description: '【用户必须明确决定】飞书机器人 webhook 地址。用户要求飞书通知时必须让用户提供 webhook 地址后填入；用户明确不要飞书通知时才可省略；不得替用户默认选择' },
       notifyOnSuccess: { type: 'boolean', description: '成功时是否也发通知（失败/超时总是通知），默认 false' },
     },
-  }, async args => JSON.stringify(jobService.create(args), null, 2)),
+  }, async args => JSON.stringify(await jobService.create(args), null, 2)),
 
   tool('job_list', '列出全部定时任务（含状态与下次执行时间）。时间为本地时区（Asia/Shanghai）格式：YYYY-MM-DD HH:mm:ss。', {
     type: 'object', properties: {},

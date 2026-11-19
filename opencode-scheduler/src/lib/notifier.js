@@ -50,7 +50,8 @@ export async function notifyJobResult({ job, status, durationMs, rawOutput, erro
   // 0. 会话回传必须路由到任务归属实例；实例离线时跳过会话回传（仍走飞书）
   const instance = job.instance_id ? store.getInstance(job.instance_id) : null;
   const baseUrl = instance?.base_url;
-  const instanceDown = Boolean(instance) && !(await ping(baseUrl));
+  const password = instance?.password;
+  const instanceDown = Boolean(instance) && !(await ping(baseUrl, password));
 
   // 1. 回传 opencode 会话（绑定会话发送失败时降级新建会话，确保结果可达）
   try {
@@ -59,19 +60,19 @@ export async function notifyJobResult({ job, status, durationMs, rawOutput, erro
     if (skipSession) {
       // 结果已在会话消息流中，只记录结果所在会话
       result.sessionTarget = job.session_id ?? null;
-    } else if (target && await sessionExists(target, baseUrl)) {
+    } else if (target && await sessionExists(target, baseUrl, password)) {
       result.sessionCreated = false;
     } else {
-      target = await createSession(`定时任务通知: ${job.name}`, baseUrl);
+      target = await createSession(`定时任务通知: ${job.name}`, baseUrl, password);
       result.sessionCreated = true;
     }
     if (target && !skipSession) {
       try {
-        await sendMessage(target, text, undefined, baseUrl);
+        await sendMessage(target, text, undefined, baseUrl, password);
       } catch (sendErr) {
         // 绑定会话繁忙/不可达 → 新建会话兜底
-        target = await createSession(`定时任务通知: ${job.name}`, baseUrl);
-        await sendMessage(target, text, undefined, baseUrl);
+        target = await createSession(`定时任务通知: ${job.name}`, baseUrl, password);
+        await sendMessage(target, text, undefined, baseUrl, password);
         result.sessionCreated = true;
       }
       result.sessionTarget = target;

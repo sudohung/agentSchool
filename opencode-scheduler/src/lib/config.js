@@ -10,6 +10,8 @@ export const config = {
   dbPath: env('DB_PATH', path.join(process.cwd(), 'data', 'scheduler.db')),
   // opencode Server 地址
   opencodeBaseUrl: env('OPENCODE_BASE_URL', 'http://127.0.0.1:4096'),
+  // opencode v2 实例的默认访问密码（未按实例单独配置 password 时使用；v1 实例可不填）
+  opencodePassword: env('OPENCODE_PASSWORD', ''),
   // AI 任务默认模型（job 未指定 model 时使用，格式 provider/model-id）
   aiDefaultModel: env('AI_DEFAULT_MODEL', ''),
   // AI 任务默认超时（毫秒）

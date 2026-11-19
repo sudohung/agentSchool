@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS instances (
   id TEXT PRIMARY KEY,
   base_url TEXT NOT NULL UNIQUE,   -- opencode server 地址 ip:port
   name TEXT,                       -- 实例名称（可读标识）
+  password TEXT,                   -- v2 实例访问密码（可空，空则回退 OPENCODE_PASSWORD）
   status TEXT DEFAULT 'online',    -- online | offline
   last_seen_at TEXT,               -- 最近一次活跃时间（注册/归属/健康检查刷新）
   created_at TEXT NOT NULL,
@@ -70,6 +71,7 @@ function ensureColumn(table, column, ddl) {
   if (!cols.includes(column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
 }
 ensureColumn('jobs', 'instance_id', 'TEXT'); // 任务归属的 opencode 实例
+ensureColumn('instances', 'password', 'TEXT'); // v2 实例访问密码（多实例可分别配置）
 
 const nowIso = () => new Date().toISOString();
 
@@ -158,16 +160,21 @@ export function saveOutput(name, content) {
 }
 
 // ---------- instance 注册表 ----------
-export function upsertInstance({ baseUrl, name, id }) {
+export function upsertInstance({ baseUrl, name, password, id }) {
   const t = nowIso();
   const existing = db.prepare('SELECT * FROM instances WHERE base_url = ?').get(baseUrl);
   if (existing) {
+    // 仅在显式传入 password 时更新，避免 agent 未传密码时把已有密码覆盖为空
     if (name) db.prepare('UPDATE instances SET name = ?, updated_at = ? WHERE id = ?').run(name, t, existing.id);
+    if (password !== undefined) {
+      db.prepare('UPDATE instances SET password = ?, updated_at = ? WHERE id = ?')
+        .run(password || null, t, existing.id);
+    }
     return getInstance(existing.id);
   }
   const instId = id ?? randomUUID().slice(0, 8);
-  db.prepare(`INSERT INTO instances (id, base_url, name, status, last_seen_at, created_at, updated_at)
-    VALUES (?,?,?,?,?,?,?)`).run(instId, baseUrl, name ?? null, 'online', t, t, t);
+  db.prepare(`INSERT INTO instances (id, base_url, name, password, status, last_seen_at, created_at, updated_at)
+    VALUES (?,?,?,?,?,?,?,?)`).run(instId, baseUrl, name ?? null, password || null, 'online', t, t, t);
   return getInstance(instId);
 }
 
