@@ -11,6 +11,7 @@
 import * as lark from '@larksuiteoapi/node-sdk';
 // 全局 fetch 超时配置须最先执行（OpenCode 长推理任务依赖，见模块注释）
 import './config/fetch-dispatcher.js';
+import { join } from 'path';
 import { BotConfig } from './config/bot-config.js';
 import { ChatService } from './feishu/chat-service.js';
 import { FeishuGateway } from './feishu/feishu-gateway.js';
@@ -23,6 +24,8 @@ import { OpencodeListener } from './events/opencode-listener.js';
 import { AdminServer } from './admin/admin-server.js';
 import { ApiSessionManager } from './api/api-session-manager.js';
 import { TaskQueue } from './api/task-queue.js';
+import { CallbackStore } from './api/callback-store.js';
+import { CallbackClient } from './api/callback-client.js';
 import { McpServer } from './api/mcp-server.js';
 
 // ==================== 步骤1：配置校验 ====================
@@ -48,9 +51,13 @@ const sessionManager = new SessionManager(registry);
 const roleRegistry = new RoleRegistry();
 const instancePool = new InstancePool(roleRegistry);
 const apiSessions = new ApiSessionManager(roleRegistry, instancePool);
-const apiTasks = new TaskQueue(apiSessions, instancePool, roleRegistry);
+// 回调模式：sqlite 持久层 + opencode 回调执行器（任务完成后向调用方会话推送结果）
+const callbackStore = new CallbackStore(join(process.cwd(), 'config', 'callback-tasks.db'));
+const callbackClient = new CallbackClient();
+const apiTasks = new TaskQueue(apiSessions, instancePool, roleRegistry, { callbackStore, callbackClient });
 apiSessions.startSweeper();
 apiTasks.startSweeper();
+apiTasks.startCallbackSweeper();
 
 // API 会话的 question/permission 事件路由（与飞书交互链路隔离）
 const apiRouter = {
@@ -98,6 +105,7 @@ gateway.start(
 // 优雅退出
 process.on('SIGINT', () => {
     console.log('[agentBot] 收到退出信号，正在关闭...');
+    callbackStore.close();
     process.exit(0);
 });
 

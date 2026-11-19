@@ -117,7 +117,12 @@ const ADMIN_HTML = `<!DOCTYPE html>
       <tbody></tbody>
     </table>
     <button class="btn btn-add" onclick="addRoleRow()">+ 添加职能</button>
-    <div style="margin-top:14px"><button class="btn btn-primary" onclick="saveRoles()">💾 保存职能与实例</button></div>
+    <div style="margin-top:14px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="saveRoles()">💾 保存职能与实例</button>
+      <label style="font-size:13px;color:#5a6b7b">回调循环深度上限（多 agent 互调防护，超过直接拒绝）：
+        <input type="number" id="maxCallbackDepth" min="1" max="10" style="width:56px"> 层
+      </label>
+    </div>
     <div class="meta">实例/模型留空则使用全局配置；模型格式 provider/model；技能为逗号分隔的技能名；只读职能的权限请求将被自动拒绝。保存后立即生效。</div>
     <div class="msg" id="roleMsg"></div>
   </div>
@@ -542,6 +547,7 @@ async function loadRoles() {
   try {
     const r = await fetch('/api/roles');
     const cfg = await r.json();
+    window.__instRaw = cfg.instances || {};
     $('#tblInst tbody').innerHTML = '';
     $('#tblRole tbody').innerHTML = '';
     Object.entries(cfg.instances || {}).forEach(([key, raw]) => {
@@ -549,6 +555,7 @@ async function loadRoles() {
       addInstRow({ key, ...inst });
     });
     (cfg.roles || []).forEach(addRoleRow);
+    $('#maxCallbackDepth').value = cfg.session?.maxCallbackDepth || 3;
     // 已连接实例的目录为空时，自动用服务端默认目录回填
     document.querySelectorAll('#tblInst tbody tr').forEach(autofillInstDirectory);
   } catch (e) { showRoleMsg('职能配置加载失败: ' + e.message, false); }
@@ -561,7 +568,15 @@ async function saveRoles() {
     const key = tr.querySelector('.i-key').value.trim();
     const baseUrl = tr.querySelector('.i-url').value.trim();
     const directory = tr.querySelector('.i-dir').value.trim();
-    if (key && baseUrl) instances[key] = { baseUrl, directory }; else instBad = true;
+    if (key && baseUrl) {
+      // 保留 UI 未展示的实例扩展字段（v2 密码/协议版本），避免管理页保存时被丢弃
+      const prevRaw = window.__instRaw?.[key];
+      const prev = typeof prevRaw === 'string' ? {} : (prevRaw || {});
+      const item = { baseUrl, directory };
+      if (prev.password) item.password = prev.password;
+      if (prev.version) item.version = prev.version;
+      instances[key] = item;
+    } else instBad = true;
   });
   if (instBad) { showRoleMsg('保存失败：实例的 key/服务地址需填写完整', false); return; }
 
@@ -585,7 +600,8 @@ async function saveRoles() {
   if (roles.length === 0) { showRoleMsg('至少需要配置一个职能', false); return; }
 
   try {
-    const r = await fetch('/api/roles', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ instances, roles }) });
+    const body = { instances, roles, session: { maxCallbackDepth: parseInt($('#maxCallbackDepth').value, 10) || 3 } };
+    const r = await fetch('/api/roles', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
     const res = await r.json();
     if (!r.ok) { showRoleMsg('保存失败: ' + (res.error || r.status), false); return; }
     showRoleMsg('✅ 已保存并热生效（' + res.summary.roleCount + ' 个职能 / ' + res.summary.instanceCount + ' 个实例）', true);

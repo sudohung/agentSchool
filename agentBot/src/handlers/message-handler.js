@@ -63,14 +63,21 @@ export class MessageHandler {
         }
 
         try {
-            // 步骤2：过滤链（群@、黑名单）
-            const filterResult = runFilterChain(chatId, messageContext);
+            // 步骤2：过滤链（群@、黑名单）—— 需先拿到机器人 open_id 才能判断“@ 的是不是机器人”
+            const botOpenId = await chatService.getBotOpenId();
+            const filterResult = runFilterChain(chatId, messageContext, botOpenId);
             if (!filterResult.pass) {
                 this.#log(`消息被过滤: ${filterResult.type} - ${filterResult.reason}`);
                 return;
             }
 
             const message = preprocessMessage(userMessage);
+            // 空消息拦截：仅 @ 了其他人（如“@咕咕咕”）时预处理后为空，
+            // 发给 opencode 只会得到空回复，最终产生“只有 @ 前缀”的卡片
+            if (!message) {
+                this.#log(`消息为空（仅 @ 占位符），跳过: ${chatId}`);
+                return;
+            }
             sessionManager.markProcessing(chatId, userMessage);
             this.#log(`开始处理: ${message}`);
 
@@ -102,7 +109,7 @@ export class MessageHandler {
             }
 
             // 步骤5：解析 @ 名单（显式 @ 透传，排除机器人自身）
-            const atList = await this.#extractAtList(messageContext);
+            const atList = await this.#extractAtList(messageContext, botOpenId);
 
             // 步骤6：普通消息 -> AI Agent 处理（引用回复时携带引用上下文，回复时按需 @）
             await this.#handleAiMessage(chatId, message, userMessage, messageContext, atList);
@@ -135,7 +142,9 @@ export class MessageHandler {
         }
 
         const result = await sessionManager.sendMessage(chatId, prompt);
-        const aiResponse = extractTextResponse(result) || '（无文本回复）';
+        // 仅空白字符的回复（如单个换行）也要走兜底，否则卡片里只剩 @ 前缀，用户看不到任何回答
+        const aiResponse = (extractTextResponse(result) || '').trim()
+            || '（本次未产生文本回复，请重试或补充更明确的问题）';
 
         const atPrefix = this.#renderAtPrefix(atList, 'card');
         if (thinkingId) {
@@ -151,14 +160,15 @@ export class MessageHandler {
     /**
      * 从消息事件的 mentions 中提取 @ 名单（排除机器人自身）
      * @param {Object} messageContext - 消息事件上下文
+     * @param {string} [botOpenId] - 机器人自身 open_id（已在 handle 中获取，避免重复请求）
      * @returns {Promise<Array<{openId:string, name:string}>>}
      */
-    async #extractAtList(messageContext) {
+    async #extractAtList(messageContext, botOpenId) {
         const mentions = messageContext?.mentions || [];
         if (mentions.length === 0) return [];
 
         const { chatService } = this.#deps;
-        const botOpenId = await chatService.getBotOpenId();
+        const selfOpenId = botOpenId || await chatService.getBotOpenId();
 
         const list = [];
         for (const mention of mentions) {
@@ -166,7 +176,7 @@ export class MessageHandler {
             // 格式校验：非法 id 直接跳过，避免渲染进卡片导致 230099
             if (!openId || !/^ou_[A-Za-z0-9]+$/.test(openId)) continue;
             // 排除用户 @ 机器人自身的场景（机器人无需 @ 自己）
-            if (botOpenId && openId === botOpenId) continue;
+            if (selfOpenId && openId === selfOpenId) continue;
             list.push({ openId, name: mention.name || '' });
         }
         if (list.length > 0) {

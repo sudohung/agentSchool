@@ -31,11 +31,17 @@ export class ChatService {
      * @returns {Promise<string>} 获取失败返回空字符串
      */
     async getBotOpenId() {
-        if (this.#botInfo) return this.#botInfo.openId || '';
+        if (this.#botInfo?.openId) return this.#botInfo.openId;
         try {
             const res = await this.client.request({ method: 'GET', url: '/open-apis/bot/v3/info' });
-            const openId = res?.data?.open_id || res?.open_id || '';
-            this.#botInfo = { openId };
+            // 飞书返回结构为 { bot: { open_id, app_name, ... }, code, msg }，
+            // 旧代码读 res.data.open_id 恒为空，导致机器人无法从 @ 名单中排除自己（会 @ 自己）
+            const openId = res?.bot?.open_id
+                || res?.data?.bot?.open_id
+                || res?.data?.open_id
+                || res?.open_id
+                || '';
+            if (openId) this.#botInfo = { openId };
             return openId;
         } catch (error) {
             console.warn(`[ChatService] 获取机器人信息失败: ${error.message}`);

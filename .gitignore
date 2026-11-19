@@ -18,3 +18,21 @@ nul
 
 # agentBot 运行时状态（会话绑定自动持久化，不入库）
 agentBot/config/api-sessions.json
+
+# Python virtualenv / build caches
+venv/
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# opencode local config (contains provider API keys, do not commit)
+/config.json
+
+# agentBot runtime sqlite (callback task persistence)
+agentBot/config/callback-tasks.db
+agentBot/config/callback-tasks.db-shm
+agentBot/config/callback-tasks.db-wal
+
+# agent-team-system generated document storage
+agents/agent-team-system/team_storage/
+agents/agent-team-system/test_storage/

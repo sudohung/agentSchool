@@ -47,13 +47,19 @@ function getBlockedChatIds() {
 
 /**
  * 群消息过滤：群聊必须@机器人
+ * 注意：不能只看 mention 占位符 @_user_1（那只是“消息里的第一个被 @ 的人”），
+ * 否则用户 @ 其他人时也会误触发机器人，且该消息预处理后往往为空。
  * @param {Object} messageContext - 飞书消息上下文
+ * @param {string} [botOpenId] - 机器人自身 open_id（拿不到时退化为占位符判断）
  * @returns {FilterResult|null} null 表示通过
  */
-export function groupMentionFilter(messageContext) {
+export function groupMentionFilter(messageContext, botOpenId = '') {
     if (messageContext?.chat_type !== 'group') return null;
-    const mentioned = Array.isArray(messageContext.mentions)
-        && messageContext.mentions.some((m) => m.key === '@_user_1');
+    const mentions = Array.isArray(messageContext.mentions) ? messageContext.mentions : [];
+    const mentioned = botOpenId
+        ? mentions.some((m) => m?.id?.open_id === botOpenId)
+        // 机器人信息获取失败时退化为原逻辑，避免把全部群消息都过滤掉
+        : mentions.some((m) => m.key === '@_user_1');
     if (!mentioned) {
         return { pass: false, type: 'group', reason: '群消息未@机器人' };
     }
@@ -74,21 +80,24 @@ export function banFilter(chatId) {
 
 /**
  * 执行完整过滤链
+ * @param {string} chatId
+ * @param {Object} messageContext
+ * @param {string} [botOpenId] - 机器人自身 open_id，用于群 @ 校验
  * @returns {FilterResult} pass=true 表示放行
  */
-export function runFilterChain(chatId, messageContext) {
+export function runFilterChain(chatId, messageContext, botOpenId = '') {
     const results = [
-        groupMentionFilter(messageContext),
+        groupMentionFilter(messageContext, botOpenId),
         banFilter(chatId),
     ].filter(Boolean);
     return results.length > 0 ? results[0] : { pass: true, type: 'none', reason: '' };
 }
 
 /**
- * 预处理用户消息：移除 @机器人 占位符
+ * 预处理用户消息：移除所有 @xxx 占位符（@_user_1、@_user_2 ...）
  * @param {string} message
  * @returns {string}
  */
 export function preprocessMessage(message) {
-    return message.replace(/@_user_1\s*/g, '').trim();
+    return message.replace(/@_user_\d+\s*/g, '').trim();
 }

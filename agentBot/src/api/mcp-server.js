@@ -46,21 +46,30 @@ function buildToolDefinitions() {
         },
         {
             name: 'chat',
-            description: '向指定会话发送消息并获取回复。两种模式：①异步（默认，wait=false）：立即返回 taskId，用 get_result 轮询直到 done/failed/waiting_input——分析排查类长任务必须用此模式，且建议将「chat + 轮询」整体交给 subagent 任务执行，主会话不阻塞；②同步（wait=true）：最多等待 20 秒直接返回结果——适合极短任务，直接在当前会话调用即可，无需子 agent。注意：MCP 客户端工具调用通常有 30s 超时（超时报 -32001）。同一凭证的下一条消息在 agent 反问时会自动作为答案回传。',
+            description: '向指定会话发送消息并获取回复。三种模式：①异步轮询（默认，wait=false）：立即返回 taskId，用 get_result 轮询直到 done/failed/waiting_input——建议将「chat + 轮询」整体交给 subagent 任务执行，主会话不阻塞；②同步（wait=true）：最多等待 20 秒直接返回结果——适合极短任务；③回调（提供 callback={baseUrl, sessionId} 时启用）：任务受理后立即返回，完成后 agentBot 主动向你的 opencode 实例对应会话推送结果消息（POST /session/{sessionId}/message），无需轮询——baseUrl 为你自身 opencode server 地址，sessionId 为你当前会话 id；agent 反问（waiting_input）也会推送到该会话，用同一 callerSessionId 调用 chat 即可传回答复。注意：MCP 客户端工具调用通常有 30s 超时（超时报 -32001）。同一凭证的下一条消息在 agent 反问时会自动作为答案回传。',
             inputSchema: {
                 type: 'object',
                 properties: {
                     callerSessionId: { type: 'string', description: 'apply_session 返回的会话凭证' },
                     message: { type: 'string', description: '消息内容' },
-                    wait: { type: 'boolean', description: '是否同步等待结果，默认 false（异步轮询）。长任务切勿设为 true' },
+                    wait: { type: 'boolean', description: '是否同步等待结果，默认 false。长任务切勿设为 true；提供 callback 时本参数无效' },
                     timeoutMs: { type: 'number', description: '同步等待超时毫秒数，仅 wait=true 时有效，上限 20000' },
+                    callback: {
+                        type: 'object',
+                        description: '回调模式（优先级高于 wait）：任务完成后主动推送到指定 opencode 会话。未提供则降级为轮询模式',
+                        properties: {
+                            baseUrl: { type: 'string', description: '调用方自身的 opencode server 地址，如 http://10.1.2.3:4096' },
+                            sessionId: { type: 'string', description: '调用方当前的会话 id（结果将推送到该会话）' },
+                        },
+                        required: ['baseUrl', 'sessionId'],
+                    },
                 },
                 required: ['callerSessionId', 'message'],
             },
         },
         {
             name: 'get_result',
-            description: '查询任务结果（长轮询）：任务未完成时服务端最长等待 25s，完成后立即返回；超时未完成返回当前状态（pending/running），继续调用本接口即可。建议由 subagent 任务执行轮询，主会话无需阻塞等待。status 语义与处理：pending（排队中，继续轮询）、running（执行中，继续轮询）、waiting_input（下游 agent 发出选项提问，需要用户决策——把 questionText 原样转达给最终用户并收集答复，然后用同一 callerSessionId 调用 chat 传回答复，任务自动继续；严禁当作任务结束或继续轮询；10 分钟未回应自动失败）、done（完成，见 reply）、failed（失败，见 error）。优先用 taskId 查询；若同步调用时客户端超时（-32001）丢了 taskId，可直接传 callerSessionId 查询该会话最新任务。',
+            description: '查询任务结果。轮询模式（未提供 callback）：长轮询，任务未完成时服务端最长等待 25s，完成后立即返回；超时返回当前状态（pending/running），继续调用即可。回调模式（chat 时提供了 callback）：不做长等待，立即返回当前快照（结果会主动推送到你的会话，本接口仅作状态查询兜底）。status 语义与处理：pending（排队中）、running（执行中）、waiting_input（下游 agent 发出选项提问，需要用户决策——把 questionText 原样转达给最终用户并收集答复，然后用同一 callerSessionId 调用 chat 传回答复，任务自动继续；严禁当作任务结束；10 分钟未回应自动失败）、done（完成，见 reply）、failed（失败，见 error）。优先用 taskId 查询；若同步调用时客户端超时（-32001）丢了 taskId，可直接传 callerSessionId 查询该会话最新任务。',
             inputSchema: {
                 type: 'object',
                 properties: {
@@ -250,9 +259,18 @@ export class McpServer {
             case 'chat': {
                 if (!args.callerSessionId) throw new Error('缺少必填参数: callerSessionId');
                 if (!args.message) throw new Error('缺少必填参数: message');
+                // 回调模式：提供 callback（baseUrl+sessionId 需成对）时启用，否则降级轮询
+                let callback;
+                if (args.callback) {
+                    if (!args.callback.baseUrl || !args.callback.sessionId) {
+                        throw new Error('callback 参数不完整：baseUrl 与 sessionId 需同时提供');
+                    }
+                    callback = { baseUrl: args.callback.baseUrl, sessionId: args.callback.sessionId };
+                }
                 return await this.#tasks.submitChat(args.callerSessionId, args.message, {
                     wait: args.wait === true,
                     timeoutMs: args.timeoutMs,
+                    callback,
                 });
             }
             case 'get_result': {

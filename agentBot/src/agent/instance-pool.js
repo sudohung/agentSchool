@@ -69,16 +69,21 @@ export class InstancePool {
         if (!role?.key) throw new Error('获取 Agent 失败：职能定义不完整');
 
         const model = this.#resolveModel(role);
-        const baseUrl = this.resolveBaseUrl(role.instance);
+        const meta = this.#roleRegistry.resolveInstanceMeta(role.instance);
+        const baseUrl = meta.baseUrl;
         // 项目目录：会话归档到 opencode UI 的对应项目下（空 = 服务端默认目录）
-        const directory = this.#roleRegistry.resolveInstanceDirectory(role.instance);
-        const cacheKey = `${baseUrl}|${directory}|${model.provider}|${model.model}`;
+        const directory = meta.directory;
+        const cacheKey = `${baseUrl}|${directory}|${model.provider}|${model.model}|${meta.version || ''}`;
 
         let agent = this.#agents.get(cacheKey);
         if (agent) return agent;
 
         const client = createOpencodeClient({ baseUrl, directory: directory || undefined });
-        agent = new OpencodeAgent(client, model, baseUrl);
+        agent = new OpencodeAgent(client, model, baseUrl, {
+            directory,
+            password: meta.password,
+            version: meta.version,
+        });
         this.#agents.set(cacheKey, agent);
         console.log(`${LogPrefix.POOL} 创建 Agent: role=${role.key} model=${model.provider}/${model.model} instance=${baseUrl} directory=${directory || '(默认)'}`);
         return agent;

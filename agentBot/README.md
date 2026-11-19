@@ -112,14 +112,18 @@ opencode / codex 等支持 MCP 的智能体可将其挂载为工具服务器：
 |---|---|
 | `list_roles` | 获取可用职能列表（管理页可配置） |
 | `apply_session` | 按职能申请会话，返回 `callerSessionId`（格式：职能key_uuid），调用方自行保存 |
-| `chat` | 向指定会话发消息；默认异步返回 `taskId` 用 `get_result` 轮询，`wait=true` 同步等待 |
-| `get_result` | 轮询任务结果（pending / waiting_input（agent 反问）/ done / failed） |
+| `chat` | 向指定会话发消息；三种模式：默认异步返回 `taskId` 用 `get_result` 轮询，`wait=true` 同步等待（≤20s），提供 `callback={baseUrl, sessionId}` 时为回调模式（完成后主动推送到调用方会话，无需轮询） |
+| `get_result` | 查询任务结果（pending / waiting_input（agent 反问）/ done / failed）；轮询模式为长轮询，回调模式立即返回快照 |
 | `close_session` | 主动释放会话凭证 |
 
 - 同一 `callerSessionId` 的请求串行执行；不同凭证并行（受全局并发上限约束）
 - 不同凭证即不同会话，可同时持有多个职能的会话按需指定
 - 每个职能可独立配置 OpenCode 实例与模型（管理页），留空用全局配置
 - 会话空闲超时自动清理（默认 24h）；绑定关系持久化，服务重启后凭证仍有效
+- 回调模式：调用方自报自身 opencode 实例地址 + 当前会话 id，agentBot 反向校验后在任务完成时
+  `POST /session/{sessionId}/message` 推送结果；推送失败落库重投（sqlite）；agent 反问也会推送，
+  用原凭证 chat 回答即可闭环；多 agent 互调链路深度超限（管理页可配，默认 3 层）直接拒绝。
+  详见 `docs/CALLBACK_MODE_DESIGN.md`
 
 ## Docker 部署
 

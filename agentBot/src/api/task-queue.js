@@ -10,6 +10,7 @@
 import { randomUUID } from 'crypto';
 import { ApiTaskStatus, LogPrefix } from '../constants.js';
 import { extractTextResponse } from '../handlers/commands.js';
+import { CALLBACK_RETRY_INTERVAL } from './callback-store.js';
 
 /** 已终结任务的保留时长（毫秒），超过后清理，避免 Map 无限膨胀 */
 const TERMINAL_TASK_TTL = 60 * 60 * 1000;
@@ -44,6 +45,10 @@ export class TaskQueue {
     #pool;
     /** @type {import('../agent/role-registry.js').RoleRegistry} */
     #roleRegistry;
+    /** @type {import('./callback-store.js').CallbackStore|null} 回调记录持久层（未注入时回调模式降级为纯内存） */
+    #callbackStore;
+    /** @type {import('./callback-client.js').CallbackClient|null} opencode 回调执行器 */
+    #callbackClient;
     /** @type {Map<string, Object>} taskId -> 任务 */
     #tasks = new Map();
     /** @type {Array<Object>} 排队中的任务 */
@@ -52,19 +57,24 @@ export class TaskQueue {
     #runningCount = 0;
     /** @type {NodeJS.Timeout|null} 清理定时器 */
     #sweeper = null;
+    /** @type {NodeJS.Timeout|null} 回调重投定时器 */
+    #callbackSweeper = null;
 
     /**
      * @param {import('./api-session-manager.js').ApiSessionManager} sessions
      * @param {import('../agent/instance-pool.js').InstancePool} pool
      * @param {import('../agent/role-registry.js').RoleRegistry} roleRegistry
+     * @param {{callbackStore?:import('./callback-store.js').CallbackStore, callbackClient?:import('./callback-client.js').CallbackClient}} [deps]
      */
-    constructor(sessions, pool, roleRegistry) {
+    constructor(sessions, pool, roleRegistry, deps = {}) {
         if (!sessions || !pool || !roleRegistry) {
             throw new Error('TaskQueue 初始化失败：缺少依赖');
         }
         this.#sessions = sessions;
         this.#pool = pool;
         this.#roleRegistry = roleRegistry;
+        this.#callbackStore = deps.callbackStore || null;
+        this.#callbackClient = deps.callbackClient || null;
     }
 
     /** 启动终结任务清理 */
@@ -76,6 +86,17 @@ export class TaskQueue {
             });
         }, TASK_SWEEP_INTERVAL);
         this.#sweeper.unref?.();
+    }
+
+    /** 启动回调重投扫描（sqlite 中未推送成功的终态记录周期性重投，重启后恢复） */
+    startCallbackSweeper() {
+        if (this.#callbackSweeper || !this.#callbackStore?.isAvailable()) return;
+        this.#callbackSweeper = setInterval(() => {
+            this.#redeliverPendingCallbacks().catch((error) => {
+                console.error(`${LogPrefix.CALLBACK} 重投扫描异常: ${error.message}`);
+            });
+        }, CALLBACK_RETRY_INTERVAL);
+        this.#callbackSweeper.unref?.();
     }
 
     // ==================== 对外入口 ====================
@@ -95,8 +116,14 @@ export class TaskQueue {
             return this.#answerPendingQuestion(callerSessionId, binding, agent, message);
         }
 
-        // 场景2：常规提问 -> 创建任务
-        const task = this.#createTask(callerSessionId, binding, role, message);
+        // 场景2：回调模式 -> 校验目标实例/会话并解析链路深度（失败直接报错，不静默降级）
+        let callback = null;
+        if (options.callback) {
+            callback = await this.#prepareCallback(options.callback);
+        }
+
+        // 场景3：常规提问 -> 创建任务
+        const task = this.#createTask(callerSessionId, binding, role, message, callback);
         this.#enqueue(task);
 
         if (!options.wait) {
@@ -154,10 +181,11 @@ export class TaskQueue {
 
     /**
      * 长轮询核心：未终态时在服务内等待至多窗口时长，终态立即返回
+     * 回调模式任务不等待：结果由服务端主动推送，get_result 仅作即时状态查询/兜底
      */
     async #longPollSnapshot(task, longPollMs) {
         const terminal = [ApiTaskStatus.DONE, ApiTaskStatus.FAILED, ApiTaskStatus.WAITING_INPUT];
-        if (terminal.includes(task.status)) {
+        if (terminal.includes(task.status) || task.callback) {
             return this.#snapshot(task);
         }
         const windowMs = Math.max(0, Math.min(
@@ -196,6 +224,8 @@ export class TaskQueue {
         task.updatedAt = Date.now();
         // waiting_input 对同步调用方即终态（需回应后才能继续）
         task.resolveTerminal();
+        // 回调模式：把提问文本推送到调用方会话（尽力而为），调用方用原凭证 chat 回答即可闭环
+        this.#pushQuestionToCallback(task, this.#formatQuestionText(task.question));
         console.log(`${LogPrefix.TASK} 任务转等待输入: taskId=${task.taskId}, 问题数=${(properties.questions || []).length}`);
     }
 
@@ -216,7 +246,7 @@ export class TaskQueue {
     /**
      * 创建任务对象（含终态通知 promise）
      */
-    #createTask(callerSessionId, binding, role, message) {
+    #createTask(callerSessionId, binding, role, message, callback = null) {
         const taskId = `task_${randomUUID().slice(0, 12)}`;
         let resolveTerminal;
         const terminalPromise = new Promise((resolve) => { resolveTerminal = resolve; });
@@ -226,6 +256,7 @@ export class TaskQueue {
             internalSessionId: binding.sessionId,
             roleKey: role.key,
             message,
+            callback,
             status: ApiTaskStatus.PENDING,
             reply: '',
             question: null,
@@ -319,10 +350,121 @@ export class TaskQueue {
         return { status: 'answered', taskId: pending.taskId };
     }
 
+    // ==================== 回调模式 ====================
+
+    /**
+     * 校验并准备回调目标
+     * @param {{baseUrl:string, sessionId:string}} callback
+     * @returns {Promise<{baseUrl:string, sessionId:string, depth:number}>}
+     */
+    async #prepareCallback(callback) {
+        if (!this.#callbackClient) {
+            throw new Error('回调模式不可用：回调执行器未装配，请去掉 callback 参数改用轮询模式');
+        }
+        const baseUrl = String(callback?.baseUrl || '').trim();
+        const sessionId = String(callback?.sessionId || '').trim();
+        await this.#callbackClient.verifyTarget(baseUrl, sessionId);
+
+        const depth = this.#resolveCallbackDepth(sessionId);
+        const maxDepth = this.#roleRegistry.getSessionConfig().maxCallbackDepth;
+        if (depth > maxDepth) {
+            throw new Error(`回调链路深度超限（${depth} > ${maxDepth}），已达多 agent 协作深度上限，请在更上层会话直接处理结果`);
+        }
+        return { baseUrl, sessionId, depth };
+    }
+
+    /**
+     * 解析回调链深度（循环防护）：
+     * 回调目标命中 agentBot 内部会话 -> 沿父任务递推（父深度 + 1）；
+     * 外部会话（反查不到）为顶层调用，深度 1
+     */
+    #resolveCallbackDepth(callerSessionId) {
+        let parentDepth = 0;
+        for (const task of this.#tasks.values()) {
+            if (task.internalSessionId === callerSessionId) {
+                parentDepth = Math.max(parentDepth, task.callback?.depth || 1);
+            }
+        }
+        return parentDepth + 1;
+    }
+
+    /**
+     * 任务终态后向调用方会话推送结果（fire-and-forget，不阻塞调度）
+     * 流程：落库（重启可重投）-> 推送（重试）-> 成功删记录 / 失败保留待扫描重投
+     */
+    async #dispatchCallback(task) {
+        if (!task.callback) return;
+        const { baseUrl, sessionId, depth } = task.callback;
+
+        let payload = '';
+        if (task.status === ApiTaskStatus.DONE) {
+            payload = `[agentBot 回调] 角色「${task.roleKey}」任务 ${task.taskId} 已完成：\n${task.reply}`;
+        } else if (task.status === ApiTaskStatus.FAILED) {
+            payload = `[agentBot 回调] 角色「${task.roleKey}」任务 ${task.taskId} 已失败：${task.error}`;
+        } else {
+            return; // waiting_input 的提问推送在 onQuestionAsked 中处理
+        }
+
+        this.#callbackStore?.upsert({
+            taskId: task.taskId,
+            role: task.roleKey,
+            callerBaseUrl: baseUrl,
+            callerSessionId: sessionId,
+            internalSessionId: task.internalSessionId,
+            depth,
+            payload,
+        });
+        if (!this.#callbackClient) return;
+
+        const ok = await this.#callbackClient.pushWithRetry(baseUrl, sessionId, payload);
+        if (ok) {
+            this.#callbackStore?.remove(task.taskId);
+            console.log(`${LogPrefix.CALLBACK} 结果已推送: taskId=${task.taskId}, 目标会话=${sessionId}`);
+        } else {
+            this.#callbackStore?.bumpRetries(task.taskId);
+            console.warn(`${LogPrefix.CALLBACK} 结果推送失败（保留记录待重投）: taskId=${task.taskId}, 目标会话=${sessionId}`);
+        }
+    }
+
+    /**
+     * 推送反问文本到回调目标（尽力而为，不落库：
+     * 若推送失败，任务会在提问超时后转 failed，终态推送仍会落库兜底）
+     */
+    #pushQuestionToCallback(task, questionText) {
+        if (!task.callback || !this.#callbackClient) return;
+        const { baseUrl, sessionId } = task.callback;
+        const payload = `[agentBot 回调] 角色「${task.roleKey}」任务 ${task.taskId} 等待补充输入（10 分钟内有效，请用原 callerSessionId 调用 chat 传回答复）：\n${questionText}`;
+        this.#callbackClient.pushWithRetry(baseUrl, sessionId, payload)
+            .then((ok) => {
+                if (ok) console.log(`${LogPrefix.CALLBACK} 反问已推送: taskId=${task.taskId}, 目标会话=${sessionId}`);
+                else console.warn(`${LogPrefix.CALLBACK} 反问推送失败（任务超时后仍会推送终态）: taskId=${task.taskId}`);
+            })
+            .catch(() => { /* 尽力而为 */ });
+    }
+
+    /**
+     * 重投 sqlite 中未推送成功的终态记录（服务重启后恢复 + 失败重试）
+     */
+    async #redeliverPendingCallbacks() {
+        if (!this.#callbackStore?.isAvailable() || !this.#callbackClient) return;
+        const pending = this.#callbackStore.listPending();
+        for (const record of pending) {
+            const ok = await this.#callbackClient.pushWithRetry(
+                record.caller_base_url, record.caller_session_id, record.payload,
+            );
+            if (ok) {
+                this.#callbackStore.remove(record.task_id);
+                console.log(`${LogPrefix.CALLBACK} 重投成功: taskId=${record.task_id}, 目标会话=${record.caller_session_id}`);
+            } else {
+                this.#callbackStore.bumpRetries(record.task_id);
+            }
+        }
+    }
+
     // ==================== 任务状态维护 ====================
 
     /**
-     * 任务进入终态并通知等待方
+     * 任务进入终态并通知等待方，随后触发回调推送
      */
     #finishTask(task, status, reply, error = '') {
         task.status = status;
@@ -330,6 +472,10 @@ export class TaskQueue {
         task.error = error;
         task.updatedAt = Date.now();
         task.resolveTerminal();
+        // 回调推送不 await：异常已在内部消化，不影响任务状态维护
+        this.#dispatchCallback(task).catch((e) => {
+            console.warn(`${LogPrefix.CALLBACK} 回调推送流程异常: taskId=${task.taskId}, ${e.message}`);
+        });
     }
 
     /**
@@ -353,6 +499,7 @@ export class TaskQueue {
             taskId: task.taskId,
             status: task.status,
             role: task.roleKey,
+            notify: task.callback ? 'callback' : 'poll',
         };
         if (task.status === ApiTaskStatus.DONE) snap.reply = task.reply;
         if (task.status === ApiTaskStatus.WAITING_INPUT) {
@@ -361,8 +508,16 @@ export class TaskQueue {
             snap.hint = '下游 agent 需要用户决策：①将 questionText 原样转达给最终用户并收集答复（用户可直接回答或选择选项）；②用同一 callerSessionId 调用 chat（message=用户答复），任务会自动继续执行；③不要将 waiting_input 当作任务结束，也不要继续轮询。超时 10 分钟未回应任务将自动失败';
         }
         if (task.status === ApiTaskStatus.FAILED) snap.error = task.error;
-        if (task.status === ApiTaskStatus.PENDING) snap.hint = '任务排队中，请继续调用 get_result 轮询（建议由子 agent/后台任务执行，避免阻塞主会话）';
-        if (task.status === ApiTaskStatus.RUNNING) snap.hint = '任务执行中，请继续调用 get_result 轮询（建议由子 agent/后台任务执行，避免阻塞主会话）';
+        if (task.status === ApiTaskStatus.PENDING) {
+            snap.hint = task.callback
+                ? '任务已受理，完成后结果将主动推送到你的回调会话，无需轮询'
+                : '任务排队中，请继续调用 get_result 轮询（建议由子 agent/后台任务执行，避免阻塞主会话）';
+        }
+        if (task.status === ApiTaskStatus.RUNNING) {
+            snap.hint = task.callback
+                ? '任务执行中，完成后结果将主动推送到你的回调会话，无需轮询'
+                : '任务执行中，请继续调用 get_result 轮询（建议由子 agent/后台任务执行，避免阻塞主会话）';
+        }
         return snap;
     }
 

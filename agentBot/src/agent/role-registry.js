@@ -23,6 +23,8 @@ const SESSION_DEFAULTS = {
     queueTimeoutMinutes: 10,
     syncWaitCapMs: 20000,
     longPollWindowMs: 25000,
+    /** 回调链深度上限（多 agent 互调循环防护，超过直接拒绝） */
+    maxCallbackDepth: 3,
 };
 
 /**
@@ -138,13 +140,36 @@ export class RoleRegistry {
     }
 
     /**
-     * 兼容两种实例配置格式："http://..." 字符串 或 { baseUrl, directory } 对象
+     * 解析实例完整元信息（地址/目录/密码/协议版本），供实例池创建 Agent 使用
+     * 未指定实例时回退全局配置（密码取环境变量 OPENCODE_PASSWORD，协议自动探测）
+     * @param {string} instanceKey
+     * @returns {{baseUrl:string, directory:string, password:string, version:string}}
+     */
+    resolveInstanceMeta(instanceKey) {
+        if (!instanceKey || !this.#instances.has(instanceKey)) {
+            return {
+                baseUrl: BotConfig.getOpencodeBaseUrl(),
+                directory: BotConfig.getOpencodeDirectory(),
+                password: process.env.OPENCODE_PASSWORD || '',
+                version: '',
+            };
+        }
+        return this.#parseInstance(this.#instances.get(instanceKey));
+    }
+
+    /**
+     * 兼容实例配置格式："http://..." 字符串 或 { baseUrl, directory, password?, version? } 对象
      * @param {string|Object} raw
-     * @returns {{baseUrl:string, directory:string}}
+     * @returns {{baseUrl:string, directory:string, password:string, version:string}}
      */
     #parseInstance(raw) {
-        if (typeof raw === 'string') return { baseUrl: raw, directory: '' };
-        return { baseUrl: raw?.baseUrl || '', directory: raw?.directory || '' };
+        if (typeof raw === 'string') return { baseUrl: raw, directory: '', password: '', version: '' };
+        return {
+            baseUrl: raw?.baseUrl || '',
+            directory: raw?.directory || '',
+            password: raw?.password || '',
+            version: raw?.version || '',
+        };
     }
 
     /** 获取会话队列配置 */

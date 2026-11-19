@@ -85,5 +85,6 @@ export const LogPrefix = {
     POOL: '[InstancePool]',
     API_SESSION: '[ApiSession]',
     TASK: '[TaskQueue]',
+    CALLBACK: '[Callback]',
     MCP: '[McpServer]',
 };
