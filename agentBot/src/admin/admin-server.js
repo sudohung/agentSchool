@@ -90,18 +90,6 @@ const ADMIN_HTML = `<!DOCTYPE html>
   </div>
 
   <div class="card">
-    <h2>主实例提问（全局默认 OpenCode 实例）</h2>
-    <textarea id="askInput" rows="3" placeholder="输入问题，发送给主实例（全局服务地址 + 默认模型）..." style="width:100%;padding:9px 12px;border:1px solid #d5dce3;border-radius:6px;font-size:14px;font-family:inherit;resize:vertical"></textarea>
-    <div class="row" style="margin-top:10px">
-      <div style="flex:0"><button class="btn btn-primary" onclick="askMain()">💬 提问</button></div>
-      <div style="flex:0"><button class="btn" style="background:#eef4ff;color:#2f6fed" onclick="newAskSession()">🆕 新会话</button></div>
-      <div style="flex:0"><button class="btn" style="background:#f5f6f8;color:#5a6b7b" onclick="stopPolling()">⏹ 停止刷新</button></div>
-    </div>
-    <div class="meta">同一会话内多轮追问；点"新会话"重置上下文。提问可能耗时数分钟，页面每 2 秒自动刷新状态</div>
-    <pre id="askResult" style="margin-top:12px;padding:12px;border-radius:6px;background:#f8f9fa;border:1px solid #eef1f4;font-size:13px;white-space:pre-wrap;word-break:break-word;max-height:420px;overflow:auto;display:none"></pre>
-  </div>
-
-  <div class="card">
     <h2>OpenCode 实例注册表（Agent API 用）</h2>
     <table id="tblInst">
       <thead><tr><th style="width:18%">实例 Key</th><th style="width:34%">服务地址</th><th style="width:28%">项目目录（列表选择）</th><th style="width:10%"></th><th style="width:10%"></th></tr></thead>
@@ -610,57 +598,6 @@ async function saveRoles() {
   } catch (e) { showRoleMsg('保存失败: ' + e.message, false); }
 }
 
-// ==================== 主实例提问 ====================
-let askPolling = null;
-
-function renderAsk(res) {
-  const box = $('#askResult');
-  box.style.display = 'block';
-  if (res.status === 'running' || res.status === 'pending') {
-    box.textContent = '⏳ 主实例思考中...（提问时间：' + new Date(res.createdAt || Date.now()).toLocaleTimeString() + '）';
-  } else if (res.status === 'done') {
-    box.textContent = res.reply || '（无文本回复）';
-  } else if (res.status === 'failed') {
-    box.textContent = '❌ 提问失败: ' + (res.error || '未知错误');
-  } else if (res.status === 'no_task') {
-    box.textContent = '暂无提问记录';
-  }
-}
-
-function stopPolling() { if (askPolling) { clearInterval(askPolling); askPolling = null; } }
-
-function startPolling(askId) {
-  stopPolling();
-  askPolling = setInterval(async () => {
-    try {
-      const r = await fetch('/api/ask/result?askId=' + encodeURIComponent(askId));
-      const res = await r.json();
-      renderAsk(res);
-      if (res.status === 'done' || res.status === 'failed') stopPolling();
-    } catch (e) { /* 轮询失败静默，下一轮重试 */ }
-  }, 2000);
-}
-
-async function askMain() {
-  const q = $('#askInput').value.trim();
-  if (!q) { renderAsk({ status: 'failed', error: '请输入问题' }); return; }
-  try {
-    const r = await fetch('/api/ask', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ question: q }) });
-    const res = await r.json();
-    if (!r.ok) { renderAsk({ status: 'failed', error: res.error || ('提交失败: ' + r.status) }); return; }
-    renderAsk({ status: 'running', createdAt: Date.now() });
-    startPolling(res.askId);
-  } catch (e) { renderAsk({ status: 'failed', error: '提交失败: ' + e.message }); }
-}
-
-async function newAskSession() {
-  try {
-    await fetch('/api/ask/new', { method:'POST' });
-    stopPolling();
-    renderAsk({ status: 'no_task' });
-  } catch (e) { renderAsk({ status: 'failed', error: '重置失败: ' + e.message }); }
-}
-
 loadRoles();
 
 load();
@@ -787,12 +724,16 @@ export class AdminServer {
                 return this.#json(res, 400, { error: '服务地址必须以 http:// 或 https:// 开头' });
             }
             try {
-                const resp = await fetch(`${baseUrl.replace(/\/+$/, '')}/project`, { headers: authHeaders(), signal: AbortSignal.timeout(8000) });
-                if (!resp.ok) throw new Error(`OpenCode 返回 ${resp.status}`);
-                const data = await resp.json();
+                const version = await this.#detectInstanceVersion(baseUrl);
+                const data = await this.#getInstanceJson(baseUrl, version === 'v2' ? '/api/project' : '/project');
                 const projects = (Array.isArray(data) ? data : [])
-                    .filter((p) => p?.worktree)
-                    .map((p) => ({ id: p.id, worktree: p.worktree, vcs: p.vcs || '' }));
+                    .map((p) => ({
+                        id: p.id,
+                        // v2 项目目录字段为 canonical，v1 为 worktree
+                        worktree: p.worktree || p.canonical || '',
+                        vcs: typeof p.vcs === 'string' ? p.vcs : (p.vcs?.type || ''),
+                    }))
+                    .filter((p) => p.worktree);
                 return this.#json(res, 200, { projects });
             } catch (error) {
                 return this.#json(res, 502, { error: `获取项目列表失败: ${error.message}` });
@@ -806,9 +747,17 @@ export class AdminServer {
                 return this.#json(res, 400, { error: '服务地址必须以 http:// 或 https:// 开头' });
             }
             try {
-                const resp = await fetch(`${baseUrl.replace(/\/+$/, '')}/path`, { headers: authHeaders(), signal: AbortSignal.timeout(8000) });
-                if (!resp.ok) throw new Error(`OpenCode 返回 ${resp.status}`);
-                const data = await resp.json();
+                const version = await this.#detectInstanceVersion(baseUrl);
+                if (version === 'v2') {
+                    // v2 用 /api/location 提供当前目录与项目根
+                    const data = await this.#getInstanceJson(baseUrl, '/api/location');
+                    return this.#json(res, 200, {
+                        directory: data?.directory || '',
+                        worktree: data?.project?.canonical || data?.project?.directory || '',
+                        home: '',
+                    });
+                }
+                const data = await this.#getInstanceJson(baseUrl, '/path');
                 return this.#json(res, 200, {
                     directory: data?.directory || '',
                     worktree: data?.worktree || '',
@@ -917,34 +866,86 @@ export class AdminServer {
     }
 
     /**
-     * 调用 OpenCode /config/providers 获取可用 provider 与模型列表
+     * 获取可用 provider 与模型列表（兼容 v1 /config/providers 与 v2 /api/provider + /api/model）
      * 返回紧凑结构：[{id, name, models:[{id, name}]}]
      */
     async #fetchProviders(baseUrl) {
         if (!baseUrl || !/^https?:\/\//.test(baseUrl)) {
             throw new Error('服务地址必须以 http:// 或 https:// 开头');
         }
-        const url = `${baseUrl.replace(/\/+$/, '')}/config/providers`;
-        // 拉取超时 8s，避免配置页被无响应的上游拖死
-        const resp = await fetch(url, { headers: authHeaders(), signal: AbortSignal.timeout(8000) });
-        if (!resp.ok) {
-            throw new Error(`OpenCode 返回 ${resp.status}（${url}）`);
+        const version = await this.#detectInstanceVersion(baseUrl);
+        let providers;
+
+        if (version === 'v2') {
+            const [providerData, modelData] = await Promise.all([
+                this.#getInstanceJson(baseUrl, '/api/provider'),
+                this.#getInstanceJson(baseUrl, '/api/model'),
+            ]);
+            const modelsByProvider = new Map();
+            for (const model of modelData?.data || []) {
+                if (!model?.modelID || !model?.providerID || model.enabled === false) continue;
+                if (!modelsByProvider.has(model.providerID)) modelsByProvider.set(model.providerID, []);
+                modelsByProvider.get(model.providerID).push({ id: model.modelID, name: model.name || model.modelID });
+            }
+            providers = (providerData?.data || [])
+                .filter((p) => p?.id && modelsByProvider.get(p.id)?.length)
+                .map((p) => ({ id: p.id, name: p.name || p.id, models: modelsByProvider.get(p.id) }));
+        } else {
+            const data = await this.#getInstanceJson(baseUrl, '/config/providers');
+            providers = (data?.providers || [])
+                .filter((p) => p?.id && p?.models && Object.keys(p.models).length > 0)
+                .map((p) => ({
+                    id: p.id,
+                    name: p.name || p.id,
+                    models: Object.values(p.models).map((m) => ({
+                        id: m.id,
+                        name: m.name || m.id,
+                    })),
+                }));
         }
-        const data = await resp.json();
-        const providers = (data?.providers || [])
-            .filter((p) => p?.id && p?.models && Object.keys(p.models).length > 0)
-            .map((p) => ({
-                id: p.id,
-                name: p.name || p.id,
-                models: Object.values(p.models).map((m) => ({
-                    id: m.id,
-                    name: m.name || m.id,
-                })),
-            }));
+
         if (providers.length === 0) {
             throw new Error('OpenCode 未返回任何可用模型');
         }
         return providers;
+    }
+
+    /**
+     * 探测实例协议版本（v2 才有 /api/info 的 version 字段）
+     * @param {string} baseUrl
+     * @returns {Promise<'v1'|'v2'>}
+     */
+    async #detectInstanceVersion(baseUrl) {
+        const base = baseUrl.replace(/\/+$/, '');
+        try {
+            const resp = await fetch(`${base}/api/info`, { headers: authHeaders(), signal: AbortSignal.timeout(8000) });
+            if (resp.ok) {
+                const info = await resp.json().catch(() => null);
+                if (String(info?.version || '').startsWith('2')) return 'v2';
+            }
+        } catch {
+            // 探测失败按 v1 处理
+        }
+        return 'v1';
+    }
+
+    /**
+     * 请求实例 JSON 接口（带认证与超时，非 JSON 响应给出明确错误）
+     * @param {string} baseUrl
+     * @param {string} path
+     * @returns {Promise<any>}
+     */
+    async #getInstanceJson(baseUrl, path) {
+        const url = `${baseUrl.replace(/\/+$/, '')}${path}`;
+        const resp = await fetch(url, { headers: authHeaders(), signal: AbortSignal.timeout(8000) });
+        if (!resp.ok) {
+            throw new Error(`OpenCode 返回 ${resp.status}（${url}）`);
+        }
+        const contentType = resp.headers.get('content-type') || '';
+        if (!contentType.includes('json')) {
+            throw new Error(`OpenCode 返回非 JSON 响应（${url}），请确认服务版本与鉴权配置`);
+        }
+        return await resp.json();
     }
 
     /**
