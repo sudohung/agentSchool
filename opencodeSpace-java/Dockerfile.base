@@ -1,0 +1,22 @@
+# opencodespace 基础镜像：提供 opencode CLI（serve 模式），供 opencodeSpace-java 继承
+# 构建产物：opencodespace-opencode:2.3.2
+FROM node:22-alpine
+
+# Alpine 官方源在部分内网环境不可达，切阿里云镜像
+RUN sed -i 's|dl-cdn.alpinelinux.org|mirrors.aliyun.com|g' /etc/apk/repositories
+
+# opencode 运行时依赖：git / ripgrep / ca 证书 / ssh 客户端（git over ssh）
+RUN apk add --no-cache git ripgrep curl ca-certificates openssh-client
+
+# 全局安装 opencode v2（含 `opencode serve`）
+RUN npm install -g @opencode/cli@2.3.2 && npm cache clean --force
+
+ENV XDG_CONFIG_HOME=/root/.config \
+    XDG_DATA_HOME=/root/.local/share \
+    XDG_CACHE_HOME=/root/.cache
+
+WORKDIR /workspace
+
+EXPOSE 4096
+
+CMD ["opencode", "serve", "--hostname", "0.0.0.0", "--port", "4096"]

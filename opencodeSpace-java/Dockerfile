@@ -1,6 +1,6 @@
 # 基于 opencodeSpace 基础镜像，预装 Java 17 + Maven 环境
-# 构建产物：opencodespace-opencode-for-java
-FROM opencodespace-opencode:2.2.6
+# 构建产物：opencodespace-opencode-for-java（基于 opencodespace-opencode:2.3.2）
+FROM opencodespace-opencode:2.3.2
 
 ENV JAVA_HOME=/usr/lib/jvm/default-jvm \
     MAVEN_HOME=/opt/maven \
