@@ -9,6 +9,7 @@
 
 import { BotConfig } from '../config/bot-config.js';
 import { OcEventType, PartType, LogPrefix } from '../constants.js';
+import { authHeaders } from '../agent/opencode-agent.js';
 import { sendCardMessage, updateMessage, recallMessage } from '../feishu/message-sender.js';
 import { sanitizeText } from '../security/sanitizer.js';
 import { sendWebhookMessage } from '../webhook/webhook-sender.js';
@@ -38,12 +39,13 @@ export class OpencodeListener {
     /** @type {Object|null} API 通道事件路由（Agent API 会话的 question/permission 事件） */
     #apiRouter;
 
-    constructor({ opencodeClient, getClient, sessionManager, chatService, apiRouter }) {
+    constructor({ opencodeClient, getClient, getBaseUrl, sessionManager, chatService, apiRouter }) {
         // getClient：函数，返回最新 OpenCode 客户端（支持配置热更新后重连用新地址）
         this.#getClient = getClient || (() => opencodeClient);
         if (!opencodeClient && !getClient) {
             throw new Error('OpencodeListener 初始化失败：缺少 opencodeClient 或 getClient');
         }
+        this.#getBaseUrl = getBaseUrl || (() => BotConfig.getOpencodeBaseUrl());
         this.#sessionManager = sessionManager;
         this.#chatService = chatService;
         this.#apiRouter = apiRouter || null;
@@ -52,6 +54,12 @@ export class OpencodeListener {
 
     /** @type {Function} 返回最新 OpenCode SDK 客户端 */
     #getClient;
+    /** @type {Function} 返回最新 OpenCode 服务地址（用于 v2 原生事件流） */
+    #getBaseUrl;
+    /** @type {'v1'|'v2'|''} 协议版本缓存 */
+    #version = '';
+    /** @type {string} 协议缓存对应的服务地址（地址变更时重新探测） */
+    #versionBaseUrl = '';
 
     /** 提供给消息处理器的交互路由（question/permission 回复闭环 + 卡片按钮回调） */
     getInteraction() {
@@ -70,26 +78,168 @@ export class OpencodeListener {
         let delay = RECONNECT_BASE_DELAY;
         for (;;) {
             try {
-                const client = this.#getClient();
-                if (!client) throw new Error('OpenCode 客户端未初始化');
-                const events = await client.event.subscribe();
-                delay = RECONNECT_BASE_DELAY;
-                console.log(`${LogPrefix.EVENTS} 已订阅 OpenCode 事件流`);
+                const version = await this.#detectVersion();
+                if (version === 'v2') {
+                    // v2 服务端事件流为 GET /api/event（v1 SDK 的 /event 在 v2 上会立即断开）
+                    await this.#subscribeV2(() => { delay = RECONNECT_BASE_DELAY; });
+                } else {
+                    const client = this.#getClient();
+                    if (!client) throw new Error('OpenCode 客户端未初始化');
+                    const events = await client.event.subscribe();
+                    delay = RECONNECT_BASE_DELAY;
+                    console.log(`${LogPrefix.EVENTS} 已订阅 OpenCode 事件流`);
 
-                for await (const event of events.stream) {
-                    try {
-                        await this.#dispatch(event);
-                    } catch (error) {
-                        console.error(`${LogPrefix.EVENTS} 事件处理异常 [${event?.type}]: ${error.message}`);
+                    for await (const event of events.stream) {
+                        try {
+                            await this.#dispatch(event);
+                        } catch (error) {
+                            console.error(`${LogPrefix.EVENTS} 事件处理异常 [${event?.type}]: ${error.message}`);
+                        }
                     }
+                    console.warn(`${LogPrefix.EVENTS} 事件流已断开，准备重连...`);
                 }
-                console.warn(`${LogPrefix.EVENTS} 事件流已断开，准备重连...`);
             } catch (error) {
                 console.error(`${LogPrefix.EVENTS} 事件订阅失败: ${error.message}`);
             }
             await new Promise((r) => setTimeout(r, delay));
             delay = Math.min(delay * 2, RECONNECT_MAX_DELAY);
         }
+    }
+
+    /**
+     * 探测 OpenCode 协议版本（带缓存，服务地址变更时重新探测）
+     * @returns {Promise<'v1'|'v2'>}
+     */
+    async #detectVersion() {
+        const baseUrl = (this.#getBaseUrl?.() || '').replace(/\/+$/, '');
+        if (!baseUrl) return 'v1';
+        if (this.#version && this.#versionBaseUrl === baseUrl) return this.#version;
+        this.#versionBaseUrl = baseUrl;
+        try {
+            const res = await fetch(`${baseUrl}/api/info`, { headers: authHeaders() });
+            if (res.ok) {
+                const info = await res.json().catch(() => null);
+                if (String(info?.version || '').startsWith('2')) {
+                    this.#version = 'v2';
+                    return this.#version;
+                }
+            }
+        } catch {
+            // 探测失败按 v1 处理
+        }
+        this.#version = 'v1';
+        return this.#version;
+    }
+
+    /**
+     * 订阅 v2 原生 SSE 事件流（GET /api/event），并转换为内部统一事件后分发
+     * @param {Function} onOpen 订阅成功回调（用于重置重连退避）
+     */
+    async #subscribeV2(onOpen) {
+        const baseUrl = (this.#getBaseUrl?.() || '').replace(/\/+$/, '');
+        if (!baseUrl) throw new Error('OpenCode 服务地址未配置');
+        const res = await fetch(`${baseUrl}/api/event`, {
+            headers: { Accept: 'text/event-stream', ...authHeaders() },
+        });
+        if (!res.ok || !res.body) throw new Error(`v2 事件流 HTTP ${res.status}`);
+        onOpen?.();
+        console.log(`${LogPrefix.EVENTS} 已订阅 OpenCode v2 事件流`);
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+        for await (const chunk of res.body) {
+            buffer += decoder.decode(chunk, { stream: true });
+            let idx;
+            while ((idx = buffer.indexOf('\n')) >= 0) {
+                const line = buffer.slice(0, idx).replace(/\r$/, '');
+                buffer = buffer.slice(idx + 1);
+                if (!line.startsWith('data:')) continue;
+                const payload = line.slice(5).trim();
+                if (!payload) continue;
+                let raw;
+                try {
+                    raw = JSON.parse(payload);
+                } catch {
+                    continue;
+                }
+                const event = this.#translateV2(raw);
+                if (!event) continue;
+                try {
+                    await this.#dispatch(event);
+                } catch (error) {
+                    console.error(`${LogPrefix.EVENTS} 事件处理异常 [${event?.type}]: ${error.message}`);
+                }
+            }
+        }
+        console.warn(`${LogPrefix.EVENTS} 事件流已断开，准备重连...`);
+    }
+
+    /**
+     * v2 事件结构 {type, data} -> 内部统一的 v1 风格事件 {type, properties}
+     * @param {{type?:string, data?:Object}} raw
+     * @returns {{type:string, properties:Object}|null}
+     */
+    #translateV2(raw) {
+        const data = raw?.data || {};
+        switch (raw?.type) {
+            case 'session.text.delta':
+                return {
+                    type: OcEventType.MESSAGE_PART_UPDATED,
+                    properties: { sessionID: data.sessionID, part: { sessionID: data.sessionID, type: PartType.TEXT, text: data.delta || '' } },
+                };
+            case 'session.reasoning.delta':
+                return {
+                    type: OcEventType.MESSAGE_PART_UPDATED,
+                    properties: { sessionID: data.sessionID, part: { sessionID: data.sessionID, type: PartType.REASONING, text: data.delta || '' } },
+                };
+            case 'session.idle':
+            case 'session.execution.succeeded':
+            case 'session.execution.interrupted':
+                return { type: OcEventType.SESSION_IDLE, properties: { sessionID: data.sessionID } };
+            case 'session.retry.scheduled':
+                return {
+                    type: OcEventType.SESSION_STATUS,
+                    properties: {
+                        sessionID: data.sessionID,
+                        status: { type: 'retry', attempt: data.attempt, message: this.#errorMessage(data.error), next: data.at },
+                    },
+                };
+            case 'session.execution.failed':
+                return { type: OcEventType.SESSION_ERROR, properties: { sessionID: data.sessionID, error: data.error } };
+            case 'permission.asked':
+                return {
+                    type: OcEventType.PERMISSION_ASKED,
+                    properties: { id: data.id, sessionID: data.sessionID, permission: data.action, patterns: data.resources || [] },
+                };
+            case 'form.created': {
+                const form = data.form;
+                if (!form?.id || !form?.sessionID) return null;
+                const questions = (form.fields || [])
+                    .filter((field) => !field.hidden)
+                    .map((field) => ({
+                        question: field.title || field.description || field.key,
+                        header: field.title || '输入',
+                        multiple: field.type === 'multiselect',
+                        options: (field.options || []).map((option) => ({ label: option.label, value: option.value })),
+                    }));
+                return { type: OcEventType.QUESTION_ASKED, properties: { id: form.id, sessionID: form.sessionID, questions } };
+            }
+            case 'form.replied':
+                return { type: OcEventType.QUESTION_REPLIED, properties: { requestID: data.id, sessionID: data.sessionID, answers: data.answer } };
+            case 'form.cancelled':
+                return { type: OcEventType.QUESTION_REJECTED, properties: { requestID: data.id, sessionID: data.sessionID } };
+            default:
+                return null;
+        }
+    }
+
+    /**
+     * 提取 v2 StructuredError 的可读信息
+     */
+    #errorMessage(err) {
+        if (!err) return '未知';
+        if (typeof err === 'string') return err;
+        return err?.data?.message || err?.message || JSON.stringify(err).slice(0, 200);
     }
 
     /**
@@ -242,6 +392,8 @@ export class OpencodeListener {
      * 兼容多种错误结构：properties.error.message / properties.error.data.message / properties.errorMessage
      */
     async #handleSessionError(event, chatId) {
+        // 执行失败时先清理流式占位卡片，避免残留
+        if (chatId) await this.#handleSessionIdle(chatId).catch(() => {});
         const sessionID = event.properties?.sessionID || '未知';
         const err = event.properties?.error;
         const message = err?.data?.message || err?.message

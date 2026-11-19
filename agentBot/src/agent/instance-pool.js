@@ -8,7 +8,7 @@
 
 import { createOpencodeClient } from '@opencode-ai/sdk';
 import { BotConfig } from '../config/bot-config.js';
-import { OpencodeAgent } from './opencode-agent.js';
+import { OpencodeAgent, authHeaders } from './opencode-agent.js';
 import { LogPrefix } from '../constants.js';
 
 /**
@@ -78,7 +78,11 @@ export class InstancePool {
         let agent = this.#agents.get(cacheKey);
         if (agent) return agent;
 
-        const client = createOpencodeClient({ baseUrl, directory: directory || undefined });
+        const client = createOpencodeClient({
+            baseUrl,
+            directory: directory || undefined,
+            headers: authHeaders(meta.password),
+        });
         agent = new OpencodeAgent(client, model, baseUrl, {
             directory,
             password: meta.password,

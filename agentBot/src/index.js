@@ -69,6 +69,7 @@ const apiRouter = {
 // getClient 每次重连时取最新客户端，支持配置页修改服务地址后自动切换
 const listener = new OpencodeListener({
     getClient: () => registry.getClient(),
+    getBaseUrl: () => registry.getBaseUrl(),
     sessionManager,
     chatService,
     apiRouter,

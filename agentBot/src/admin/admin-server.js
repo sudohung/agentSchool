@@ -11,6 +11,7 @@ import { createServer } from 'http';
 import { BotConfig } from '../config/bot-config.js';
 import { LogPrefix } from '../constants.js';
 import { extractTextResponse } from '../handlers/commands.js';
+import { authHeaders } from '../agent/opencode-agent.js';
 
 /** 请求体大小上限（字节） */
 const BODY_LIMIT = 1024 * 1024;
@@ -786,7 +787,7 @@ export class AdminServer {
                 return this.#json(res, 400, { error: '服务地址必须以 http:// 或 https:// 开头' });
             }
             try {
-                const resp = await fetch(`${baseUrl.replace(/\/+$/, '')}/project`, { signal: AbortSignal.timeout(8000) });
+                const resp = await fetch(`${baseUrl.replace(/\/+$/, '')}/project`, { headers: authHeaders(), signal: AbortSignal.timeout(8000) });
                 if (!resp.ok) throw new Error(`OpenCode 返回 ${resp.status}`);
                 const data = await resp.json();
                 const projects = (Array.isArray(data) ? data : [])
@@ -805,7 +806,7 @@ export class AdminServer {
                 return this.#json(res, 400, { error: '服务地址必须以 http:// 或 https:// 开头' });
             }
             try {
-                const resp = await fetch(`${baseUrl.replace(/\/+$/, '')}/path`, { signal: AbortSignal.timeout(8000) });
+                const resp = await fetch(`${baseUrl.replace(/\/+$/, '')}/path`, { headers: authHeaders(), signal: AbortSignal.timeout(8000) });
                 if (!resp.ok) throw new Error(`OpenCode 返回 ${resp.status}`);
                 const data = await resp.json();
                 return this.#json(res, 200, {
@@ -925,7 +926,7 @@ export class AdminServer {
         }
         const url = `${baseUrl.replace(/\/+$/, '')}/config/providers`;
         // 拉取超时 8s，避免配置页被无响应的上游拖死
-        const resp = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        const resp = await fetch(url, { headers: authHeaders(), signal: AbortSignal.timeout(8000) });
         if (!resp.ok) {
             throw new Error(`OpenCode 返回 ${resp.status}（${url}）`);
         }

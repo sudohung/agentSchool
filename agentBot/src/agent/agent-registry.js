@@ -6,7 +6,7 @@
 
 import { createOpencodeClient } from '@opencode-ai/sdk';
 import { BotConfig } from '../config/bot-config.js';
-import { OpencodeAgent } from './opencode-agent.js';
+import { OpencodeAgent, authHeaders } from './opencode-agent.js';
 
 /**
  * Agent 注册表类
@@ -35,7 +35,7 @@ export class AgentRegistry {
         }
 
         // 单一 OpenCode 客户端，所有 Agent 共享
-        this.#client = createOpencodeClient({ baseUrl: cfg.opencodeBaseUrl });
+        this.#client = createOpencodeClient({ baseUrl: cfg.opencodeBaseUrl, headers: authHeaders() });
         this.#baseUrl = cfg.opencodeBaseUrl;
 
         this.#agents = new Map();

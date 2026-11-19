@@ -27,6 +27,17 @@ const V2_PROMPT_TIMEOUT = Number(process.env.AGENTBOT_V2_PROMPT_TIMEOUT_MS || 15
 /** v2 认证用户名固定为 opencode */
 const V2_USERNAME = 'opencode';
 
+/**
+ * v1 SDK 客户端的 Basic 认证头（实例配了密码才带，未配返回空对象保持兼容）
+ * @param {string} [password]
+ * @returns {Record<string,string>}
+ */
+export function authHeaders(password) {
+    const pw = password || process.env.OPENCODE_PASSWORD || '';
+    if (!pw) return {};
+    return { Authorization: `Basic ${Buffer.from(`${V2_USERNAME}:${pw}`).toString('base64')}` };
+}
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
@@ -297,7 +308,7 @@ export class OpencodeAgent {
     // ==================== 交互闭环（question / permission） ====================
 
     /**
-     * 回答工具提问（v1 question.reply 闭环；v2 使用 form/permission 机制，暂不支持）
+     * 回答工具提问（v1 question.reply；v2 form.reply）
      * @param {string} requestId
      * @param {string[][]} answers
      * @param {string} [sessionId]
@@ -305,10 +316,7 @@ export class OpencodeAgent {
      */
     async replyQuestion(requestId, answers, sessionId) {
         const version = await this.#ensureVersion();
-        if (version === 'v2') {
-            console.warn(`${LogPrefix.AGENT_MGR} v2 不支持 question.reply，已忽略: requestId=${requestId}`);
-            return false;
-        }
+        if (version === 'v2') return await this.#replyQuestionV2(requestId, answers, sessionId);
         try {
             console.log(`${LogPrefix.AGENT_MGR} question.reply 请求: requestId=${requestId}, sessionId=${sessionId || '无'}, answers=${JSON.stringify(answers)}`);
             let res = await this.#postQuestionReply(requestId, answers);
@@ -334,12 +342,54 @@ export class OpencodeAgent {
         }
     }
 
+    /**
+     * v2 form 回复：按表单字段构造 answer 后提交
+     * @param {string} requestId - form ID
+     * @param {string[][]} answers - 与表单可见字段顺序对齐的答案
+     * @param {string} [sessionId]
+     * @returns {Promise<boolean>}
+     */
+    async #replyQuestionV2(requestId, answers, sessionId) {
+        if (!sessionId) {
+            console.warn(`${LogPrefix.AGENT_MGR} v2 form.reply 缺少 sessionId，已忽略: form=${requestId}`);
+            return false;
+        }
+        try {
+            const detail = await this.#v2('GET', `/api/session/${encodeURIComponent(sessionId)}/form/${encodeURIComponent(requestId)}`);
+            const fields = (detail?.data?.fields || []).filter((field) => !field.hidden);
+            if (!fields.length) {
+                console.warn(`${LogPrefix.AGENT_MGR} v2 表单不存在或已失效: form=${requestId}`);
+                return false;
+            }
+            const answer = {};
+            (answers || []).forEach((picked, index) => {
+                if (!picked || !picked.length) return;
+                const field = fields[index] || fields[0];
+                if (!field?.key) return;
+                const label = String(picked[0]);
+                const option = (field.options || []).find((item) => item.label === label || item.value === label);
+                const value = option ? option.value : label;
+                answer[field.key] = field.type === 'multiselect' ? [value] : value;
+            });
+            if (Object.keys(answer).length === 0) {
+                console.warn(`${LogPrefix.AGENT_MGR} v2 form.reply 答案为空，已忽略: form=${requestId}`);
+                return false;
+            }
+            console.log(`${LogPrefix.AGENT_MGR} v2 form.reply 请求: form=${requestId}, session=${sessionId}, answer=${JSON.stringify(answer)}`);
+            await this.#v2('POST', `/api/session/${encodeURIComponent(sessionId)}/form/${encodeURIComponent(requestId)}/reply`, { answer });
+            return true;
+        } catch (error) {
+            console.error(`${LogPrefix.AGENT_MGR} v2 form.reply 失败: ${error.message}`);
+            return false;
+        }
+    }
+
     /** 发送 question.reply HTTP 请求（v1） */
     async #postQuestionReply(requestId, answers) {
         const url = `${this.baseUrl}/question/${encodeURIComponent(requestId)}/reply`;
         return await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', ...authHeaders(this.password) },
             body: JSON.stringify({ answers }),
         });
     }
@@ -347,7 +397,7 @@ export class OpencodeAgent {
     /** 按会话 ID 查询当前待答提问的真实 requestId（v1） */
     async #findPendingQuestionId(sessionId) {
         try {
-            const res = await fetch(`${this.baseUrl}/question`);
+            const res = await fetch(`${this.baseUrl}/question`, { headers: authHeaders(this.password) });
             if (!res.ok) return null;
             const list = await res.json();
             const hit = (Array.isArray(list) ? list : []).find((q) => q?.sessionID === sessionId);
@@ -361,7 +411,7 @@ export class OpencodeAgent {
     /** 打印当前待答提问列表（v1，用于 requestId 重定位） */
     async #logPendingQuestions() {
         try {
-            const res = await fetch(`${this.baseUrl}/question`);
+            const res = await fetch(`${this.baseUrl}/question`, { headers: authHeaders(this.password) });
             if (!res.ok) return;
             const list = await res.json();
             const brief = (Array.isArray(list) ? list : []).map((q) => ({
@@ -389,7 +439,7 @@ export class OpencodeAgent {
             const url = `${this.baseUrl}/question/${encodeURIComponent(requestId)}/reject`;
             const res = await fetch(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...authHeaders(this.password) },
             });
             if (!res.ok) {
                 console.error(`${LogPrefix.AGENT_MGR} question.reject HTTP ${res.status}`);
