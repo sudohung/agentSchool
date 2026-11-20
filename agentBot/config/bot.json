@@ -5,7 +5,7 @@
     {
       "key": "main",
       "provider": "qwenplatform",
-      "model": "deepseek-v4.1-flash-1017",
+      "model": "qwen4-max-preview",
       "description": "默认主力：Qianwen Auto"
     },
     {
