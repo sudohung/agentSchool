@@ -1,0 +1,103 @@
+.page {
+    min-height: 100vh;
+    padding: 32rpx;
+}
+
+.section {
+    margin-bottom: 40rpx;
+}
+
+.section-title {
+    margin-bottom: 16rpx;
+    font-size: 26rpx;
+    color: var(--text-faint);
+    letter-spacing: 1rpx;
+}
+
+.card {
+    padding: 8rpx 24rpx;
+    border-radius: 20rpx;
+    background: var(--bg-elevated);
+    border: 1rpx solid var(--border);
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24rpx;
+    padding: 24rpx 0;
+    border-bottom: 1rpx solid var(--border);
+}
+
+.row:last-child {
+    border-bottom: none;
+}
+
+.label {
+    flex-shrink: 0;
+    font-size: 28rpx;
+    color: var(--text-dim);
+}
+
+.value {
+    flex: 1;
+    text-align: right;
+    font-size: 28rpx;
+    color: var(--text);
+    word-break: break-all;
+}
+
+.value.dim {
+    color: var(--text-faint);
+}
+
+.value.ok {
+    color: var(--success);
+}
+
+.value.bad {
+    color: var(--error);
+}
+
+.value.small {
+    font-size: 24rpx;
+}
+
+.mono {
+    font-family: 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 24rpx;
+}
+
+.engine-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6rpx;
+}
+
+.engine-info .value {
+    text-align: left;
+}
+
+.engine-url {
+    color: var(--text-faint);
+    word-break: break-all;
+}
+
+.row-error {
+    padding: 20rpx 0;
+    font-size: 24rpx;
+    color: var(--error);
+}
+
+.action {
+    margin-top: 20rpx;
+}
+
+.help {
+    padding: 14rpx 0;
+    font-size: 25rpx;
+    line-height: 1.7;
+    color: var(--text-dim);
+}

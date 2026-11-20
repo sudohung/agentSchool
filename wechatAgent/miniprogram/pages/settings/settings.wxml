@@ -1,0 +1,71 @@
+<view class="page">
+    <!-- 连接状态 -->
+    <view class="section">
+        <view class="section-title">后端连接</view>
+        <view class="card">
+            <view class="row" bindtap="onCopyBaseUrl">
+                <text class="label">地址</text>
+                <text class="value mono">{{baseUrl}}</text>
+            </view>
+            <view class="row">
+                <text class="label">状态</text>
+                <text class="value {{healthOk ? 'ok' : 'bad'}}">
+                    {{healthLoading ? '检测中…' : (healthOk ? '已连接' : '未连接')}}
+                </text>
+            </view>
+            <view class="row">
+                <text class="label">登录模式</text>
+                <text class="value">{{loginMode === 'dev' ? '开发模式（按设备标识）' : '微信 code2session'}}</text>
+            </view>
+            <view wx:if="{{allowDevLogin}}" class="row">
+                <text class="label">开发登录</text>
+                <text class="value warn">已开启</text>
+            </view>
+            <view wx:if="{{healthError}}" class="row-error">{{healthError}}</view>
+        </view>
+    </view>
+
+    <!-- 当前用户 -->
+    <view class="section">
+        <view class="section-title">当前用户</view>
+        <view class="card">
+            <view class="row">
+                <text class="label">昵称</text>
+                <text class="value">{{user.nickname || '—'}}</text>
+            </view>
+            <view class="row">
+                <text class="label">用户 ID</text>
+                <text class="value mono small">{{user.id || '—'}}</text>
+            </view>
+        </view>
+        <view class="btn btn-ghost action" bindtap="onRelogin">重新登录</view>
+    </view>
+
+    <!-- 引擎 -->
+    <view class="section">
+        <view class="section-title">AI 引擎</view>
+        <view class="card">
+            <view wx:for="{{engines}}" wx:key="key" class="row">
+                <view class="engine-info">
+                    <text class="value">{{item.label}}</text>
+                    <text class="engine-url mono">{{item.url}}</text>
+                </view>
+                <text class="value {{item.ok ? 'ok' : 'bad'}}">{{item.statusText}}</text>
+            </view>
+            <view wx:if="{{engines.length === 0}}" class="row">
+                <text class="value dim">暂无引擎信息</text>
+            </view>
+        </view>
+    </view>
+
+    <!-- 帮助 -->
+    <view class="section">
+        <view class="section-title">开发说明</view>
+        <view class="card">
+            <view class="help">· 开发者工具需勾选「不校验合法域名、web-view（业务域名）、TLS 版本以及 HTTPS 证书」</view>
+            <view class="help">· 真机调试与正式版必须使用已备案的 HTTPS 域名，不能填 IP</view>
+            <view class="help">· 流式回答依赖基础库 ≥ 2.20.2 的 enableChunked</view>
+            <view class="help">· 修改后端地址请编辑 miniprogram/config.js</view>
+        </view>
+    </view>
+</view>

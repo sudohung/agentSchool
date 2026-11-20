@@ -1,0 +1,226 @@
+.page {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: var(--bg);
+}
+
+/* 消息区 */
+.messages {
+    flex: 1;
+    height: 0;
+    padding: 24rpx 24rpx 0;
+}
+
+.row {
+    display: flex;
+    margin-bottom: 28rpx;
+}
+
+.row-user {
+    justify-content: flex-end;
+}
+
+.row-assistant {
+    justify-content: flex-start;
+}
+
+/* 气泡 */
+.bubble {
+    max-width: 82%;
+    padding: 22rpx 26rpx;
+    border-radius: 22rpx;
+    font-size: 30rpx;
+    line-height: 1.65;
+    word-break: break-word;
+}
+
+.bubble-user {
+    background: var(--user-bubble);
+    color: #fff;
+    border-bottom-right-radius: 8rpx;
+}
+
+.bubble-assistant {
+    background: var(--bg-elevated);
+    border: 1rpx solid var(--border);
+    border-bottom-left-radius: 8rpx;
+}
+
+/* 正文 */
+.content {
+    display: block;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* 思考过程 */
+.reasoning {
+    margin-bottom: 16rpx;
+    padding: 16rpx 18rpx;
+    border-left: 4rpx solid var(--accent);
+    border-radius: 6rpx;
+    background: var(--accent-soft);
+    color: var(--text-dim);
+    font-size: 25rpx;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 360rpx;
+    overflow: hidden;
+}
+
+/* 工具状态 */
+.tool {
+    margin-bottom: 14rpx;
+    padding: 10rpx 16rpx;
+    border-radius: 10rpx;
+    background: var(--bg-input);
+    color: var(--text-dim);
+    font-size: 24rpx;
+    display: inline-block;
+}
+
+/* 等待首字动画 */
+.thinking {
+    display: flex;
+    align-items: center;
+    gap: 10rpx;
+    padding: 6rpx 0;
+}
+
+.dot {
+    width: 12rpx;
+    height: 12rpx;
+    border-radius: 50%;
+    background: var(--text-dim);
+    animation: blink 1.4s infinite ease-in-out both;
+}
+
+.dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes blink {
+    0%, 80%, 100% {
+        opacity: 0.25;
+        transform: scale(0.85);
+    }
+    40% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* 错误提示 */
+.bubble-error {
+    margin-top: 12rpx;
+    padding: 12rpx 16rpx;
+    border-radius: 10rpx;
+    background: rgba(255, 107, 107, 0.12);
+    color: var(--error);
+    font-size: 24rpx;
+}
+
+/* 元信息 */
+.meta {
+    display: flex;
+    align-items: center;
+    gap: 14rpx;
+    margin-top: 12rpx;
+    font-size: 22rpx;
+    color: var(--text-faint);
+}
+
+.bubble-user .meta {
+    color: rgba(255, 255, 255, 0.65);
+}
+
+.meta-aborted {
+    color: #ffb648;
+}
+
+.meta-error {
+    color: var(--error);
+}
+
+/* 底部锚点，保证最后一条能完整滚动到视野内 */
+.bottom-anchor {
+    height: 24rpx;
+}
+
+/* 错误条 */
+.error-bar {
+    margin: 0 24rpx 12rpx;
+    padding: 16rpx 20rpx;
+    border-radius: 12rpx;
+    background: rgba(255, 107, 107, 0.12);
+    border: 1rpx solid rgba(255, 107, 107, 0.3);
+    color: var(--error);
+    font-size: 24rpx;
+}
+
+/* 输入区 */
+.composer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: flex-end;
+    gap: 16rpx;
+    padding: 20rpx 24rpx calc(20rpx + env(safe-area-inset-bottom));
+    background: rgba(15, 17, 23, 0.96);
+    border-top: 1rpx solid var(--border);
+    backdrop-filter: blur(20rpx);
+}
+
+.input {
+    flex: 1;
+    min-height: 78rpx;
+    max-height: 300rpx;
+    padding: 18rpx 22rpx;
+    border-radius: 18rpx;
+    background: var(--bg-input);
+    border: 1rpx solid var(--border);
+    color: var(--text);
+    font-size: 30rpx;
+    line-height: 1.5;
+}
+
+.input-placeholder {
+    color: var(--text-faint);
+}
+
+.send-btn {
+    flex-shrink: 0;
+    width: 78rpx;
+    height: 78rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 18rpx;
+    background: var(--bg-input);
+    color: var(--text-faint);
+    font-size: 38rpx;
+    font-weight: 700;
+    border: 1rpx solid var(--border);
+    transition: all 0.15s;
+}
+
+.send-btn.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+}
+
+.stop-btn {
+    background: rgba(255, 107, 107, 0.15);
+    color: var(--error);
+    border-color: rgba(255, 107, 107, 0.35);
+    font-size: 26rpx;
+}

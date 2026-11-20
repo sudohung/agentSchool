@@ -1,0 +1,15 @@
+{
+  "name": "wechat-agent-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "微信小程序 AI 助手后端：微信登录 + OpenCode 引擎接入 + 分块流式转发",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  }
+}

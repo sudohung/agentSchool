@@ -1,0 +1,78 @@
+<view class="page" style="padding-bottom: {{keyboardHeight ? keyboardHeight + 110 : 140}}rpx;">
+    <!-- 消息区 -->
+    <scroll-view
+        class="messages"
+        scroll-y
+        scroll-with-animation
+        scroll-into-view="{{scrollIntoView}}"
+        enhanced
+        show-scrollbar="{{false}}"
+    >
+        <!-- 空状态 -->
+        <view wx:if="{{messages.length === 0}}" class="empty">
+            <view class="empty-title">开始对话</view>
+            <view class="empty-desc">输入问题，AI 会实时流式作答</view>
+        </view>
+
+        <view
+            wx:for="{{messages}}"
+            wx:key="id"
+            id="msg-{{item.id}}"
+            class="row {{item.role === 'user' ? 'row-user' : 'row-assistant'}}"
+        >
+            <view class="bubble {{item.role === 'user' ? 'bubble-user' : 'bubble-assistant'}}">
+                <!-- 思考过程 -->
+                <view wx:if="{{item.reasoning}}" class="reasoning">{{item.reasoning}}</view>
+
+                <!-- 工具状态 -->
+                <view wx:if="{{item.toolText}}" class="tool">{{item.toolText}}</view>
+
+                <!-- 正文 -->
+                <text wx:if="{{item.content}}" class="content" user-select="{{true}}" bindlongpress="onCopy" data-content="{{item.content}}">{{item.content}}</text>
+
+                <!-- 等待首字 -->
+                <view wx:if="{{item.status === 'streaming' && !item.content}}" class="thinking">
+                    <view class="dot"></view>
+                    <view class="dot"></view>
+                    <view class="dot"></view>
+                </view>
+
+                <!-- 错误/中断提示 -->
+                <view wx:if="{{item.errorText}}" class="bubble-error">{{item.errorText}}</view>
+
+                <!-- 角色与时间 -->
+                <view class="meta">
+                    <text class="meta-role">{{item.role === 'user' ? '我' : 'AI'}}</text>
+                    <text class="meta-time">{{item.timeText}}</text>
+                    <text wx:if="{{item.status === 'aborted'}}" class="meta-aborted">已停止</text>
+                    <text wx:if="{{item.status === 'error'}}" class="meta-error">出错</text>
+                </view>
+            </view>
+        </view>
+
+        <view id="anchor-a" class="bottom-anchor"></view>
+        <view id="anchor-b" class="bottom-anchor"></view>
+    </scroll-view>
+
+    <!-- 错误条 -->
+    <view wx:if="{{error}}" class="error-bar">{{error}}</view>
+
+    <!-- 输入区 -->
+    <view class="composer">
+        <textarea
+            class="input"
+            value="{{input}}"
+            placeholder="输入你的问题…"
+            placeholder-class="input-placeholder"
+            auto-height
+            maxlength="4000"
+            adjust-position="{{false}}"
+            bindinput="onInput"
+            bindkeyboardheightchange="onKeyboard"
+            confirm-type="send"
+            disable-default-padding
+        />
+        <view wx:if="{{sending}}" class="send-btn stop-btn" bindtap="onStop">■</view>
+        <view wx:else class="send-btn {{input ? 'active' : ''}}" bindtap="onSend">↑</view>
+    </view>
+</view>

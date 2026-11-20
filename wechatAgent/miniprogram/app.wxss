@@ -1,0 +1,80 @@
+/**
+ * 深色主题全局样式
+ * 颜色变量统一在此，页面样式只引用变量，避免色彩散落
+ */
+page {
+    --bg: #0f1117;
+    --bg-elevated: #171a23;
+    --bg-input: #1e2230;
+    --border: #262b38;
+    --text: #e8ebf2;
+    --text-dim: #9aa3b5;
+    --text-faint: #6b7488;
+    --accent: #4f8cff;
+    --accent-soft: rgba(79, 140, 255, 0.12);
+    --user-bubble: #2b5cff;
+    --error: #ff6b6b;
+    --success: #35c98a;
+
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+    font-size: 30rpx;
+    line-height: 1.6;
+}
+
+view,
+text,
+input,
+textarea,
+scroll-view {
+    box-sizing: border-box;
+}
+
+/* 通用按钮 */
+.btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 88rpx;
+    border-radius: 16rpx;
+    font-size: 30rpx;
+    font-weight: 500;
+}
+
+.btn-primary {
+    background: var(--accent);
+    color: #fff;
+}
+
+.btn-ghost {
+    background: var(--bg-input);
+    color: var(--text);
+    border: 1rpx solid var(--border);
+}
+
+.btn:active {
+    opacity: 0.85;
+}
+
+/* 空状态 */
+.empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 120rpx 60rpx;
+    color: var(--text-faint);
+    text-align: center;
+}
+
+.empty-title {
+    font-size: 32rpx;
+    color: var(--text-dim);
+    margin-bottom: 12rpx;
+}
+
+.empty-desc {
+    font-size: 26rpx;
+    line-height: 1.7;
+}

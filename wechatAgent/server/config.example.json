@@ -1,0 +1,35 @@
+{
+  "port": 8090,
+  "host": "0.0.0.0",
+  "defaultEngine": "default",
+  "engines": {
+    "default": {
+      "label": "本机 OpenCode v1",
+      "baseUrl": "http://172.22.221.176:4097",
+      "version": "auto",
+      "password": "",
+      "directory": ""
+    },
+    "v2": {
+      "label": "本机 OpenCode v2",
+      "baseUrl": "http://172.22.221.176:4102",
+      "version": "v2",
+      "password": "opencode",
+      "directory": "/root/workspace"
+    }
+  },
+  "models": [
+    { "key": "default", "label": "引擎默认模型" },
+    { "key": "coding", "label": "Fuyao Coding (high)", "providerID": "fuyao", "modelID": "fuyao-coding-high" }
+  ],
+  "wechat": {
+    "appId": "",
+    "appSecret": "",
+    "allowDevLogin": false
+  },
+  "chat": {
+    "systemPrompt": "你是微信小程序里的 AI 助手，回答要简洁、条理清晰，优先给出可执行的结论。",
+    "turnTimeoutMs": 300000,
+    "heartbeatMs": 15000
+  }
+}

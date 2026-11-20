@@ -1,0 +1,53 @@
+<view class="page">
+    <!-- 顶部 -->
+    <view class="header">
+        <view class="header-text">
+            <view class="title">AI 助手</view>
+            <view class="subtitle">接入 OpenCode 引擎 · 流式回答</view>
+        </view>
+        <view class="settings-btn" bindtap="onSettings">⚙</view>
+    </view>
+
+    <!-- 新建 -->
+    <view class="new-btn btn btn-primary" bindtap="onCreate">
+        <text class="plus">＋</text>
+        <text>新建对话</text>
+    </view>
+
+    <!-- 错误 -->
+    <view wx:if="{{error}}" class="error-box">{{error}}</view>
+
+    <!-- 加载 -->
+    <view wx:if="{{loading}}" class="empty">
+        <view class="empty-desc">加载中…</view>
+    </view>
+
+    <!-- 空状态 -->
+    <view wx:elif="{{sessions.length === 0}}" class="empty">
+        <view class="empty-title">还没有对话</view>
+        <view class="empty-desc">点击上方「新建对话」，开始和 AI 聊天</view>
+    </view>
+
+    <!-- 列表 -->
+    <view wx:else class="list">
+        <view
+            wx:for="{{sessions}}"
+            wx:key="id"
+            class="card"
+            data-id="{{item.id}}"
+            data-title="{{item.title}}"
+            bindtap="onOpen"
+            bindlongpress="onLongPress"
+        >
+            <view class="card-top">
+                <text class="card-title">{{item.title}}</text>
+                <text class="card-time">{{item.timeText}}</text>
+            </view>
+            <view class="card-bottom">
+                <text class="card-preview {{item.busy ? 'busy' : ''}}">{{item.preview}}</text>
+                <text class="card-engine">{{item.engine}}</text>
+            </view>
+        </view>
+        <view class="tip">长按会话可删除</view>
+    </view>
+</view>

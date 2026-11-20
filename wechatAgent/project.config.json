@@ -1,0 +1,32 @@
+{
+  "description": "AI 助手小程序",
+  "appid": "wx7da1d84bfa65e857",
+  "projectname": "wechatAgent",
+  "compileType": "miniprogram",
+  "miniprogramRoot": "miniprogram/",
+  "libVersion": "3.5.5",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "uglifyFileName": false,
+    "checkInvalidKey": true,
+    "checkSiteMap": true,
+    "uploadWithSourceMap": true,
+    "compileHotReLoad": true
+  },
+  "condition": {
+    "miniprogram": {
+      "list": [
+        {
+          "name": "对话页",
+          "pathName": "pages/chat/chat",
+          "query": "",
+          "scene": null
+        }
+      ]
+    }
+  }
+}
