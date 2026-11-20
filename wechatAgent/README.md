@@ -18,6 +18,7 @@ wechatAgent/
 │       ├── index/             会话列表
 │       ├── chat/              对话页（打字机效果）
 │       └── settings/          连接状态 / 引擎健康 / 开发说明
+├── preview/                   H5 预览页（浏览器里看真实交互与流式，非小程序本体）
 └── server/                    独立后端（Node.js ≥ 20，零第三方依赖）
     ├── config.example.json    ★ 配置模板
     ├── config.json            实际配置（复制自模板）
@@ -205,6 +206,19 @@ node test/miniprogram-check.cjs
 
 `miniprogram-check.cjs` 用于替代本机缺少微信开发者工具的场景，
 能发现「WXML 绑定了 JS 里不存在的方法」「滚动目标 id 写错」这类只在打开工具时才报的问题。
+
+### 浏览器预览（无需开发者工具）
+
+本机没有微信开发者工具时，可用 `preview/` 下的 H5 预览页查看真实交互与流式效果：
+
+```bash
+# 页面：preview/index.html（单文件，零依赖）
+# 站点：已由 nginx 提供，监听 8091，/wechat-api/ 反代到 8090（关缓冲保流式）
+open http://172.22.221.176:8091/
+```
+
+它是浏览器版的小程序界面，接的是**同一套后端**，用于验证交互与流式，**不是小程序本体**。
+上传体验版的完整步骤见 [PREVIEW.md](PREVIEW.md)。
 
 ## 六、正式上线前必须处理
 
