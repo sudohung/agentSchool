@@ -9,6 +9,7 @@ services:
       - "8083:8083"
     env_file:
       - .env
+      - /root/.config/agentConfig/feishu.env
     environment:
       - ADMIN_PORT=8081
       - MCP_PORT=8083

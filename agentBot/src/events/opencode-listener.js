@@ -60,6 +60,8 @@ export class OpencodeListener {
     #version = '';
     /** @type {string} 协议缓存对应的服务地址（地址变更时重新探测） */
     #versionBaseUrl = '';
+    /** @type {AbortController|null} v2 事件流中止控制器（强制重连用） */
+    #abortController = null;
 
     /** 提供给消息处理器的交互路由（question/permission 回复闭环 + 卡片按钮回调） */
     getInteraction() {
@@ -68,6 +70,19 @@ export class OpencodeListener {
             respondPermission: (chatId, action) => this.#interaction.respondPermission(chatId, action),
             handleCardAction: (data) => this.#interaction.handleCardAction(data),
         };
+    }
+
+    /**
+     * 强制重建事件订阅（探活恢复/实例重启后调用）
+     * v2 通过 abort 当前 SSE 请求立即重连；v1 依赖服务重启时连接自然断开
+     */
+    reconnect() {
+        if (this.#abortController) {
+            console.warn(`${LogPrefix.EVENTS} 收到重连指令，重建 OpenCode 事件流`);
+            this.#abortController.abort();
+            return;
+        }
+        console.log(`${LogPrefix.EVENTS} 收到重连指令（当前无活动 v2 事件流，等待主循环重连）`);
     }
 
     /**
@@ -138,40 +153,47 @@ export class OpencodeListener {
     async #subscribeV2(onOpen) {
         const baseUrl = (this.#getBaseUrl?.() || '').replace(/\/+$/, '');
         if (!baseUrl) throw new Error('OpenCode 服务地址未配置');
-        const res = await fetch(`${baseUrl}/api/event`, {
-            headers: { Accept: 'text/event-stream', ...authHeaders() },
-        });
-        if (!res.ok || !res.body) throw new Error(`v2 事件流 HTTP ${res.status}`);
-        onOpen?.();
-        console.log(`${LogPrefix.EVENTS} 已订阅 OpenCode v2 事件流`);
+        const controller = new AbortController();
+        this.#abortController = controller;
+        try {
+            const res = await fetch(`${baseUrl}/api/event`, {
+                headers: { Accept: 'text/event-stream', ...authHeaders() },
+                signal: controller.signal,
+            });
+            if (!res.ok || !res.body) throw new Error(`v2 事件流 HTTP ${res.status}`);
+            onOpen?.();
+            console.log(`${LogPrefix.EVENTS} 已订阅 OpenCode v2 事件流`);
 
-        const decoder = new TextDecoder();
-        let buffer = '';
-        for await (const chunk of res.body) {
-            buffer += decoder.decode(chunk, { stream: true });
-            let idx;
-            while ((idx = buffer.indexOf('\n')) >= 0) {
-                const line = buffer.slice(0, idx).replace(/\r$/, '');
-                buffer = buffer.slice(idx + 1);
-                if (!line.startsWith('data:')) continue;
-                const payload = line.slice(5).trim();
-                if (!payload) continue;
-                let raw;
-                try {
-                    raw = JSON.parse(payload);
-                } catch {
-                    continue;
-                }
-                const event = this.#translateV2(raw);
-                if (!event) continue;
-                try {
-                    await this.#dispatch(event);
-                } catch (error) {
-                    console.error(`${LogPrefix.EVENTS} 事件处理异常 [${event?.type}]: ${error.message}`);
+            const decoder = new TextDecoder();
+            let buffer = '';
+            for await (const chunk of res.body) {
+                buffer += decoder.decode(chunk, { stream: true });
+                let idx;
+                while ((idx = buffer.indexOf('\n')) >= 0) {
+                    const line = buffer.slice(0, idx).replace(/\r$/, '');
+                    buffer = buffer.slice(idx + 1);
+                    if (!line.startsWith('data:')) continue;
+                    const payload = line.slice(5).trim();
+                    if (!payload) continue;
+                    let raw;
+                    try {
+                        raw = JSON.parse(payload);
+                    } catch {
+                        continue;
+                    }
+                    const event = this.#translateV2(raw);
+                    if (!event) continue;
+                    try {
+                        await this.#dispatch(event);
+                    } catch (error) {
+                        console.error(`${LogPrefix.EVENTS} 事件处理异常 [${event?.type}]: ${error.message}`);
+                    }
                 }
             }
+            console.warn(`${LogPrefix.EVENTS} 事件流已断开，准备重连...`);
+        } finally {
+            if (this.#abortController === controller) this.#abortController = null;
         }
-        console.warn(`${LogPrefix.EVENTS} 事件流已断开，准备重连...`);
     }
 
     /**

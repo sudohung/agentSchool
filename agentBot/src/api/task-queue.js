@@ -11,6 +11,7 @@ import { randomUUID } from 'crypto';
 import { ApiTaskStatus, LogPrefix } from '../constants.js';
 import { extractTextResponse } from '../handlers/commands.js';
 import { CALLBACK_RETRY_INTERVAL } from './callback-store.js';
+import { isSessionMissingError } from '../agent/opencode-agent.js';
 
 /** 已终结任务的保留时长（毫秒），超过后清理，避免 Map 无限膨胀 */
 const TERMINAL_TASK_TTL = 60 * 60 * 1000;
@@ -311,9 +312,22 @@ export class TaskQueue {
     async #runTask(task) {
         try {
             const { agent, role } = this.#sessions.getAgent(task.callerSessionId);
-            const result = await this.#sessions.withSessionLock(task.internalSessionId, () =>
-                agent.sendMessage(task.internalSessionId, task.message, role.prompt || undefined),
-            );
+            let result;
+            try {
+                result = await this.#sessions.withSessionLock(task.internalSessionId, () =>
+                    agent.sendMessage(task.internalSessionId, task.message, role.prompt || undefined),
+                );
+            } catch (error) {
+                if (!isSessionMissingError(error)) throw error;
+                // OpenCode 重启后内部会话失效：重建会话并重试一次
+                console.warn(`${LogPrefix.TASK} 内部会话已失效，重建后重试: taskId=${task.taskId}`);
+                const newSessionId = await this.#sessions.recreateSession(task.callerSessionId);
+                if (!newSessionId) throw error;
+                task.internalSessionId = newSessionId;
+                result = await this.#sessions.withSessionLock(newSessionId, () =>
+                    agent.sendMessage(newSessionId, task.message, role.prompt || undefined),
+                );
+            }
             const reply = extractTextResponse(result) || '（无文本回复）';
             this.#finishTask(task, ApiTaskStatus.DONE, reply);
         } catch (error) {

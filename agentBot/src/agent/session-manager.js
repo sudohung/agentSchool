@@ -8,6 +8,7 @@
  */
 
 import { BotConfig } from '../config/bot-config.js';
+import { isSessionMissingError } from './opencode-agent.js';
 import { LogPrefix } from '../constants.js';
 
 /**
@@ -152,7 +153,7 @@ export class SessionManager {
      * @returns {Promise<Object>} AI 响应
      */
     async sendMessage(chatId, message) {
-        const sessionId = await this.getSession(chatId);
+        let sessionId = await this.getSession(chatId);
         const { key, agent } = this.resolveAgent(chatId);
 
         // 正确实现的串行锁：以 sessionId 为粒度排队，任务完成后释放
@@ -163,6 +164,12 @@ export class SessionManager {
         try {
             this.#log(`chat=${chatId} agent=${key} 发送消息到会话 ${sessionId}`);
             return await task;
+        } catch (error) {
+            // OpenCode 重启/重建后旧会话失效：自动重建会话并重试一次
+            if (!isSessionMissingError(error)) throw error;
+            this.#log(`会话 ${sessionId} 已失效（OpenCode 可能已重启），重建后重试`);
+            const fresh = await this.resetSession(chatId);
+            return await agent.sendMessage(fresh, message);
         } finally {
             if (this.#sessionLocks.get(sessionId) === guarded) {
                 this.#sessionLocks.delete(sessionId);

@@ -91,7 +91,7 @@ agentBot/
     └── webhook/webhook-sender.js   # Webhook 通知
 ```
 
-## 配置管理页（8081）
+## 配置管理页（宿主机 8082）
 
 启动后访问 `http://<host>:8081`：
 
@@ -125,25 +125,87 @@ opencode / codex 等支持 MCP 的智能体可将其挂载为工具服务器：
   用原凭证 chat 回答即可闭环；多 agent 互调链路深度超限（管理页可配，默认 3 层）直接拒绝。
   详见 `docs/CALLBACK_MODE_DESIGN.md`
 
-## Docker 部署
+## 安装部署
+
+### 前置条件
+
+- Docker + Docker Compose v2
+- 一个可用的 OpenCode 服务（v1 / v2 均可；v2 实例必须配置密码）
+- 飞书自建应用（启用长连接事件订阅与消息权限）
+
+### 配置来源
+
+| 配置项 | 位置 | 说明 |
+|---|---|---|
+| 飞书应用凭证 | `~/.config/agentConfig/feishu.env` | `FEISHU_APP_ID` / `FEISHU_APP_SECRET`（权限 600）。由 compose `env_file` 注入，**不再写在 `.env` 中** |
+| 机器人运行参数 | `agentBot/.env` | `OPENCODE_BASE_URL`、`OPENCODE_PASSWORD`、`OPENCODE_PROVIDER`、`OPENCODE_DEFAULT_AGENT`、日志/去重/超时等 |
+| 模型列表 / 默认 Agent | `agentBot/config/bot.json` | 管理页保存后写入，优先级高于 `.env` 的初始值 |
+| 实例注册表 / 职能 | `agentBot/config/roles.json` | 管理页保存后热生效（多实例地址、实例级密码与协议版本、职能提示词） |
+| 回调任务持久化 | `agentBot/config/callback-tasks.db` | 回调模式任务记录，运行时自动生成 |
+| OpenCode 服务端凭据 | `~/.config/opencode/opencode.json` | provider / API Key，属于 OpenCode 自身配置，不在 agentBot 内 |
+| 管理页鉴权（可选） | 环境变量 `ADMIN_TOKEN` | 设置后管理页 API 需携带 `x-admin-token` 请求头 |
+| 探活参数（可选） | `agentBot/.env` | `AGENTBOT_HEALTH_INTERVAL_MS`（默认 30000）、`AGENTBOT_HEALTH_FAILURES`（默认 2） |
+
+> `.env.example` 仍保留全部变量作参考；飞书两项按上表放到 `~/.config/agentConfig/feishu.env`。
+
+### 1. 准备飞书凭证
+
+```bash
+mkdir -p ~/.config/agentConfig
+chmod 700 ~/.config/agentConfig
+
+cat > ~/.config/agentConfig/feishu.env <<'ENVEOF'
+FEISHU_APP_ID=cli_xxxxxxxxxxxxxxxx
+FEISHU_APP_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ENVEOF
+
+chmod 600 ~/.config/agentConfig/feishu.env
+```
+
+### 2. 配置运行参数
 
 ```bash
 cd agentBot
-cp .env.example .env    # 填写 FEISHU_APP_ID / FEISHU_APP_SECRET
+cp .env.example .env
+# 编辑 .env：OPENCODE_BASE_URL、OPENCODE_PASSWORD（v2 必填）等
+```
 
-# 一键部署（构建 + 启动，自动重启）
-bash deploy.sh
+### 3. 启动
 
-# 或手动
+```bash
+# 首次部署需创建容器网络（agentBot 与 OpenCode 容器共用）
+docker network inspect agent-net >/dev/null 2>&1 || docker network create agent-net
+
 docker compose up -d --build
 docker logs -f agent-bot
 ```
 
-`docker-compose.yml` 已配置：
-- `restart: always`：进程崩溃/宿主机重启后自动拉起
-- `./config:/app/config` 卷挂载：配置页修改持久化到宿主机
-- 日志轮转（10MB × 3）
-- 健康检查（HEALTHCHECK）
+`docker-compose.yml` 说明：
+
+- `restart: always`：进程崩溃 / 宿主机重启后自动拉起
+- `env_file`：加载 `.env` 与 `/root/.config/agentConfig/feishu.env`（凭证集中管理）
+- 端口：`8082 -> 容器 8081`（配置管理页）、`8083 -> 容器 8083`（MCP）
+- `./config:/app/config`：管理页修改持久化到宿主机
+- 加入外部网络 `agent-net`，可用容器名直连 OpenCode 实例
+- 日志轮转（10MB × 3）与健康检查（HEALTHCHECK）
+
+### 4. 验证
+
+```bash
+docker compose ps                      # healthy
+curl -s http://127.0.0.1:8082/api/config >/dev/null && echo admin-ok
+```
+
+随后访问 `http://<host>:8082` 配置模型与实例。
+
+### 本地开发
+
+```bash
+npm install
+set -a; source ~/.config/agentConfig/feishu.env; set +a   # 飞书凭证
+cp .env.example .env                                      # 运行参数
+npm start
+```
 
 ## 快速开始
 

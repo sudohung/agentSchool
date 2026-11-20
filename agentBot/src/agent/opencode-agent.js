@@ -38,6 +38,16 @@ export function authHeaders(password) {
     return { Authorization: `Basic ${Buffer.from(`${V2_USERNAME}:${pw}`).toString('base64')}` };
 }
 
+/**
+ * 判断是否为"会话不存在"错误（OpenCode 重启/容器重建后旧会话失效）
+ * @param {Error|string} error
+ * @returns {boolean}
+ */
+export function isSessionMissingError(error) {
+    const message = String(error?.message || error || '');
+    return /session not found|session .*not found|会话不存在/i.test(message);
+}
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**

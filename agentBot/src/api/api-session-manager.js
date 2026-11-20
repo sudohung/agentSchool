@@ -120,6 +120,26 @@ export class ApiSessionManager {
     }
 
     /**
+     * 重建绑定的内部会话（OpenCode 重启后旧会话失效时调用）
+     * @param {string} callerSessionId
+     * @returns {Promise<string|null>} 新内部会话 ID（凭证无效时为 null）
+     */
+    async recreateSession(callerSessionId) {
+        const binding = this.#bindings.get(callerSessionId);
+        if (!binding) return null;
+        const role = this.#roleRegistry.getRole(binding.roleKey);
+        if (!role) return null;
+        const agent = this.#instancePool.getAgentForRole(role);
+        const sessionId = await agent.createSession(`api-${role.key}-${Date.now()}`);
+        binding.sessionId = sessionId;
+        binding.pendingQuestion = null;
+        binding.lastActiveAt = Date.now();
+        this.#persist();
+        console.log(`${LogPrefix.API_SESSION} 重建内部会话: credential=${callerSessionId}, 新会话=${sessionId}`);
+        return sessionId;
+    }
+
+    /**
      * 按绑定获取职能 Agent 实例（事件路由用，凭证不可见场景）
      */
     getAgentByBinding(binding) {

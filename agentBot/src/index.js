@@ -21,6 +21,7 @@ import { RoleRegistry } from './agent/role-registry.js';
 import { InstancePool } from './agent/instance-pool.js';
 import { MessageHandler } from './handlers/message-handler.js';
 import { OpencodeListener } from './events/opencode-listener.js';
+import { HealthMonitor } from './agent/health-monitor.js';
 import { AdminServer } from './admin/admin-server.js';
 import { ApiSessionManager } from './api/api-session-manager.js';
 import { TaskQueue } from './api/task-queue.js';
@@ -78,6 +79,23 @@ listener.start().catch((error) => {
     console.error('[agentBot] OpenCode 事件监听异常退出:', error);
     // 事件流断开不影响消息通道，仅告警
 });
+
+// 实例探活：OpenCode 重启/容器重建后自动重连事件流，失效会话在下次请求时自愈重建
+const healthMonitor = new HealthMonitor({
+    getBaseUrl: () => registry.getBaseUrl(),
+    onChange: (event) => {
+        if (event.type === 'down') {
+            console.warn(`[agentBot] OpenCode 实例探活失败（连续 ${event.failures} 次），等待恢复...`);
+            return;
+        }
+        if (event.type === 'recovered' || event.type === 'restarted') {
+            const reason = event.type === 'restarted' ? '实例已重启' : '实例已恢复';
+            console.log(`[agentBot] OpenCode ${reason}（${event.protocol || '未知协议'} ${event.version || ''}），重连事件流`);
+            listener.reconnect();
+        }
+    },
+});
+healthMonitor.start();
 
 // ==================== 步骤5：消息处理 + 飞书网关（前台） ====================
 const interaction = listener.getInteraction();
