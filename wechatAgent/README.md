@@ -53,6 +53,8 @@ node src/index.js
 [Bus] 事件流已连接(default) http://172.22.221.176:4097/event
 ```
 
+> 远端引擎不可达时，可用本机自己的 OpenCode 实例当引擎，见 [LOCAL_ENGINE.md](LOCAL_ENGINE.md)。
+
 ### 2. 打开小程序
 
 微信开发者工具 → 导入项目 → 选择 `wechatAgent` 目录（不是 `miniprogram` 子目录）。
@@ -83,7 +85,7 @@ const ENV = {
 | `engines.*.version` | `auto`（探测 `/api/info`）/ `v1` / `v2` |
 | `engines.*.password` | v2 实例的 `OPENCODE_SERVER_PASSWORD`，v1 留空 |
 | `engines.*.directory` | v2 实例的会话工作目录，v1 一般留空 |
-| `models` | 模型选择器，`providerID` + `modelID`；`default` 表示用引擎默认模型 |
+| `models` | 模型选择器，`providerID` + `modelID`；`default` 条目配了具体模型则优先使用，未配置时回退引擎默认模型 |
 | `wechat.appId` | 小程序 AppID |
 | `wechat.appSecret` | 小程序 AppSecret（**不要提交到仓库**） |
 | `chat.systemPrompt` | 系统提示词 |

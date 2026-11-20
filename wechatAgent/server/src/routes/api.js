@@ -207,8 +207,8 @@ function requireSession(store, sessionId, userId) {
  * @returns {{providerID:string, modelID:string}|null}
  */
 function resolveModel(config, key) {
-    if (!key || key === 'default') return null;
-    const model = config.models.find((item) => item.key === key);
+    // default 条目若配置了具体模型则优先使用；未配置时回退引擎默认模型
+    const model = config.models.find((item) => item.key === (key || 'default'));
     if (!model?.providerID || !model?.modelID) return null;
     return { providerID: model.providerID, modelID: model.modelID };
 }
