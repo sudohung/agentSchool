@@ -88,11 +88,19 @@ export class AuthService {
         let resolvedMode = mode;
 
         if (mode === AuthMode.WECHAT && input.code) {
-            ({ openid } = await code2Session({
-                appId: this.#config.wechat.appId,
-                appSecret: this.#config.wechat.appSecret,
-                code: input.code,
-            }));
+            // 开发者工具游客模式下的 code 是伪造的，code2session 会返回 invalid code；
+            // 开着 allowDevLogin 时降级为开发登录，避免“配置了真实 AppID 反而进不去模拟器”
+            try {
+                ({ openid } = await code2Session({
+                    appId: this.#config.wechat.appId,
+                    appSecret: this.#config.wechat.appSecret,
+                    code: input.code,
+                }));
+            } catch (error) {
+                if (!this.allowDevLogin) throw error;
+                openid = deriveDevOpenid(input.deviceId || input.code);
+                resolvedMode = AuthMode.DEV;
+            }
         } else if (this.allowDevLogin && (input.deviceId || input.code)) {
             // 开发登录：没有 code（开发者工具未登录/未配置）时用设备标识派生稳定用户
             openid = deriveDevOpenid(input.deviceId || input.code);

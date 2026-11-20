@@ -12,3 +12,6 @@ miniprogram_npm/
 # 系统文件
 .DS_Store
 *.log
+
+# 文档截图需要入库（父仓库 .gitignore 忽略了所有 *.png）
+!docs/screenshots/*.png
