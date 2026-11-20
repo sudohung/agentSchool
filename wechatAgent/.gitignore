@@ -1,9 +1,11 @@
 # 依赖与构建产物
 node_modules/
+deploy/out/
 
 # 运行时数据与本地配置（含 AppSecret、token 密钥、聊天记录）
 server/data/
 server/config.json
+.keys/
 
 # 微信开发者工具本地文件
 project.private.config.json

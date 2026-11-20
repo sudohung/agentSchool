@@ -1,0 +1,12 @@
+{
+  "name": "wechat-agent-deploy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "小程序上传/预览等 CI 工具（与运行时后端隔离，保持 server 零依赖）",
+  "scripts": {
+    "upload": "node upload.cjs"
+  },
+  "dependencies": {
+    "miniprogram-ci": "^2.1.31"
+  }
+}

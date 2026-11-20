@@ -6,7 +6,8 @@
 |---|---|---|
 | H5 预览页（浏览器） | 交互与流式一致，非小程序本体 | 无，已就绪 |
 | **微信开发者工具模拟器** | **真实小程序运行时**，WXML/WXSS/JS 真跑 | 无，已在本机装好 |
-| 体验版（微信扫码） | 真机 | 上传私钥 + 公网 HTTPS 域名 |
+| 扫码预览（`preview.cjs`） | 真机 | 已打通，二维码在 `deploy/out/qrcode.png` |
+| 体验版（后台选版本） | 真机、可分享给他人 | 已打通，需在后台点一次「选为体验版」 |
 
 ---
 
@@ -111,41 +112,56 @@ chunked_transfer_encoding on;
 
 ---
 
-## 路径二：真·小程序体验版（需要你提供一样东西）
+## 路径二：真·小程序（扫码在微信里打开）
 
-体验版的唯一硬门槛是**小程序后台的代码上传私钥**。
+已打通：上传私钥就位、IP 白名单生效、公网 HTTPS 隧道可达、流式未被打断。
 
-### 你需要做的（约 3 分钟）
+### 上传工具链
 
-1. 打开 [微信公众平台](https://mp.weixin.qq.com) → 用 AppID `wx7da1d84bfa65e857` 对应的账号登录
-2. 左侧菜单：**开发** → **开发管理** → **开发设置**
-3. 找到「小程序代码上传」→ 点 **生成** → 下载私钥文件（文件名形如 `private.wx7da1d84bfa65e857.key`）
-4. 把文件放到服务器：`/root/workspace/agentHarness/agentSchool/wechatAgent/server/../.keys/private.wx7da1d84bfa65e857.key`
-   （目录我来建，你只要把文件放进去，或把内容贴给我）
-5. 同一页面下方「IP 白名单」：把本机出口 IP `98.98.112.194` 加进去（不上白名单会报 `invalid ip`）
-
-### 我拿到私钥后会执行
+工具链放在 `deploy/` 独立目录，**不进 `server/`**，后端保持零依赖。
 
 ```bash
-npx miniprogram-ci upload \
-  --pp ./wechatAgent \
-  --pkp ./.keys/private.wx7da1d84bfa65e857.key \
-  --appid wx7da1d84bfa65e857 \
-  --uv 0.1.0 \
-  --ud "初版：会话列表 / 流式对话 / 设置"
+cd wechatAgent/deploy
+npm install          # 首次：装 miniprogram-ci
+node preview.cjs     # 生成预览二维码 → deploy/out/qrcode.png
+node upload.cjs 0.1.0 "版本描述"   # 上传开发版本 → 后台「选为体验版」
 ```
 
-上传成功后你在后台 **版本管理** 里会看到「开发版本」，点「选为体验版」生成体验二维码，扫码即可在微信里试用。
+| 文件 | 作用 |
+|---|---|
+| `deploy/upload.cjs` | 上传「开发版本」，之后在后台版本管理里选为体验版 |
+| `deploy/preview.cjs` | 直接生成扫码即开的预览二维码（面向开发者/体验成员） |
+| `.keys/private.<appid>.key` | 后台上传私钥，**已被 gitignore** |
+| `deploy/node_modules/`、`deploy/out/` | 依赖与产物，均不入库 |
 
-### 上传前必须改的两处
+两个脚本都设了 `setting.urlCheck: false`，否则临时隧道域名会被域名校验拦下。
 
-| 项 | 现状 | 必须改成 |
+### 公网 HTTPS 通道（cloudflared 临时隧道）
+
+真机要求 HTTPS 且公网可达，本机 8090/8888 公网不可达，故用免注册隧道：
+
+```bash
+cd /tmp/opencode
+./cloudflared tunnel --url http://127.0.0.1:8090 --no-autoupdate > /tmp/opencode/cf.log 2>&1 &
+grep -oE "https://[a-z0-9-]+\.trycloudflare\.com" /tmp/opencode/cf.log | head -1
+```
+
+拿到域名后写进 `miniprogram/config.js` 的 `BASE_URL`，再 `preview` / `upload`。
+
+已验证隧道上：
+- `/api/health` 返回 200，两个引擎在线
+- 登录可用
+- **流式逐帧到达、无缓冲**（`reasoning` 帧连续小段推送，说明打字机不会被退化成一次性输出）
+
+> ⚠️ 临时隧道的域名在进程重启后会变。届时更新 `BASE_URL` 并重新 `preview` / `upload` 即可。
+> 正式上线应换成自有已备案域名，不再依赖隧道。
+
+### 上线前必须收紧的两处
+
+| 项 | 现状 | 正式环境应改为 |
 |---|---|---|
-| `miniprogram/config.js` 的 `BASE_URL` | `http://127.0.0.1:8090` | 真机访问不到的地址，体验版也是白屏。需要公网可达的 HTTPS 域名 |
-| `server/config.json` 的 `allowDevLogin` | `true` | `false`，否则任何人都能伪造 deviceId 登录 |
-
-> 体验版虽然不校验域名白名单，但**必须是 HTTPS 且公网可达**，用 IP + 明文 HTTP 在真机上会被拦。
-> 所以要走体验版，前提是先有一个能公网访问的 HTTPS 域名指向 8090。
+| `server/config.json` 的 `allowDevLogin` | `true`（游客模式降级用） | `false`，否则任何人可伪造 deviceId 登录 |
+| `server/config.json` 的 AppSecret | 明文写在本地配置文件 | 走环境变量 `WECHAT_APP_SECRET`（该文件已 gitignore） |
 
 ---
 
@@ -153,4 +169,4 @@ npx miniprogram-ci upload \
 
 - 想**现在就看到效果**：打开 `http://172.22.221.176:8091/`，手机连同一 WiFi 也行
 - 想**看真实小程序**：本机已装微信开发者工具，按上面的命令启动即可（游客模式够用）
-- 想**在微信里扫码试用**：给我上传私钥 + 一个公网 HTTPS 域名，我这边一条命令就能推体验版
+- 想**在微信里扫码试用**：`cd deploy && node preview.cjs`，扫 `deploy/out/qrcode.png` 即可
