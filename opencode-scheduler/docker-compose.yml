@@ -1,18 +1,46 @@
 services:
   scheduler:
     build: .
-    image: opencode-scheduler
+    image: opencode-scheduler:1.0.0
     container_name: oc-scheduler
     restart: unless-stopped
     ports:
       - "8080:8080"
     environment:
-      OPENCODE_BASE_URL: http://host.docker.internal:4097
-      AI_DEFAULT_MODEL: fuyao/fuyao-coding-high
+      # 同 agent-net 内的 opencode 容器（opencode serve）
+      OPENCODE_BASE_URL: http://opencode-app:4096
+      # opencode v2 实例 API 鉴权密码（OPENCODE_SERVER_PASSWORD），通过本地 .env 注入
+      OPENCODE_PASSWORD: ${OPENCODE_PASSWORD:-}
+      # 本环境模型 provider 为 qwenplatform
+      AI_DEFAULT_MODEL: qwenplatform/auto
       TZ: Asia/Shanghai
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      # 限制 V8 堆，配合 memory limit 防止 OOM 抖动
+      NODE_OPTIONS: "--max-old-space-size=128"
+      MAX_CONCURRENCY: "2"
+      AI_TIMEOUT_MS: "600000"
+      BASH_TIMEOUT_MS: "300000"
+      DEFAULT_WORKDIR: /workspace
     volumes:
       - oc-scheduler-data:/data
+      # bash 任务工作目录（与 opencode 容器共享同一宿主机目录）
+      - /root/workspace/agentSchool:/workspace
+    networks:
+      - agent-net
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+    mem_swappiness: 0
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "2"
+
+networks:
+  agent-net:
+    external: true
+
 volumes:
   oc-scheduler-data:
